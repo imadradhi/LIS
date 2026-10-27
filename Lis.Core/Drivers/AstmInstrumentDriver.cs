@@ -115,24 +115,31 @@ namespace Lis.Core.Drivers
             }
         }
 
+        public async Task ProcessInboundMessageAsync(string rawMessage, bool logMessage = false)
+        {
+            if (logMessage)
+            {
+                await LogMiddlewareMessageAsync(rawMessage, "IN", "OK");
+            }
+
+            var parsed = AstmMessageParser.ParseMessage(rawMessage);
+            if (parsed.IsQuery && string.Equals(_instrument.OperatingMode, "Bidirectional", StringComparison.OrdinalIgnoreCase))
+            {
+                await HandleHostQueryAsync(parsed.Query!);
+            }
+            else if (parsed.HasResults)
+            {
+                await HandleResultsAsync(parsed);
+            }
+        }
+
         private async Task HandleCompleteMessageAsync(string rawMessage)
         {
             // 1. Log inbound raw message
             await LogMiddlewareMessageAsync(rawMessage, "IN", "OK");
 
-            // 2. Parse ASTM message
-            var parsed = AstmMessageParser.ParseMessage(rawMessage);
-
-            // 3. Check if Host Query
-            if (parsed.IsQuery && string.Equals(_instrument.OperatingMode, "Bidirectional", StringComparison.OrdinalIgnoreCase))
-            {
-                await HandleHostQueryAsync(parsed.Query!);
-            }
-            // 4. Check if Results
-            else if (parsed.HasResults)
-            {
-                await HandleResultsAsync(parsed);
-            }
+            // 2. Parse and handle ASTM message
+            await ProcessInboundMessageAsync(rawMessage, logMessage: false);
         }
 
         private async Task HandleHostQueryAsync(AstmQueryRecord query)
@@ -142,7 +149,7 @@ namespace Lis.Core.Drivers
 
             using var conn = _connectionFactory.CreateConnection();
 
-            // Find active non-archived specimen matching accession
+            // Find active non-archived specimen matching accession (supports flexible accession / padding)
             const string lookupSpecimenSql = @"
                 SELECT s.id AS specimen_id, s.order_id, s.status AS specimen_status,
                        st.name_en AS specimen_type_name,
@@ -151,7 +158,12 @@ namespace Lis.Core.Drivers
                 JOIN orders o ON o.id = s.order_id
                 JOIN patients p ON p.id = o.patient_id
                 JOIN specimen_types st ON st.id = s.specimen_type_id
-                WHERE s.accession_no = @AccessionNo AND s.archived = FALSE
+                WHERE (
+                    s.accession_no = @AccessionNo
+                    OR s.accession_no = LPAD(@AccessionNo, 6, '0')
+                    OR LPAD(s.accession_no, 6, '0') = LPAD(@AccessionNo, 6, '0')
+                    OR TRIM(LEADING '0' FROM s.accession_no) = TRIM(LEADING '0' FROM @AccessionNo)
+                ) AND s.archived = FALSE
                 ORDER BY s.id DESC
                 LIMIT 1;
             ";
@@ -206,7 +218,7 @@ namespace Lis.Core.Drivers
 
         private async Task HandleResultsAsync(ParsedAstmMessage msg)
         {
-            string accessionNo = msg.Order?.SpecimenId?.Trim() ?? string.Empty;
+            string accessionNo = msg.Order?.ExtractAccessionNo() ?? string.Empty;
             if (string.IsNullOrWhiteSpace(accessionNo)) return;
 
             using var conn = (Npgsql.NpgsqlConnection)_connectionFactory.CreateConnection();
@@ -223,7 +235,12 @@ namespace Lis.Core.Drivers
                     FROM specimens s
                     JOIN orders o ON o.id = s.order_id
                     JOIN patients p ON p.id = o.patient_id
-                    WHERE s.accession_no = @AccessionNo AND s.archived = FALSE
+                    WHERE (
+                        s.accession_no = @AccessionNo
+                        OR s.accession_no = LPAD(@AccessionNo, 6, '0')
+                        OR LPAD(s.accession_no, 6, '0') = LPAD(@AccessionNo, 6, '0')
+                        OR TRIM(LEADING '0' FROM s.accession_no) = TRIM(LEADING '0' FROM @AccessionNo)
+                    ) AND s.archived = FALSE
                     ORDER BY s.id DESC LIMIT 1;
                 ", new { AccessionNo = accessionNo }, trans);
 

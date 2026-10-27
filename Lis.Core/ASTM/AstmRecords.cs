@@ -53,6 +53,48 @@ namespace Lis.Core.ASTM
         public string ActionCode { get; set; } = "Q"; // Q = In response to Query, N = New, C = Cancel
         public string ReportType { get; set; } = "O";
 
+        /// <summary>
+        /// Extracts the specimen accession number from either SpecimenId or InstrumentSpecimenId,
+        /// handling ASTM subfield delimiters (^) and space-padded identifiers (e.g. Sysmex ^^                000001^M).
+        /// </summary>
+        public string ExtractAccessionNo()
+        {
+            string candidate1 = ExtractFromField(SpecimenId);
+            if (!string.IsNullOrWhiteSpace(candidate1)) return candidate1;
+
+            string candidate2 = ExtractFromField(InstrumentSpecimenId);
+            return candidate2;
+        }
+
+        private static string ExtractFromField(string? field)
+        {
+            if (string.IsNullOrWhiteSpace(field)) return string.Empty;
+
+            var parts = field.Split('^');
+            string best = string.Empty;
+
+            foreach (var p in parts)
+            {
+                var trimmed = p.Trim();
+                if (string.IsNullOrEmpty(trimmed)) continue;
+
+                // If it's a single letter mode flag like 'M' or 'A', keep looking unless nothing else found
+                if (trimmed.Length == 1 && char.IsLetter(trimmed[0]))
+                {
+                    if (string.IsNullOrEmpty(best)) best = trimmed;
+                    continue;
+                }
+
+                // If candidate has digits or is longer, prioritize it
+                if (string.IsNullOrEmpty(best) || trimmed.Length > best.Length)
+                {
+                    best = trimmed;
+                }
+            }
+
+            return best;
+        }
+
         public string ToAstmString()
         {
             // Test codes format: ^^^CODE1\^^^CODE2
