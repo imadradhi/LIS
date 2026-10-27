@@ -76,7 +76,14 @@
                         Content="تسجيل الدخول (Sign In) ➜" 
                         Style="{DynamicResource PrimaryButtonStyle}" 
                         Height="46" FontSize="16" FontWeight="Bold"
-                        Click="BtnLogin_Click" Margin="0,4,0,16"/>
+                        Click="BtnLogin_Click" Margin="0,4,0,10"/>
+
+                <!-- Server Settings Button -->
+                <Button x:Name="BtnServerSettings" 
+                        Content="⚙️ إعدادات الاتصال بالسيرفر (Server Settings)" 
+                        Style="{DynamicResource OutlineButtonStyle}" 
+                        Height="36" FontSize="12.5" FontWeight="SemiBold"
+                        Click="BtnServerSettings_Click" Margin="0,0,0,14"/>
 
                 <!-- Default Credentials Hint -->
                 <Border Background="{DynamicResource AppBackgroundBrush}" BorderBrush="{DynamicResource BorderBrush}" BorderThickness="1" CornerRadius="8" Padding="10,8">

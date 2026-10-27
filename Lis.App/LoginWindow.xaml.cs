@@ -12,14 +12,19 @@ namespace Lis.App
 {
     public partial class LoginWindow : Window
     {
-        private readonly IDbConnectionFactory _connectionFactory;
-        private readonly IAuthService _authService;
-        private readonly ILabSettingsService _labSettingsService;
+        private IDbConnectionFactory _connectionFactory = null!;
+        private IAuthService _authService = null!;
+        private ILabSettingsService _labSettingsService = null!;
 
         public LoginWindow()
         {
             InitializeComponent();
+            InitServices();
+            Loaded += async (s, e) => await InitializeLoginAsync();
+        }
 
+        private void InitServices()
+        {
             var config = new ConfigurationBuilder()
                 .SetBasePath(AppDomain.CurrentDomain.BaseDirectory)
                 .AddJsonFile("appsettings.json", optional: true)
@@ -31,8 +36,17 @@ namespace Lis.App
             _connectionFactory = new DbConnectionFactory(connStr);
             _authService = new AuthService(_connectionFactory);
             _labSettingsService = new LabSettingsService(_connectionFactory, _authService);
+        }
 
-            Loaded += async (s, e) => await InitializeLoginAsync();
+        private async void BtnServerSettings_Click(object sender, RoutedEventArgs e)
+        {
+            var dlg = new ServerSettingsDialog { Owner = this };
+            if (dlg.ShowDialog() == true && dlg.IsSettingsChanged)
+            {
+                BdrError.Visibility = Visibility.Collapsed;
+                InitServices();
+                await InitializeLoginAsync();
+            }
         }
 
         private async Task InitializeLoginAsync()

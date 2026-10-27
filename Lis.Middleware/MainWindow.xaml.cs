@@ -283,6 +283,12 @@ namespace Lis.Middleware
             }
         }
 
+        private void BtnServerSettings_Click(object sender, RoutedEventArgs e)
+        {
+            var dlg = new ServerSettingsDialog { Owner = this };
+            dlg.ShowDialog();
+        }
+
         private void BtnRefreshLogs_Click(object sender, RoutedEventArgs e)
         {
             _ = LoadLogsAsync();

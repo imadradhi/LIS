@@ -31,7 +31,8 @@
 
                     <!-- Control Buttons -->
                     <Button x:Name="BtnToggleEngine" Content="⏹️ إيقاف الخدمة" Style="{DynamicResource SecondaryButtonStyle}" Margin="0,0,6,0" Padding="12,7" FontSize="12" FontWeight="SemiBold" Click="BtnToggleEngine_Click"/>
-                    <Button x:Name="BtnRestartEngine" Content="🔄 إعادة تشغيل" Style="{DynamicResource SecondaryButtonStyle}" Padding="12,7" FontSize="12" FontWeight="SemiBold" Click="BtnRestartEngine_Click"/>
+                    <Button x:Name="BtnRestartEngine" Content="🔄 إعادة تشغيل" Style="{DynamicResource SecondaryButtonStyle}" Margin="0,0,6,0" Padding="12,7" FontSize="12" FontWeight="SemiBold" Click="BtnRestartEngine_Click"/>
+                    <Button x:Name="BtnServerSettings" Content="⚙️ إعدادات السيرفر" Style="{DynamicResource SecondaryButtonStyle}" Padding="12,7" FontSize="12" FontWeight="SemiBold" Click="BtnServerSettings_Click"/>
                 </StackPanel>
 
                 <!-- Left Side: System Title & Subtitle -->

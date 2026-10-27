@@ -1,0 +1,121 @@
+<Window x:Class="Lis.App.ServerSettingsDialog"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        Title="إعدادات الاتصال بالسيرفر وقاعدة البيانات — Database Server Settings"
+        Width="540" SizeToContent="Height"
+        WindowStartupLocation="CenterOwner"
+        ResizeMode="NoResize"
+        FlowDirection="RightToLeft"
+        Background="{DynamicResource AppBackgroundBrush}">
+
+    <Border Padding="24">
+        <Border Background="{DynamicResource CardBrush}"
+                BorderBrush="{DynamicResource BorderBrush}"
+                BorderThickness="1"
+                CornerRadius="16"
+                Padding="24,20">
+            <Border.Effect>
+                <DropShadowEffect BlurRadius="24" ShadowDepth="4" Direction="270" Opacity="0.25" Color="#000000"/>
+            </Border.Effect>
+
+            <StackPanel>
+                <!-- Header -->
+                <Grid Margin="0,0,0,16">
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="Auto"/>
+                        <ColumnDefinition Width="*"/>
+                    </Grid.ColumnDefinitions>
+                    <Border Grid.Column="0" Width="46" Height="46" CornerRadius="12" Background="{DynamicResource PrimaryBrush}" Margin="0,0,12,0" VerticalAlignment="Center">
+                        <TextBlock Text="🗄️" FontSize="22" HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                    </Border>
+                    <StackPanel Grid.Column="1" VerticalAlignment="Center">
+                        <TextBlock Text="إعدادات خادم قاعدة البيانات" FontSize="16.5" FontWeight="Bold" Foreground="{DynamicResource TextPrimaryBrush}"/>
+                        <TextBlock Text="حدد عنوان السيرفر والمنفذ للاتصال بقاعدة بيانات النظام (PostgreSQL)" FontSize="12" Foreground="{DynamicResource TextSecondaryBrush}" Margin="0,2,0,0"/>
+                    </StackPanel>
+                </Grid>
+
+                <Separator Background="{DynamicResource BorderBrush}" Margin="0,0,0,16"/>
+
+                <!-- Server Host & Port Row -->
+                <Grid Margin="0,0,0,12">
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="2.5*"/>
+                        <ColumnDefinition Width="1.2*"/>
+                    </Grid.ColumnDefinitions>
+
+                    <!-- Host / IP -->
+                    <StackPanel Grid.Column="0" Margin="0,0,10,0">
+                        <TextBlock Text="🌐 عنوان السيرفر (Server IP / Host):" FontSize="13" FontWeight="SemiBold" Foreground="{DynamicResource TextSecondaryBrush}" Margin="0,0,0,5"/>
+                        <TextBox x:Name="TxtServerHost" Height="38" FontSize="14" Padding="10,6" Text="192.168.0.2"/>
+                    </StackPanel>
+
+                    <!-- Port -->
+                    <StackPanel Grid.Column="1">
+                        <TextBlock Text="🔌 المنفذ (Port):" FontSize="13" FontWeight="SemiBold" Foreground="{DynamicResource TextSecondaryBrush}" Margin="0,0,0,5"/>
+                        <TextBox x:Name="TxtServerPort" Height="38" FontSize="14" Padding="10,6" Text="5432"/>
+                    </StackPanel>
+                </Grid>
+
+                <!-- Database Name -->
+                <StackPanel Margin="0,0,0,12">
+                    <TextBlock Text="📁 اسم قاعدة البيانات (Database Name):" FontSize="13" FontWeight="SemiBold" Foreground="{DynamicResource TextSecondaryBrush}" Margin="0,0,0,5"/>
+                    <TextBox x:Name="TxtDatabaseName" Height="38" FontSize="14" Padding="10,6" Text="lis_db"/>
+                </StackPanel>
+
+                <!-- Username & Password Row -->
+                <Grid Margin="0,0,0,14">
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="*"/>
+                        <ColumnDefinition Width="*"/>
+                    </Grid.ColumnDefinitions>
+
+                    <!-- Username -->
+                    <StackPanel Grid.Column="0" Margin="0,0,10,0">
+                        <TextBlock Text="👤 اسم المستخدم (Username):" FontSize="13" FontWeight="SemiBold" Foreground="{DynamicResource TextSecondaryBrush}" Margin="0,0,0,5"/>
+                        <TextBox x:Name="TxtUsername" Height="38" FontSize="14" Padding="10,6" Text="postgres"/>
+                    </StackPanel>
+
+                    <!-- Password -->
+                    <StackPanel Grid.Column="1">
+                        <TextBlock Text="🔑 كلمة المرور (Password):" FontSize="13" FontWeight="SemiBold" Foreground="{DynamicResource TextSecondaryBrush}" Margin="0,0,0,5"/>
+                        <PasswordBox x:Name="TxtPassword" Height="38" FontSize="14" Padding="10,6"
+                                     Background="{DynamicResource InputBrush}"
+                                     Foreground="{DynamicResource TextPrimaryBrush}"
+                                     BorderBrush="{DynamicResource BorderBrush}"
+                                     BorderThickness="1"/>
+                    </StackPanel>
+                </Grid>
+
+                <!-- Status Feedback Banner -->
+                <Border x:Name="BdrTestStatus" CornerRadius="8" Padding="12,10" Margin="0,0,0,16" Visibility="Collapsed">
+                    <TextBlock x:Name="TxtTestStatus" TextWrapping="Wrap" FontSize="12.5" FontWeight="SemiBold"/>
+                </Border>
+
+                <!-- Buttons Bar -->
+                <Grid>
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="Auto"/>
+                        <ColumnDefinition Width="*"/>
+                        <ColumnDefinition Width="Auto"/>
+                        <ColumnDefinition Width="Auto"/>
+                    </Grid.ColumnDefinitions>
+
+                    <!-- Test Button -->
+                    <Button Grid.Column="0" x:Name="BtnTest" Content="🔌 اختبار الاتصال"
+                            Style="{DynamicResource OutlineButtonStyle}" Padding="14,8" FontSize="13" FontWeight="SemiBold"
+                            Click="BtnTest_Click"/>
+
+                    <!-- Save & Apply Button -->
+                    <Button Grid.Column="2" x:Name="BtnSave" Content="💾 حفظ الإعدادات"
+                            Style="{DynamicResource PrimaryButtonStyle}" Padding="18,8" FontSize="13.5" FontWeight="Bold" Margin="0,0,8,0"
+                            Click="BtnSave_Click"/>
+
+                    <!-- Cancel Button -->
+                    <Button Grid.Column="3" Content="إغلاق"
+                            Style="{DynamicResource OutlineButtonStyle}" Padding="14,8" FontSize="13"
+                            Click="BtnCancel_Click"/>
+                </Grid>
+            </StackPanel>
+        </Border>
+    </Border>
+</Window>

@@ -329,6 +329,8 @@ namespace Lis.App
 
                 SetThemeInCombos(settings.Theme);
 
+                UpdateCurrentServerDisplay();
+
                 UpdateLivePreview();
 
             }
@@ -1742,6 +1744,8 @@ namespace Lis.App
                 ThemeManager.ApplyTheme(settings.Theme);
                 SetThemeInCombos(settings.Theme);
 
+                UpdateCurrentServerDisplay();
+
                 LisMessageBox.Show("تم حفظ إعدادات المختبر والطابعات والسمة (Theme) بنجاح في قاعدة البيانات.", "تم الحفظ", MessageBoxButton.OK, MessageBoxImage.Information);
             }
             catch (Exception ex)
@@ -1797,6 +1801,28 @@ namespace Lis.App
             {
                 System.Diagnostics.Debug.WriteLine($"Failed to load printers: {ex.Message}");
             }
+        }
+
+        private void BtnConfigureServer_Click(object sender, RoutedEventArgs e)
+        {
+            var dlg = new ServerSettingsDialog { Owner = this };
+            if (dlg.ShowDialog() == true && dlg.IsSettingsChanged)
+            {
+                UpdateCurrentServerDisplay();
+            }
+        }
+
+        private void UpdateCurrentServerDisplay()
+        {
+            try
+            {
+                var settings = DatabaseConfigService.LoadSettings();
+                if (TxtCurrentServerDisplay != null)
+                {
+                    TxtCurrentServerDisplay.Text = $"{settings.Host}:{settings.Port}";
+                }
+            }
+            catch { }
         }
 
         private void BtnRefreshPrinters_Click(object sender, RoutedEventArgs e)
