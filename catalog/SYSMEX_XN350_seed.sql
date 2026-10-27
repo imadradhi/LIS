@@ -9,16 +9,19 @@
 BEGIN;
 
 -- 1. Ensure Instrument SYSMEX_XN350 is configured
-INSERT INTO instruments (code, name, protocol, connection_type, operating_mode, tcp_mode, host, port, active, updated_at)
-VALUES ('SYSMEX_XN350', 'Sysmex XN-350', 'ASTM', 'TCP', 'Bidirectional', 'Server', '0.0.0.0', 5100, TRUE, clock_timestamp())
+INSERT INTO instruments (code, name, protocol, connection_type, operating_mode, tcp_mode, com_port, baud_rate, data_bits, parity, stop_bits, flow_control, active, updated_at)
+VALUES ('SYSMEX_XN350', 'Sysmex XN-350', 'ASTM', 'RS232', 'Bidirectional', 'Server', 'COM8', 9600, 8, 'None', 'One', 'None', TRUE, clock_timestamp())
 ON CONFLICT (code) DO UPDATE
 SET name = 'Sysmex XN-350',
     protocol = 'ASTM',
-    connection_type = 'TCP',
+    connection_type = 'RS232',
     operating_mode = 'Bidirectional',
-    tcp_mode = 'Server',
-    host = '0.0.0.0',
-    port = 5100,
+    com_port = 'COM8',
+    baud_rate = 9600,
+    data_bits = 8,
+    parity = 'None',
+    stop_bits = 'One',
+    flow_control = 'None',
     active = TRUE,
     updated_at = clock_timestamp();
 

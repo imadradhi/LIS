@@ -96,8 +96,13 @@ namespace Lis.Core.Transport
                     {
                         if (_listener == null)
                         {
+                            // In Server mode, bind to all network interfaces (IPAddress.Any) by default
+                            // so that physical instruments over LAN (e.g. 192.168.x.x) and local tests can both connect.
                             var ip = IPAddress.Any;
-                            if (IPAddress.TryParse(_host, out var parsedIp)) ip = parsedIp;
+                            if (!string.IsNullOrWhiteSpace(_host) && _host != "0.0.0.0" && _host != "*" && _host != "127.0.0.1" && IPAddress.TryParse(_host, out var parsedIp))
+                            {
+                                ip = parsedIp;
+                            }
                             _listener = new TcpListener(ip, _port);
                             _listener.Start();
                         }

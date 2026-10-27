@@ -71,7 +71,9 @@ namespace Lis.Core.Transport
                     {
                         Handshake = _handshake,
                         ReadTimeout = 2000,
-                        WriteTimeout = 2000
+                        WriteTimeout = 2000,
+                        DtrEnable = true,
+                        RtsEnable = true
                     };
 
                     _serialPort.Open();
