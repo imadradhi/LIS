@@ -15,11 +15,13 @@ namespace Lis.App
         private IDbConnectionFactory _connectionFactory = null!;
         private IAuthService _authService = null!;
         private ILabSettingsService _labSettingsService = null!;
+        private bool _isPasswordRevealed = false;
 
         public LoginWindow()
         {
             InitializeComponent();
             InitServices();
+            UpdateServerBadge();
             Loaded += async (s, e) => await InitializeLoginAsync();
         }
 
@@ -38,6 +40,19 @@ namespace Lis.App
             _labSettingsService = new LabSettingsService(_connectionFactory, _authService);
         }
 
+        private void UpdateServerBadge()
+        {
+            try
+            {
+                var settings = DatabaseConfigService.LoadSettings();
+                if (TxtServerBadge != null)
+                {
+                    TxtServerBadge.Text = $"{settings.Host}:{settings.Port}";
+                }
+            }
+            catch { }
+        }
+
         private async void BtnServerSettings_Click(object sender, RoutedEventArgs e)
         {
             var dlg = new ServerSettingsDialog { Owner = this };
@@ -45,6 +60,7 @@ namespace Lis.App
             {
                 BdrError.Visibility = Visibility.Collapsed;
                 InitServices();
+                UpdateServerBadge();
                 await InitializeLoginAsync();
             }
         }
@@ -87,6 +103,12 @@ namespace Lis.App
 
         private async Task AttemptLoginAsync()
         {
+            // Sync password if currently revealed
+            if (_isPasswordRevealed)
+            {
+                TxtPassword.Password = TxtPasswordVisible.Text;
+            }
+
             string username = TxtUsername.Text.Trim();
             string password = TxtPassword.Password;
 
@@ -100,14 +122,15 @@ namespace Lis.App
             if (string.IsNullOrWhiteSpace(password))
             {
                 ShowError("يرجى إدخال كلمة المرور (Password)");
-                TxtPassword.Focus();
+                if (_isPasswordRevealed) TxtPasswordVisible.Focus();
+                else TxtPassword.Focus();
                 return;
             }
 
             try
             {
                 BtnLogin.IsEnabled = false;
-                BtnLogin.Content = "جاري التحقق... (Checking...)";
+                BtnLogin.Content = "⏳ جاري التحقق من الحساب...";
 
                 var session = await _authService.LoginAsync(username, password);
                 if (session == null)
@@ -132,8 +155,45 @@ namespace Lis.App
             finally
             {
                 BtnLogin.IsEnabled = true;
-                BtnLogin.Content = "تسجيل الدخول (Sign In) ➜";
+                BtnLogin.Content = "🚀 تسجيل الدخول إلى النظام (Sign In)";
             }
+        }
+
+        private void BtnTogglePassword_Click(object sender, RoutedEventArgs e)
+        {
+            _isPasswordRevealed = !_isPasswordRevealed;
+            if (_isPasswordRevealed)
+            {
+                TxtPasswordVisible.Text = TxtPassword.Password;
+                TxtPassword.Visibility = Visibility.Collapsed;
+                TxtPasswordVisible.Visibility = Visibility.Visible;
+                BtnTogglePassword.Content = "🙈";
+                TxtPasswordVisible.Focus();
+                TxtPasswordVisible.CaretIndex = TxtPasswordVisible.Text.Length;
+            }
+            else
+            {
+                TxtPassword.Password = TxtPasswordVisible.Text;
+                TxtPasswordVisible.Visibility = Visibility.Collapsed;
+                TxtPassword.Visibility = Visibility.Visible;
+                BtnTogglePassword.Content = "👁️";
+                TxtPassword.Focus();
+            }
+        }
+
+        private void BtnAutoFill_Click(object sender, RoutedEventArgs e)
+        {
+            TxtUsername.Text = "admin";
+            TxtPassword.Password = "Admin123";
+            TxtPasswordVisible.Text = "Admin123";
+            BdrError.Visibility = Visibility.Collapsed;
+            if (_isPasswordRevealed) TxtPasswordVisible.Focus();
+            else TxtPassword.Focus();
+        }
+
+        private void BtnExit_Click(object sender, RoutedEventArgs e)
+        {
+            Application.Current.Shutdown();
         }
 
         private void ShowError(string message)
@@ -146,11 +206,20 @@ namespace Lis.App
         {
             if (e.Key == Key.Enter)
             {
-                TxtPassword.Focus();
+                if (_isPasswordRevealed) TxtPasswordVisible.Focus();
+                else TxtPassword.Focus();
             }
         }
 
         private async void TxtPassword_KeyDown(object sender, KeyEventArgs e)
+        {
+            if (e.Key == Key.Enter)
+            {
+                await AttemptLoginAsync();
+            }
+        }
+
+        private async void TxtPasswordVisible_KeyDown(object sender, KeyEventArgs e)
         {
             if (e.Key == Key.Enter)
             {
