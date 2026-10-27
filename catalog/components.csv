@@ -1,0 +1,23 @@
+﻿Component_ID,Test_ID,Component_Name,Code,Unit,Decimal_Places
+C_WBC,T_CBC_360,White Blood Cells,WBC,10^9/L,1
+C_LYM_abs,T_CBC_360,Lymphocytes Absolute,LYM#,10^9/L,1
+C_MID_abs,T_CBC_360,Mid Cells Absolute,MID#,10^9/L,1
+C_GRA_abs,T_CBC_360,Granulocytes Absolute,GRA#,10^9/L,1
+C_LYM_pct,T_CBC_360,Lymphocytes Percentage,LYM%,%,1
+C_MID_pct,T_CBC_360,Mid Cells Percentage,MID%,%,1
+C_GRA_pct,T_CBC_360,Granulocytes Percentage,GRA%,%,1
+C_RBC,T_CBC_360,Red Blood Cells,RBC,10^12/L,2
+C_HGB,T_CBC_360,Hemoglobin,HGB,g/dL,1
+C_HCT,T_CBC_360,Hematocrit,HCT,%,1
+C_MCV,T_CBC_360,Mean Corpuscular Volume,MCV,fL,1
+C_MCH,T_CBC_360,Mean Corpuscular Hemoglobin,MCH,pg,1
+C_MCHC,T_CBC_360,Mean Corp. HGB Concentration,MCHC,g/dL,1
+C_RDW_CV,T_CBC_360,Red Cell Dist. Width CV,RDW-CV,%,1
+C_RDW_SD,T_CBC_360,Red Cell Dist. Width SD,RDW-SD,fL,1
+C_PLT,T_CBC_360,Platelets,PLT,10^9/L,0
+C_MPV,T_CBC_360,Mean Platelet Volume,MPV,fL,1
+C_PCT,T_CBC_360,Plateletcrit,PCT,%,3
+C_PDW_CV,T_CBC_360,Platelet Dist. Width CV,PDW-CV,%,1
+C_PDW_SD,T_CBC_360,Platelet Dist. Width SD,PDW-SD,fL,1
+C_PLCR,T_CBC_360,Platelet Large Cell Ratio,P-LCR,%,1
+C_PLCC,T_CBC_360,Platelet Large Cell Count,P-LCC,10^9/L,0

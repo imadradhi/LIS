@@ -1,0 +1,365 @@
+<Window x:Class="Lis.Middleware.MainWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        Title="خادم الميدلوير والربط مع أجهزة التحليل — LIS Middleware Host"
+        Height="840" Width="1300" MinHeight="700" MinWidth="1100"
+        WindowStartupLocation="CenterScreen"
+        Background="{DynamicResource AppBackgroundBrush}"
+        FlowDirection="RightToLeft">
+
+    <Grid Margin="16">
+        <Grid.RowDefinitions>
+            <!-- Row 0: Top Status & Control Header -->
+            <RowDefinition Height="Auto"/>
+            <!-- Row 1: KPI Stats Cards Strip -->
+            <RowDefinition Height="Auto"/>
+            <!-- Row 2: Main Working Area (Instruments + Live Logs) -->
+            <RowDefinition Height="*"/>
+        </Grid.RowDefinitions>
+
+        <!-- ═════════════════════════════════════════════════════════════════ -->
+        <!-- ROW 0: TOP HEADER BAR (DockPanel: Title on Right, Actions on Left)-->
+        <!-- ═════════════════════════════════════════════════════════════════ -->
+        <Border Grid.Row="0" Style="{DynamicResource CardStyle}" Padding="16,12" Margin="0,0,0,12">
+            <DockPanel LastChildFill="True">
+                <!-- Left Side: Controls & Engine Status -->
+                <StackPanel DockPanel.Dock="Left" Orientation="Horizontal" VerticalAlignment="Center">
+                    <!-- Engine Status Pill -->
+                    <Border x:Name="BadgeEngineStatus" Background="#064E3B" BorderBrush="#059669" BorderThickness="1" CornerRadius="8" Padding="12,6" Margin="0,0,8,0" VerticalAlignment="Center">
+                        <TextBlock x:Name="TxtEngineStatus" Text="🟢 الميدلوير يعمل ويستمع" FontSize="12.5" FontWeight="Bold" Foreground="#34D399"/>
+                    </Border>
+
+                    <!-- Control Buttons -->
+                    <Button x:Name="BtnToggleEngine" Content="⏹️ إيقاف الخدمة" Style="{DynamicResource SecondaryButtonStyle}" Margin="0,0,6,0" Padding="12,7" FontSize="12" FontWeight="SemiBold" Click="BtnToggleEngine_Click"/>
+                    <Button x:Name="BtnRestartEngine" Content="🔄 إعادة تشغيل" Style="{DynamicResource SecondaryButtonStyle}" Padding="12,7" FontSize="12" FontWeight="SemiBold" Click="BtnRestartEngine_Click"/>
+                </StackPanel>
+
+                <!-- Right Side: System Title & Subtitle (Fills available space) -->
+                <StackPanel Orientation="Horizontal" VerticalAlignment="Center" Margin="0,0,16,0">
+                    <TextBlock Text="📡" FontSize="30" Margin="0,0,14,0" VerticalAlignment="Center"/>
+                    <StackPanel VerticalAlignment="Center">
+                        <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
+                            <TextBlock Text="خادم الميدلوير والربط المباشر مع أجهزة المختبر" FontSize="17" FontWeight="Bold" Foreground="{DynamicResource AccentBrush}"/>
+                            <Border Background="{DynamicResource PrimaryBrush}" CornerRadius="6" Padding="8,2" Margin="10,0,0,0" VerticalAlignment="Center">
+                                <TextBlock Text="LIS Middleware Engine v1.0.0" FontSize="11" FontWeight="Bold" Foreground="#FFFFFF"/>
+                            </Border>
+                        </StackPanel>
+                        <TextBlock Text="استقبال النتائج وتصدير أوامر العمل للأجهزة تلقائياً عبر بروتوكولات ASTM 1394 / E1381 و HL7." FontSize="11.5" Foreground="{DynamicResource TextSecondaryBrush}" Margin="0,4,0,0"/>
+                    </StackPanel>
+                </StackPanel>
+            </DockPanel>
+        </Border>
+
+        <!-- ═════════════════════════════════════════════════════════════════ -->
+        <!-- ROW 1: KPI STATS CARDS STRIP (4 Cards across the window)         -->
+        <!-- ═════════════════════════════════════════════════════════════════ -->
+        <Grid Grid.Row="1" Margin="0,0,0,12">
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="*"/>
+                <ColumnDefinition Width="*"/>
+                <ColumnDefinition Width="*"/>
+                <ColumnDefinition Width="*"/>
+            </Grid.ColumnDefinitions>
+
+            <!-- Card 1: Listening Port -->
+            <Border Grid.Column="0" Style="{DynamicResource CardStyle}" Margin="0,0,8,0" Padding="14,10">
+                <DockPanel LastChildFill="True">
+                    <TextBlock DockPanel.Dock="Right" Text="🌐" FontSize="24" Margin="0,0,10,0" VerticalAlignment="Center"/>
+                    <StackPanel VerticalAlignment="Center">
+                        <TextBlock Text="منفذ الاستماع (TCP Port)" FontSize="11" Foreground="{DynamicResource TextSecondaryBrush}" FontWeight="SemiBold"/>
+                        <TextBlock Text="Port 5100 (Host: 0.0.0.0)" FontSize="15" FontWeight="Bold" Foreground="{DynamicResource AccentBrush}" Margin="0,2,0,0"/>
+                    </StackPanel>
+                </DockPanel>
+            </Border>
+
+            <!-- Card 2: Active Instruments -->
+            <Border Grid.Column="1" Style="{DynamicResource CardStyle}" Margin="4,0,4,0" Padding="14,10">
+                <DockPanel LastChildFill="True">
+                    <TextBlock DockPanel.Dock="Right" Text="🔬" FontSize="24" Margin="0,0,10,0" VerticalAlignment="Center"/>
+                    <StackPanel VerticalAlignment="Center">
+                        <TextBlock Text="الأجهزة المفعلة (Instruments)" FontSize="11" Foreground="{DynamicResource TextSecondaryBrush}" FontWeight="SemiBold"/>
+                        <StackPanel Orientation="Horizontal" Margin="0,2,0,0">
+                            <TextBlock x:Name="TxtStatInstCount" Text="0" FontSize="16" FontWeight="Bold" Foreground="#FFFFFF"/>
+                            <TextBlock Text=" أجهزة نشطة" FontSize="12" Foreground="{DynamicResource TextSecondaryBrush}" VerticalAlignment="Center" Margin="4,0,0,0"/>
+                        </StackPanel>
+                    </StackPanel>
+                </DockPanel>
+            </Border>
+
+            <!-- Card 3: Inbound Messages -->
+            <Border Grid.Column="2" Style="{DynamicResource CardStyle}" Margin="4,0,4,0" Padding="14,10">
+                <DockPanel LastChildFill="True">
+                    <TextBlock DockPanel.Dock="Right" Text="📥" FontSize="24" Margin="0,0,10,0" VerticalAlignment="Center"/>
+                    <StackPanel VerticalAlignment="Center">
+                        <TextBlock Text="الوارد من الأجهزة (IN Messages)" FontSize="11" Foreground="#10B981" FontWeight="SemiBold"/>
+                        <StackPanel Orientation="Horizontal" Margin="0,2,0,0">
+                            <TextBlock x:Name="TxtStatInCount" Text="0" FontSize="16" FontWeight="Bold" Foreground="#34D399"/>
+                            <TextBlock Text=" إطار اليوم" FontSize="12" Foreground="{DynamicResource TextSecondaryBrush}" VerticalAlignment="Center" Margin="4,0,0,0"/>
+                        </StackPanel>
+                    </StackPanel>
+                </DockPanel>
+            </Border>
+
+            <!-- Card 4: Outbound Messages -->
+            <Border Grid.Column="3" Style="{DynamicResource CardStyle}" Margin="8,0,0,0" Padding="14,10">
+                <DockPanel LastChildFill="True">
+                    <TextBlock DockPanel.Dock="Right" Text="📤" FontSize="24" Margin="0,0,10,0" VerticalAlignment="Center"/>
+                    <StackPanel VerticalAlignment="Center">
+                        <TextBlock Text="الصادر إلى الأجهزة (OUT Orders)" FontSize="11" Foreground="#38BDF8" FontWeight="SemiBold"/>
+                        <StackPanel Orientation="Horizontal" Margin="0,2,0,0">
+                            <TextBlock x:Name="TxtStatOutCount" Text="0" FontSize="16" FontWeight="Bold" Foreground="#38BDF8"/>
+                            <TextBlock Text=" إطار اليوم" FontSize="12" Foreground="{DynamicResource TextSecondaryBrush}" VerticalAlignment="Center" Margin="4,0,0,0"/>
+                        </StackPanel>
+                    </StackPanel>
+                </DockPanel>
+            </Border>
+        </Grid>
+
+        <!-- ═════════════════════════════════════════════════════════════════ -->
+        <!-- ROW 2: MAIN DASHBOARD AREA (Instruments Right + Logs Left)       -->
+        <!-- ═════════════════════════════════════════════════════════════════ -->
+        <Grid Grid.Row="2">
+            <Grid.ColumnDefinitions>
+                <!-- Right Side in RTL: Instruments List (360px) -->
+                <ColumnDefinition Width="380" MinWidth="320"/>
+                <!-- Left Side in RTL: Live ASTM Traffic Log (*) -->
+                <ColumnDefinition Width="*"/>
+            </Grid.ColumnDefinitions>
+
+            <!-- ── RIGHT COLUMN: Active Instruments List ──────────────────── -->
+            <Border Grid.Column="0" Style="{DynamicResource CardStyle}" Margin="0,0,12,0" Padding="14">
+                <DockPanel LastChildFill="True">
+                    <!-- Panel Header -->
+                    <DockPanel DockPanel.Dock="Top" Margin="0,0,0,12" LastChildFill="True">
+                        <TextBlock Text="🔬 الأجهزة المعرفة وحالات الاتصال" FontSize="13.5" FontWeight="Bold" Foreground="{DynamicResource AccentBrush}" VerticalAlignment="Center"/>
+                    </DockPanel>
+
+                    <!-- Instruments DataGrid with Clear Spacing and Headers -->
+                    <DataGrid x:Name="GridInstruments" AutoGenerateColumns="False" IsReadOnly="True"
+                              Background="Transparent" RowBackground="#131D35" AlternatingRowBackground="#1A2540"
+                              BorderThickness="1" BorderBrush="{DynamicResource BorderBrush}"
+                              GridLinesVisibility="Horizontal" HorizontalGridLinesBrush="{DynamicResource BorderBrush}"
+                              HeadersVisibility="Column" SelectionMode="Single" RowHeight="42">
+                        <DataGrid.ColumnHeaderStyle>
+                            <Style TargetType="DataGridColumnHeader">
+                                <Setter Property="Background" Value="#0F172A"/>
+                                <Setter Property="Foreground" Value="{DynamicResource TextSecondaryBrush}"/>
+                                <Setter Property="FontWeight" Value="SemiBold"/>
+                                <Setter Property="FontSize" Value="12"/>
+                                <Setter Property="Padding" Value="8,8"/>
+                                <Setter Property="BorderThickness" Value="0,0,1,1"/>
+                                <Setter Property="BorderBrush" Value="{DynamicResource BorderBrush}"/>
+                            </Style>
+                        </DataGrid.ColumnHeaderStyle>
+
+                        <DataGrid.Columns>
+                            <!-- كود الجهاز -->
+                            <DataGridTemplateColumn Header="كود الجهاز" Width="105">
+                                <DataGridTemplateColumn.CellTemplate>
+                                    <DataTemplate>
+                                        <Border Background="#0C4A6E" CornerRadius="4" Padding="6,3" HorizontalAlignment="Center" VerticalAlignment="Center">
+                                            <TextBlock Text="{Binding code}" FontSize="11" FontWeight="Bold" Foreground="#38BDF8"/>
+                                        </Border>
+                                    </DataTemplate>
+                                </DataGridTemplateColumn.CellTemplate>
+                            </DataGridTemplateColumn>
+
+                            <!-- اسم الجهاز الكامل -->
+                            <DataGridTemplateColumn Header="اسم الجهاز" Width="*">
+                                <DataGridTemplateColumn.CellTemplate>
+                                    <DataTemplate>
+                                        <StackPanel VerticalAlignment="Center" Margin="6,0">
+                                            <TextBlock Text="{Binding name}" FontWeight="SemiBold" FontSize="12.5" Foreground="{DynamicResource TextPrimaryBrush}" TextTrimming="CharacterEllipsis"/>
+                                            <TextBlock Text="{Binding connection_details}" FontSize="10.5" Foreground="{DynamicResource TextSecondaryBrush}" Margin="0,1,0,0"/>
+                                        </StackPanel>
+                                    </DataTemplate>
+                                </DataGridTemplateColumn.CellTemplate>
+                            </DataGridTemplateColumn>
+
+                            <!-- حالة الربط المباشرة -->
+                            <DataGridTemplateColumn Header="الحالة" Width="95">
+                                <DataGridTemplateColumn.CellTemplate>
+                                    <DataTemplate>
+                                        <Border Background="{Binding StatusBgBrush}" CornerRadius="6" Padding="6,3" HorizontalAlignment="Center" VerticalAlignment="Center">
+                                            <TextBlock Text="{Binding status_text}" FontSize="11" FontWeight="Bold" Foreground="{Binding StatusFgBrush}"/>
+                                        </Border>
+                                    </DataTemplate>
+                                </DataGridTemplateColumn.CellTemplate>
+                            </DataGridTemplateColumn>
+                        </DataGrid.Columns>
+                    </DataGrid>
+                </DockPanel>
+            </Border>
+
+            <!-- ── LEFT COLUMN: Live ASTM Traffic Logs & Inspector ────────── -->
+            <Border Grid.Column="1" Style="{DynamicResource CardStyle}" Padding="14">
+                <Grid>
+                    <Grid.RowDefinitions>
+                        <!-- Log Toolbar (DockPanel) -->
+                        <RowDefinition Height="Auto"/>
+                        <!-- Log DataGrid -->
+                        <RowDefinition Height="*"/>
+                        <!-- Raw Message Detail Inspector -->
+                        <RowDefinition Height="Auto"/>
+                    </Grid.RowDefinitions>
+
+                    <!-- Log Toolbar (DockPanel: Title on Right, Action Buttons on Left) -->
+                    <DockPanel Grid.Row="0" Margin="0,0,0,10" LastChildFill="True">
+                        <!-- Left Side: Buttons (Copy, Clear, Refresh, Auto-scroll) -->
+                        <StackPanel DockPanel.Dock="Left" Orientation="Horizontal" VerticalAlignment="Center">
+                            <CheckBox x:Name="ChkAutoScroll" Content="تمرير تلقائي" IsChecked="True" Foreground="{DynamicResource TextSecondaryBrush}" FontSize="11.5" Margin="0,0,12,0" VerticalAlignment="Center"/>
+                            <Button Content="📋 نسخ السجل (Copy)" Style="{DynamicResource SecondaryButtonStyle}" Margin="0,0,6,0" Padding="10,5" FontSize="11.5" Click="BtnCopyLogs_Click"/>
+                            <Button Content="🗑️ مسح السجل (Clear)" Style="{DynamicResource SecondaryButtonStyle}" Margin="0,0,6,0" Padding="10,5" FontSize="11.5" Click="BtnClearLogs_Click"/>
+                            <Button Content="🔄 تحديث" Style="{DynamicResource SecondaryButtonStyle}" Padding="10,5" FontSize="11.5" Click="BtnRefreshLogs_Click"/>
+                        </StackPanel>
+
+                        <!-- Right Side: Title + Live Badge -->
+                        <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
+                            <TextBlock Text="📋 سجل حركة البيانات المباشر (Live ASTM Frames)" FontSize="13.5" FontWeight="Bold" Foreground="{DynamicResource AccentBrush}" VerticalAlignment="Center"/>
+                            <Border Background="#064E3B" BorderBrush="#059669" BorderThickness="1" CornerRadius="6" Padding="8,2" Margin="10,0,0,0" VerticalAlignment="Center">
+                                <TextBlock Text="مباشر 🟢" FontSize="11" FontWeight="Bold" Foreground="#34D399"/>
+                            </Border>
+                        </StackPanel>
+                    </DockPanel>
+
+                    <!-- Log DataGrid (Clean, Monospace, Ample Padding) -->
+                    <DataGrid Grid.Row="1" x:Name="GridMiddlewareLogs" AutoGenerateColumns="False" IsReadOnly="True"
+                              SelectionMode="Single" SelectionChanged="GridMiddlewareLogs_SelectionChanged"
+                              Background="Transparent" RowBackground="#131D35" AlternatingRowBackground="#1A2540"
+                              BorderThickness="1" BorderBrush="{DynamicResource BorderBrush}"
+                              GridLinesVisibility="Horizontal" HorizontalGridLinesBrush="{DynamicResource BorderBrush}"
+                              HeadersVisibility="Column" RowHeight="32">
+                        <DataGrid.ColumnHeaderStyle>
+                            <Style TargetType="DataGridColumnHeader">
+                                <Setter Property="Background" Value="#0F172A"/>
+                                <Setter Property="Foreground" Value="{DynamicResource TextSecondaryBrush}"/>
+                                <Setter Property="FontWeight" Value="SemiBold"/>
+                                <Setter Property="FontSize" Value="12"/>
+                                <Setter Property="Padding" Value="8,6"/>
+                                <Setter Property="BorderThickness" Value="0,0,1,1"/>
+                                <Setter Property="BorderBrush" Value="{DynamicResource BorderBrush}"/>
+                            </Style>
+                        </DataGrid.ColumnHeaderStyle>
+
+                        <DataGrid.Columns>
+                            <!-- التاريخ والوقت -->
+                            <DataGridTextColumn Header="التاريخ والوقت" Binding="{Binding timestamp, StringFormat='dd/MM/yyyy HH:mm:ss'}" Width="140">
+                                <DataGridTextColumn.ElementStyle>
+                                    <Style TargetType="TextBlock">
+                                        <Setter Property="FontFamily" Value="Consolas"/>
+                                        <Setter Property="FontSize" Value="11.5"/>
+                                        <Setter Property="Foreground" Value="{DynamicResource TextSecondaryBrush}"/>
+                                        <Setter Property="VerticalAlignment" Value="Center"/>
+                                        <Setter Property="HorizontalAlignment" Value="Center"/>
+                                    </Style>
+                                </DataGridTextColumn.ElementStyle>
+                            </DataGridTextColumn>
+
+                            <!-- كود الجهاز -->
+                            <DataGridTemplateColumn Header="الجهاز" Width="105">
+                                <DataGridTemplateColumn.CellTemplate>
+                                    <DataTemplate>
+                                        <Border Background="#0C4A6E" CornerRadius="4" Padding="6,2" HorizontalAlignment="Center" VerticalAlignment="Center">
+                                            <TextBlock Text="{Binding instrument_code}" FontSize="11" FontWeight="Bold" Foreground="#38BDF8"/>
+                                        </Border>
+                                    </DataTemplate>
+                                </DataGridTemplateColumn.CellTemplate>
+                            </DataGridTemplateColumn>
+
+                            <!-- الاتجاه: IN أخضر فسفوري / OUT أزرق سماوي -->
+                            <DataGridTemplateColumn Header="الاتجاه" Width="95">
+                                <DataGridTemplateColumn.CellTemplate>
+                                    <DataTemplate>
+                                        <Border CornerRadius="4" Padding="8,2" HorizontalAlignment="Center" VerticalAlignment="Center">
+                                            <Border.Style>
+                                                <Style TargetType="Border">
+                                                    <Setter Property="Background" Value="#064E3B"/>
+                                                    <Style.Triggers>
+                                                        <DataTrigger Binding="{Binding direction}" Value="OUT">
+                                                            <Setter Property="Background" Value="#0C4A6E"/>
+                                                        </DataTrigger>
+                                                    </Style.Triggers>
+                                                </Style>
+                                            </Border.Style>
+                                            <TextBlock FontWeight="Bold" FontSize="11">
+                                                <TextBlock.Style>
+                                                    <Style TargetType="TextBlock">
+                                                        <Setter Property="Text" Value="📥 وارد (IN)"/>
+                                                        <Setter Property="Foreground" Value="#34D399"/>
+                                                        <Style.Triggers>
+                                                            <DataTrigger Binding="{Binding direction}" Value="OUT">
+                                                                <Setter Property="Text" Value="📤 صادر (OUT)"/>
+                                                                <Setter Property="Foreground" Value="#38BDF8"/>
+                                                            </DataTrigger>
+                                                        </Style.Triggers>
+                                                    </Style>
+                                                </TextBlock.Style>
+                                            </TextBlock>
+                                        </Border>
+                                    </DataTemplate>
+                                </DataGridTemplateColumn.CellTemplate>
+                            </DataGridTemplateColumn>
+
+                            <!-- الحالة -->
+                            <DataGridTextColumn Header="الحالة" Binding="{Binding parse_status}" Width="85">
+                                <DataGridTextColumn.ElementStyle>
+                                    <Style TargetType="TextBlock">
+                                        <Setter Property="FontSize" Value="11"/>
+                                        <Setter Property="Foreground" Value="{DynamicResource TextSecondaryBrush}"/>
+                                        <Setter Property="VerticalAlignment" Value="Center"/>
+                                        <Setter Property="HorizontalAlignment" Value="Center"/>
+                                    </Style>
+                                </DataGridTextColumn.ElementStyle>
+                            </DataGridTextColumn>
+
+                            <!-- نص الإطار الخام -->
+                            <DataGridTemplateColumn Header="محتوى الإطار / الرسالة الخام (ASTM Payload)" Width="*">
+                                <DataGridTemplateColumn.CellTemplate>
+                                    <DataTemplate>
+                                        <TextBlock Text="{Binding raw_message}" FontFamily="Consolas" FontSize="11.5"
+                                                   TextTrimming="CharacterEllipsis" VerticalAlignment="Center" Margin="6,0">
+                                            <TextBlock.Style>
+                                                <Style TargetType="TextBlock">
+                                                    <Setter Property="Foreground" Value="#34D399"/>
+                                                    <Style.Triggers>
+                                                        <DataTrigger Binding="{Binding direction}" Value="OUT">
+                                                            <Setter Property="Foreground" Value="#38BDF8"/>
+                                                        </DataTrigger>
+                                                    </Style.Triggers>
+                                                </Style>
+                                            </TextBlock.Style>
+                                        </TextBlock>
+                                    </DataTemplate>
+                                </DataGridTemplateColumn.CellTemplate>
+                            </DataGridTemplateColumn>
+                        </DataGrid.Columns>
+                    </DataGrid>
+
+                    <!-- Collapsible Raw Message Detail Inspector (Bottom of Log) -->
+                    <Border Grid.Row="2" x:Name="BorderLogDetails" Visibility="Collapsed"
+                            Background="#0F172A" BorderBrush="{DynamicResource BorderBrush}"
+                            BorderThickness="1" CornerRadius="8" Padding="12" Margin="0,10,0,0">
+                        <Grid>
+                            <Grid.RowDefinitions>
+                                <RowDefinition Height="Auto"/>
+                                <RowDefinition Height="Auto"/>
+                            </Grid.RowDefinitions>
+
+                            <DockPanel Grid.Row="0" Margin="0,0,0,6" LastChildFill="True">
+                                <Button DockPanel.Dock="Left" Content="📋 نسخ النص بالكامل" Style="{DynamicResource SecondaryButtonStyle}"
+                                        Padding="10,4" FontSize="11" Click="BtnCopySelectedRaw_Click"/>
+                                <TextBlock x:Name="TxtLogDetailHeader" Text="تفاصيل الإطار المحدد (Selected ASTM Frame)" FontSize="12"
+                                           FontWeight="Bold" Foreground="{DynamicResource AccentBrush}" VerticalAlignment="Center"/>
+                            </DockPanel>
+
+                            <TextBox Grid.Row="1" x:Name="TxtLogDetailMessage" IsReadOnly="True"
+                                     Background="#070A12" Foreground="#38BDF8" BorderBrush="{DynamicResource BorderBrush}"
+                                     BorderThickness="1" FontFamily="Consolas" FontSize="12"
+                                     TextWrapping="Wrap" MaxHeight="110" VerticalScrollBarVisibility="Auto" Padding="10"/>
+                        </Grid>
+                    </Border>
+                </Grid>
+            </Border>
+        </Grid>
+    </Grid>
+</Window>
