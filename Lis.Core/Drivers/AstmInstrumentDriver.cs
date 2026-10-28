@@ -299,6 +299,12 @@ namespace Lis.Core.Drivers
                               OR (LOWER(TRIM(it.instrument_test_code)) = 'alt' AND LOWER(TRIM(@Code)) = 'alti')
                               OR (LOWER(TRIM(it.instrument_test_code)) = 'ast' AND LOWER(TRIM(@Code)) = 'asti')
                               OR (LOWER(TRIM(it.instrument_test_code)) = 'glu' AND LOWER(TRIM(@Code)) = 'gluc')
+                              OR (LOWER(TRIM(it.instrument_test_code)) = 'alkp' AND LOWER(TRIM(@Code)) = 'alp')
+                              OR (LOWER(TRIM(it.instrument_test_code)) = 'alp' AND LOWER(TRIM(@Code)) = 'alkp')
+                              OR (LOWER(TRIM(it.instrument_test_code)) = 'tg' AND LOWER(TRIM(@Code)) = 'trig')
+                              OR (LOWER(TRIM(it.instrument_test_code)) = 'trig' AND LOWER(TRIM(@Code)) = 'tg')
+                              OR (LOWER(TRIM(it.instrument_test_code)) = 'a1c' AND LOWER(TRIM(@Code)) = 'hba1c')
+                              OR (LOWER(TRIM(it.instrument_test_code)) = 'hba1c' AND LOWER(TRIM(@Code)) = 'a1c')
                           )
                         LIMIT 1;
                     ", new
