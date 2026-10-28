@@ -2,6 +2,7 @@
         xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         Title="تسجيل الدخول — نظام إدارة المختبرات الطبية (LIS)" 
+        Icon="Assets/app_icon.ico"
         Width="520" SizeToContent="Height"
         WindowStartupLocation="CenterScreen"
         ResizeMode="NoResize"
@@ -168,11 +169,11 @@
                     </Grid.ColumnDefinitions>
 
                     <!-- Laboratory Glowing Logo -->
-                    <Border Grid.Column="0" Width="68" Height="68" CornerRadius="18" Background="{DynamicResource PrimaryBrush}" Margin="0,0,16,0" VerticalAlignment="Center">
+                    <Border Grid.Column="0" Width="72" Height="72" CornerRadius="18" Background="#0B132B" BorderBrush="#0284C7" BorderThickness="1.5" Margin="0,0,16,0" VerticalAlignment="Center" ClipToBounds="True">
                         <Border.Effect>
-                            <DropShadowEffect BlurRadius="16" ShadowDepth="2" Direction="270" Opacity="0.4" Color="#0284C7"/>
+                            <DropShadowEffect BlurRadius="18" ShadowDepth="2" Direction="270" Opacity="0.5" Color="#0284C7"/>
                         </Border.Effect>
-                        <TextBlock Text="🔬" FontSize="36" HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                        <Image Source="Assets/logo.png" Stretch="Uniform" RenderOptions.BitmapScalingMode="HighQuality" Margin="4"/>
                     </Border>
 
                     <!-- Laboratory Titles -->

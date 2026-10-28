@@ -470,3 +470,4 @@ ON CONFLICT (instrument_id, component_id) DO UPDATE
        test_id = EXCLUDED.test_id;
 
 COMMIT;
+

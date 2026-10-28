@@ -5,6 +5,7 @@
         xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
         mc:Ignorable="d"
         Title="نظام إدارة المختبرات الطبية - Laboratory Information System (LIS Interface)" 
+        Icon="Assets/app_icon.ico"
         Height="900" Width="1440"
         MinWidth="1100" MinHeight="680"
         WindowStartupLocation="CenterScreen"
@@ -35,8 +36,8 @@
 
                 <!-- 1. Lab Branding -->
                 <StackPanel Grid.Column="0" Orientation="Horizontal" VerticalAlignment="Center">
-                    <Border Width="42" Height="42" CornerRadius="10" Background="{DynamicResource PrimaryBrush}" Margin="0,0,14,0">
-                        <TextBlock Text="🔬" FontSize="24" HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                    <Border Width="44" Height="44" CornerRadius="11" Background="#0B132B" BorderBrush="#0284C7" BorderThickness="1.2" Margin="0,0,14,0" ClipToBounds="True">
+                        <Image Source="Assets/logo.png" Stretch="Uniform" RenderOptions.BitmapScalingMode="HighQuality" Margin="2"/>
                     </Border>
                     <StackPanel VerticalAlignment="Center">
                         <TextBlock x:Name="TxtHeaderLabName" Text="مختبر التحليلات الطبية التخصصي (Medical Lab)" FontWeight="Bold" FontSize="16.5" Foreground="{DynamicResource TopBarTextPrimaryBrush}"/>
@@ -1400,8 +1401,8 @@
                                                 </StackPanel>
 
                                                 <!-- Center Logo -->
-                                                <Border Grid.Column="1" Width="50" Height="50" CornerRadius="25" Background="#E0F2FE" HorizontalAlignment="Center" VerticalAlignment="Center">
-                                                    <TextBlock Text="🔬" FontSize="24" HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                                                <Border Grid.Column="1" Width="52" Height="52" CornerRadius="12" Background="#0B132B" BorderBrush="#0284C7" BorderThickness="1" HorizontalAlignment="Center" VerticalAlignment="Center" ClipToBounds="True">
+                                                    <Image Source="Assets/logo.png" Stretch="Uniform" RenderOptions.BitmapScalingMode="HighQuality" Margin="2"/>
                                                 </Border>
 
                                                 <!-- English Header Info -->
