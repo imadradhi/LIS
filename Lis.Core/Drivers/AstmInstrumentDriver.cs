@@ -293,6 +293,12 @@ namespace Lis.Core.Drivers
                           AND (
                               LOWER(TRIM(it.instrument_test_code)) = LOWER(TRIM(@Code))
                               OR REPLACE(LOWER(TRIM(it.instrument_test_code)), '-', '') = REPLACE(LOWER(TRIM(@Code)), '-', '')
+                              OR (LOWER(TRIM(it.instrument_test_code)) = 'bun' AND LOWER(TRIM(@Code)) = 'urea')
+                              OR (LOWER(TRIM(it.instrument_test_code)) = 'urea' AND LOWER(TRIM(@Code)) = 'bun')
+                              OR (LOWER(TRIM(it.instrument_test_code)) = 'alp' AND LOWER(TRIM(@Code)) = 'alpi')
+                              OR (LOWER(TRIM(it.instrument_test_code)) = 'alt' AND LOWER(TRIM(@Code)) = 'alti')
+                              OR (LOWER(TRIM(it.instrument_test_code)) = 'ast' AND LOWER(TRIM(@Code)) = 'asti')
+                              OR (LOWER(TRIM(it.instrument_test_code)) = 'glu' AND LOWER(TRIM(@Code)) = 'gluc')
                           )
                         LIMIT 1;
                     ", new

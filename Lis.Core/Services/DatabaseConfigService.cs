@@ -85,7 +85,25 @@ namespace Lis.Core.Services
                 using var doc = JsonDocument.Parse(json);
                 var root = doc.RootElement;
 
-                // Priority 1: Check ConnectionStrings:DefaultConnection
+                // Priority 1: Check DatabaseSettings object first if present (user-friendly format)
+                if (root.TryGetProperty("DatabaseSettings", out var dbSect))
+                {
+                    var s = new DatabaseConnectionSettings();
+                    if (dbSect.TryGetProperty("Host", out var h) && !string.IsNullOrWhiteSpace(h.GetString()))
+                        s.Host = h.GetString()!;
+                    if (dbSect.TryGetProperty("Port", out var p) && p.TryGetInt32(out int port))
+                        s.Port = port;
+                    if (dbSect.TryGetProperty("Database", out var d) && !string.IsNullOrWhiteSpace(d.GetString()))
+                        s.Database = d.GetString()!;
+                    if (dbSect.TryGetProperty("Username", out var u) && !string.IsNullOrWhiteSpace(u.GetString()))
+                        s.Username = u.GetString()!;
+                    if (dbSect.TryGetProperty("Password", out var pw))
+                        s.Password = pw.GetString() ?? "";
+
+                    return s;
+                }
+
+                // Priority 2: Check ConnectionStrings:DefaultConnection
                 if (root.TryGetProperty("ConnectionStrings", out var connSection) &&
                     connSection.TryGetProperty("DefaultConnection", out var defaultConnElem))
                 {
@@ -93,27 +111,8 @@ namespace Lis.Core.Services
                     if (!string.IsNullOrWhiteSpace(connStr))
                     {
                         var s = DatabaseConnectionSettings.FromConnectionString(connStr);
-
-                        // If password in connStr was empty or missing, check DatabaseSettings for password
-                        if (string.IsNullOrEmpty(s.Password) && root.TryGetProperty("DatabaseSettings", out var dbSection) &&
-                            dbSection.TryGetProperty("Password", out var passElem))
-                        {
-                            s.Password = passElem.GetString() ?? "";
-                        }
                         return s;
                     }
-                }
-
-                // Priority 2: Check DatabaseSettings object
-                if (root.TryGetProperty("DatabaseSettings", out var dbSect))
-                {
-                    var s = new DatabaseConnectionSettings();
-                    if (dbSect.TryGetProperty("Host", out var h)) s.Host = h.GetString() ?? "localhost";
-                    if (dbSect.TryGetProperty("Port", out var p) && p.TryGetInt32(out int port)) s.Port = port;
-                    if (dbSect.TryGetProperty("Database", out var d)) s.Database = d.GetString() ?? "lis_db";
-                    if (dbSect.TryGetProperty("Username", out var u)) s.Username = u.GetString() ?? "postgres";
-                    if (dbSect.TryGetProperty("Password", out var pw)) s.Password = pw.GetString() ?? "";
-                    return s;
                 }
             }
             catch

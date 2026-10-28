@@ -24,13 +24,8 @@ namespace Lis.Middleware
         {
             InitializeComponent();
 
-            var config = new ConfigurationBuilder()
-                .SetBasePath(AppDomain.CurrentDomain.BaseDirectory)
-                .AddJsonFile("appsettings.json", optional: true)
-                .Build();
-
-            var connStr = config.GetConnectionString("DefaultConnection") 
-                ?? "Host=localhost;Port=5432;Database=lis_db;Username=postgres;Password=@Hig5udMz;";
+            var dbSettings = DatabaseConfigService.LoadSettings(AppDomain.CurrentDomain.BaseDirectory);
+            var connStr = dbSettings.BuildConnectionString();
 
             _connectionFactory = new DbConnectionFactory(connStr);
             _middlewareEngine = new MiddlewareEngine(_connectionFactory);
@@ -66,18 +61,27 @@ namespace Lis.Middleware
 
             Loaded += async (s, e) =>
             {
-                await EnsureAdvia360ConfiguredAsync();
+                try
+                {
+                    await EnsureAdvia360ConfiguredAsync();
 
-                // Auto-start middleware engine FIRST
-                await _middlewareEngine.StartAsync();
+                    // Auto-start middleware engine FIRST
+                    await _middlewareEngine.StartAsync();
 
-                UpdateEngineUi(_middlewareEngine.IsRunning);
-                await LoadInstrumentsAsync();
-                await LoadLogsAsync();
-                await LoadStatsAsync();
+                    UpdateEngineUi(_middlewareEngine.IsRunning);
+                    await LoadInstrumentsAsync();
+                    await LoadLogsAsync();
+                    await LoadStatsAsync();
 
-                _pollTimer.Start();
-                StartInstrumentNotificationListener();
+                    _pollTimer.Start();
+                    StartInstrumentNotificationListener();
+                }
+                catch
+                {
+                    UpdateEngineUi(false);
+                    TxtEngineStatus.Text = "⚠️ خطأ في الاتصال بقاعدة البيانات (تحقق من إعدادات السيرفر)";
+                    TxtEngineStatus.Foreground = new SolidColorBrush((Color)ColorConverter.ConvertFromString("#F87171"));
+                }
             };
 
             Closing += async (s, e) =>
@@ -96,7 +100,8 @@ namespace Lis.Middleware
                     try
                     {
                         using var conn = (Npgsql.NpgsqlConnection)_connectionFactory.CreateConnection();
-                        await conn.OpenAsync();
+                        if (conn.State != System.Data.ConnectionState.Open)
+                            await conn.OpenAsync();
                         using var cmd = new Npgsql.NpgsqlCommand("LISTEN lis_instruments_channel;", conn);
                         await cmd.ExecuteNonQueryAsync();
 
