@@ -179,7 +179,6 @@ namespace Lis.App
         private List<OrderWorklistHeaderDto> _allResultsOrders = new List<OrderWorklistHeaderDto>();
         private UserSession? _currentUser;
         private ObservableCollection<TestSelectableItem> _allTests = new ObservableCollection<TestSelectableItem>();
-        private Patient? _selectedExistingPatient;
 
         public MainWindow(UserSession? session = null)
         {
@@ -247,8 +246,6 @@ namespace Lis.App
                 await LoadAvailableTestsAsync();
 
                 // Set initial date picker
-
-                DpDateOfBirth.SelectedDate = DateTime.Today.AddYears(-30);
 
                 DpOrdersDateFilter.SelectedDate = DateTime.Today;
 
@@ -443,308 +440,28 @@ namespace Lis.App
         private void BillingInputs_TextChanged(object sender, TextChangedEventArgs e) { }
 
 
-        private void DpDateOfBirth_SelectedDateChanged(object sender, SelectionChangedEventArgs e)
+        private void DpDateOfBirth_SelectedDateChanged(object sender, SelectionChangedEventArgs e) { }
 
-        {
 
-            if (DpDateOfBirth.SelectedDate.HasValue)
-
-            {
-
-                var age = _patientService.CalculateAge(DpDateOfBirth.SelectedDate.Value);
-
-                TxtCalculatedAge.Text = age.FormattedText;
-
-                _ = CheckDuplicatesAsync();
-
-            }
-
-        }
-
-        private async Task CheckDuplicatesAsync()
-
-        {
-
-            if (BorderDuplicateWarning == null || _patientService == null) return;
-
-            var name = TxtPatientNameAr?.Text?.Trim();
-
-            if (!string.IsNullOrWhiteSpace(name) && DpDateOfBirth?.SelectedDate.HasValue == true)
-
-            {
-
-                var dups = await _patientService.CheckDuplicatesAsync(name, DpDateOfBirth.SelectedDate.Value, _selectedExistingPatient?.Id);
-
-                BorderDuplicateWarning.Visibility = (dups != null && dups.Any()) ? Visibility.Visible : Visibility.Collapsed;
-
-            }
-
-            else
-
-            {
-
-                BorderDuplicateWarning.Visibility = Visibility.Collapsed;
-
-            }
-
-        }
-
-        private async Task LoadPatientDropdownAsync(string? query = null)
-
-        {
-
-            try
-
-            {
-
-                var results = (await _patientService.SearchPatientsAsync(query ?? string.Empty, 25)).ToList();
-
-                var items = results.Select(p => new PatientDropdownItem { Patient = p }).ToList();
-
-                TxtPatientCountBadge.Text = $"{items.Count} مريض";
-
-                if (items.Count > 0)
-
-                {
-
-                    BorderEmptyPatients.Visibility = Visibility.Collapsed;
-
-                    ListPatientDropdown.Visibility = Visibility.Visible;
-
-                    ListPatientDropdown.ItemsSource = items;
-
-                }
-
-                else
-
-                {
-
-                    BorderEmptyPatients.Visibility = Visibility.Visible;
-
-                    ListPatientDropdown.Visibility = Visibility.Collapsed;
-
-                    ListPatientDropdown.ItemsSource = null;
-
-                }
-
-                PopupPatientSearch.IsOpen = true;
-
-            }
-
-            catch (Exception ex)
-
-            {
-
-                System.Diagnostics.Debug.WriteLine($"Error loading patients dropdown: {ex.Message}");
-
-            }
-
-        }
-
-        private async void TxtPatientSearch_TextChanged(object sender, TextChangedEventArgs e)
-
-        {
-
-            string q = TxtPatientSearch.Text.Trim();
-
-            // Manage watermark and clear button
-
-            TxtSearchWatermark.Visibility = string.IsNullOrEmpty(TxtPatientSearch.Text) ? Visibility.Visible : Visibility.Collapsed;
-
-            BtnClearSearch.Visibility = string.IsNullOrEmpty(TxtPatientSearch.Text) ? Visibility.Collapsed : Visibility.Visible;
-
-            if (TxtPatientSearch.IsFocused)
-
-            {
-
-                await LoadPatientDropdownAsync(q);
-
-            }
-
-        }
-
-        private void TxtPatientSearch_GotFocus(object sender, RoutedEventArgs e)
-
-        {
-
-            TxtSearchWatermark.Visibility = string.IsNullOrEmpty(TxtPatientSearch.Text) ? Visibility.Visible : Visibility.Collapsed;
-
-        }
-
-        private void TxtPatientSearch_LostFocus(object sender, RoutedEventArgs e)
-
-        {
-
-            TxtSearchWatermark.Visibility = string.IsNullOrEmpty(TxtPatientSearch.Text) ? Visibility.Visible : Visibility.Collapsed;
-
-        }
-
-        private async void BtnTogglePatientDropdown_Click(object sender, RoutedEventArgs e)
-
-        {
-
-            if (PopupPatientSearch.IsOpen)
-
-            {
-
-                PopupPatientSearch.IsOpen = false;
-
-            }
-
-            else
-
-            {
-
-                await LoadPatientDropdownAsync(TxtPatientSearch.Text.Trim());
-
-            }
-
-        }
-
-        private void BtnClearSearch_Click(object sender, RoutedEventArgs e)
-
-        {
-
-            TxtPatientSearch.Clear();
-
-            PopupPatientSearch.IsOpen = false;
-
-            TxtPatientSearch.Focus();
-
-        }
-
-        private void TxtPatientSearch_PreviewKeyDown(object sender, KeyEventArgs e)
-
-        {
-
-            if (e.Key == Key.Down)
-
-            {
-
-                if (PopupPatientSearch.IsOpen && ListPatientDropdown.Items.Count > 0)
-
-                {
-
-                    ListPatientDropdown.Focus();
-
-                    ListPatientDropdown.SelectedIndex = 0;
-
-                    e.Handled = true;
-
-                }
-
-            }
-
-            else if (e.Key == Key.Escape)
-
-            {
-
-                PopupPatientSearch.IsOpen = false;
-
-                e.Handled = true;
-
-            }
-
-        }
-
-        private void ListPatientDropdown_SelectionChanged(object sender, SelectionChangedEventArgs e)
-
-        {
-
-            if (ListPatientDropdown.SelectedItem is PatientDropdownItem selectedItem)
-
-            {
-
-                SelectPatient(selectedItem.Patient, selectedItem);
-
-                ListPatientDropdown.SelectedItem = null;
-
-            }
-
-        }
-
-        private void SelectPatient(Patient p, PatientDropdownItem? item = null)
-
-        {
-
-            _selectedExistingPatient = p;
-
-            TxtAssignedMrn.Text = $"🟢 مسجل (MRN: {p.Mrn})";
-
-            if (TryFindResource("SuccessBrush") is SolidColorBrush successBrush)
-
-            {
-
-                TxtAssignedMrn.Foreground = successBrush;
-
-            }
-
-            TxtPatientNameAr.Text = p.FullNameAr;
-
-            TxtPatientPhone.Text = p.Phone ?? string.Empty;
-
-            CmbPatientSex.SelectedIndex = p.Sex == "F" ? 1 : 0;
-
-            DpDateOfBirth.SelectedDate = p.DateOfBirth;
-
-            string ageDisplay = item?.AgeDisplay ?? "محسوب";
-
-            string genderDisplay = p.Sex == "F" ? "أنثى" : "ذكر";
-
-            string phoneDisplay = string.IsNullOrWhiteSpace(p.Phone) ? "بدون هاتف" : p.Phone;
-
-            TxtSelectedPatientName.Text = p.FullNameAr;
-
-            TxtSelectedPatientMrn.Text = $"P.ID: {p.Mrn} | {genderDisplay} ({ageDisplay}) | 📱 {phoneDisplay}";
-
-            BorderSelectedPatientBanner.Visibility = Visibility.Visible;
-
-            PopupPatientSearch.IsOpen = false;
-
-        }
-
-        private void BtnUnselectPatient_Click(object sender, RoutedEventArgs e)
-
-        {
-
-            BtnNewPatient_Click(sender, e);
-
-        }
 
         private void BtnNewPatient_Click(object sender, RoutedEventArgs e)
-
         {
-
-            _selectedExistingPatient = null;
-
-            TxtPatientSearch.Clear();
-
-            BorderSelectedPatientBanner.Visibility = Visibility.Collapsed;
-
-            TxtAssignedMrn.Text = "تلقائي جديد (New Auto)";
-
-            if (TryFindResource("AccentBrush") is SolidColorBrush accentBrush)
-
+            var dlg = new NewPatientDialog(
+                _patientService,
+                _orderService,
+                _billingService,
+                _labSettingsService,
+                _connectionFactory,
+                _currentUser)
             {
+                Owner = this
+            };
 
-                TxtAssignedMrn.Foreground = accentBrush;
-
+            if (dlg.ShowDialog() == true)
+            {
+                _ = LoadOrdersGridAsync();
+                _ = LoadWorklistGridAsync();
             }
-
-            TxtPatientNameAr.Clear();
-
-            TxtPatientPhone.Clear();
-
-            TxtReferringDoctor.Clear();
-
-            CmbPatientSex.SelectedIndex = 0;
-
-            DpDateOfBirth.SelectedDate = DateTime.Today.AddYears(-30);
-
-            TxtPatientNameAr.Focus();
-
-            PopupPatientSearch.IsOpen = false;
-
         }
 
         private void TxtTestFilter_TextChanged(object sender, TextChangedEventArgs e) { /* moved to AddTestsDialog */ }
@@ -1236,83 +953,9 @@ namespace Lis.App
         /// <summary>
         /// New reception workflow: save patient + open AddTests dialog immediately.
         /// </summary>
-        private async void BtnCreateOrder_Click(object sender, RoutedEventArgs e)
+        private void BtnCreateOrder_Click(object sender, RoutedEventArgs e)
         {
-            string nameAr = TxtPatientNameAr?.Text?.Trim() ?? string.Empty;
-            if (string.IsNullOrWhiteSpace(nameAr))
-            {
-                LisMessageBox.Show("يرجى إدخال اسم المريض بالعربية.", "بيانات ناقصة", MessageBoxButton.OK, MessageBoxImage.Warning);
-                TxtPatientNameAr?.Focus();
-                return;
-            }
-            if (!DpDateOfBirth.SelectedDate.HasValue)
-            {
-                LisMessageBox.Show("يرجى تحديد تاريخ ميلاد المريض.", "بيانات ناقصة", MessageBoxButton.OK, MessageBoxImage.Warning);
-                return;
-            }
-
-            try
-            {
-                // 1. Create or reuse patient
-                Patient? patient = _selectedExistingPatient;
-                if (patient == null)
-                {
-                    patient = new Patient
-                    {
-                        FullNameAr  = nameAr,
-                        Sex         = CmbPatientSex.SelectedIndex == 1 ? "F" : "M",
-                        DateOfBirth = DpDateOfBirth.SelectedDate.Value,
-                        Phone       = string.IsNullOrWhiteSpace(TxtPatientPhone?.Text) ? null : TxtPatientPhone.Text.Trim()
-                    };
-                    patient = await _patientService.CreatePatientAsync(patient, _currentUser?.Id);
-                }
-
-                if (patient == null)
-                {
-                    LisMessageBox.Show("تعذر إنشاء أو تحديد المريض.", "خطأ", MessageBoxButton.OK, MessageBoxImage.Error);
-                    return;
-                }
-
-                string? refDoc = string.IsNullOrWhiteSpace(TxtReferringDoctor?.Text) ? null : TxtReferringDoctor.Text.Trim();
-                string? notes  = null;
-
-                // 2. Open AddTests dialog (modal popup)
-                var addTestsDlg = new AddTestsDialog(
-                    patient,
-                    refDoc,
-                    notes,
-                    _orderService,
-                    _billingService,
-                    _labSettingsService,
-                    _connectionFactory,
-                    _currentUser)
-                { Owner = this };
-
-                bool? dlgResult = addTestsDlg.ShowDialog();
-
-                // 3. If order was saved, reset form and refresh orders list
-                if (dlgResult == true)
-                {
-                    BtnNewPatient_Click(this, new RoutedEventArgs());
-                    _ = LoadOrdersGridAsync();
-                    _ = LoadWorklistGridAsync();
-                }
-                else
-                {
-                    // If dialog was closed without saving, keep the created patient selected
-                    _selectedExistingPatient = patient;
-                    BorderSelectedPatientBanner.Visibility = Visibility.Visible;
-                    TxtAssignedMrn.Text = $"🟢 مسجل (MRN: {patient.Mrn})";
-                    if (TryFindResource("SuccessBrush") is SolidColorBrush successBrush)
-                    {
-                        TxtAssignedMrn.Foreground = successBrush;
-                    }
-                }
-            }
-            catch (Exception ex)
-            {
-                LisMessageBox.Show($"خطأ: {ex.Message}", "خطأ", MessageBoxButton.OK, MessageBoxImage.Error);
-            }
+            BtnNewPatient_Click(sender, e);
         }
 
         private void BtnViewOrderDetails_Click(object sender, RoutedEventArgs e)
