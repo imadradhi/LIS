@@ -247,8 +247,9 @@
             <Setter Property="Background" Value="{DynamicResource InputBrush}"/>
             <Setter Property="BorderBrush" Value="{DynamicResource BorderBrush}"/>
             <Setter Property="BorderThickness" Value="1"/>
-            <Setter Property="ScrollViewer.HorizontalScrollBarVisibility" Value="Auto"/>
-            <Setter Property="ScrollViewer.VerticalScrollBarVisibility" Value="Auto"/>
+            <Setter Property="MaxDropDownHeight" Value="380"/>
+            <Setter Property="ScrollViewer.HorizontalScrollBarVisibility" Value="Disabled"/>
+            <Setter Property="ScrollViewer.VerticalScrollBarVisibility" Value="Hidden"/>
             <Setter Property="Padding" Value="12,6,30,6"/>
             <Setter Property="FontSize" Value="14"/>
             <Setter Property="Height" Value="38"/>
@@ -283,7 +284,10 @@
                                         <Border.Effect>
                                             <DropShadowEffect BlurRadius="16" ShadowDepth="4" Direction="270" Opacity="0.3" Color="#000000"/>
                                         </Border.Effect>
-                                        <ScrollViewer x:Name="dropDownScrollViewer">
+                                        <ScrollViewer x:Name="dropDownScrollViewer"
+                                                      Focusable="False"
+                                                      HorizontalScrollBarVisibility="Disabled"
+                                                      VerticalScrollBarVisibility="Hidden">
                                             <Grid x:Name="grid" RenderOptions.ClearTypeHint="Enabled">
                                                 <ItemsPresenter x:Name="ItemsPresenter" KeyboardNavigation.DirectionalNavigation="Contained" SnapsToDevicePixels="{TemplateBinding SnapsToDevicePixels}"/>
                                             </Grid>

@@ -480,11 +480,11 @@
                         </Grid>
                     </Border>
 
-                    <!-- Worklist DataGrid (No Horizontal Scrollbar, Compact Icon Actions) -->
+                    <!-- Worklist DataGrid (No Horizontal or Side Scrollbars, Smooth Mouse Wheel Scroll) -->
                     <DataGrid Grid.Row="1" x:Name="GridWorklist" AutoGenerateColumns="False" CanUserAddRows="False"
                               IsReadOnly="True" HeadersVisibility="Column" SelectionMode="Single"
                               ScrollViewer.HorizontalScrollBarVisibility="Disabled"
-                              ScrollViewer.VerticalScrollBarVisibility="Auto">
+                              ScrollViewer.VerticalScrollBarVisibility="Hidden">
                         <DataGrid.Columns>
                             <DataGridTextColumn Header="باركود الأنبوب (Accession)" Binding="{Binding accession_no}" FontWeight="Bold" Width="140"/>
                             <DataGridTextColumn Header="نوع الأنبوب (Tube Type)" Binding="{Binding specimen_type_name}" Width="130"/>
