@@ -52,17 +52,20 @@
                     <ControlTemplate TargetType="Button">
                         <Border x:Name="btnBorder" 
                                 Background="{TemplateBinding Background}" 
+                                BorderBrush="Transparent"
+                                BorderThickness="1"
                                 CornerRadius="8">
                             <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
                         </Border>
                         <ControlTemplate.Triggers>
                             <Trigger Property="IsMouseOver" Value="True">
-                                <Setter TargetName="btnBorder" Property="Background" Value="#EF4444"/>
-                                <Setter Property="Foreground" Value="#FFFFFF"/>
+                                <Setter TargetName="btnBorder" Property="Background" Value="{DynamicResource CardHoverBrush}"/>
+                                <Setter TargetName="btnBorder" Property="BorderBrush" Value="{DynamicResource BorderBrush}"/>
+                                <Setter Property="Foreground" Value="{DynamicResource TextPrimaryBrush}"/>
                             </Trigger>
                             <Trigger Property="IsPressed" Value="True">
-                                <Setter TargetName="btnBorder" Property="Background" Value="#DC2626"/>
-                                <Setter Property="Foreground" Value="#FFFFFF"/>
+                                <Setter TargetName="btnBorder" Property="Background" Value="{DynamicResource BorderBrush}"/>
+                                <Setter Property="Foreground" Value="{DynamicResource TextPrimaryBrush}"/>
                             </Trigger>
                         </ControlTemplate.Triggers>
                     </ControlTemplate>
@@ -266,22 +269,14 @@
                     </StackPanel>
                 </Border>
 
-                <!-- Left Side: Minimal Window Control Buttons (Minimize & Close) -->
-                <StackPanel Grid.Column="1" Orientation="Horizontal" HorizontalAlignment="Left" VerticalAlignment="Center">
-                    <!-- Minimize Button -->
-                    <Button Style="{StaticResource WindowControlButtonBase}" 
-                            ToolTip="تصغير النافذة" 
-                            Click="BtnMinimize_Click" 
-                            Margin="0,0,4,0">
-                        <TextBlock Text="—" FontSize="12" FontWeight="Bold" Margin="0,-2,0,0"/>
-                    </Button>
-                    <!-- Close Button -->
-                    <Button Style="{StaticResource WindowCloseButtonStyle}" 
-                            ToolTip="إغلاق البرنامج" 
-                            Click="BtnClose_Click">
-                        <TextBlock Text="✕" FontSize="12" FontWeight="Bold"/>
-                    </Button>
-                </StackPanel>
+                <!-- Left Side: Sleek Minimal Window Close Button Only (No Red) -->
+                <Button Grid.Column="1"
+                        Style="{StaticResource WindowCloseButtonStyle}" 
+                        ToolTip="إغلاق البرنامج" 
+                        Click="BtnClose_Click"
+                        HorizontalAlignment="Left" VerticalAlignment="Center">
+                    <TextBlock Text="✕" FontSize="13" FontWeight="Bold"/>
+                </Button>
             </Grid>
 
             <!-- ── ROW 1: HERO BRANDING (Logo + Titles) ── -->
