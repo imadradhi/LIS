@@ -50,12 +50,12 @@
                     <Border Background="{DynamicResource TopBarCardBrush}" CornerRadius="8" Padding="12,5" BorderBrush="{DynamicResource TopBarBorderBrush}" BorderThickness="1">
                         <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
                             <TextBlock Text="📷 مسح الباركود (Scan Barcode):" Foreground="{DynamicResource TopBarTextSecondaryBrush}" FontWeight="SemiBold" FontSize="13.5" VerticalAlignment="Center" Margin="0,0,10,0"/>
-                            <TextBox x:Name="TxtQuickScan" Width="160" Height="36" FontSize="16" FontWeight="Bold" 
+                            <TextBox x:Name="TxtQuickScan" Width="160" Height="40" FontSize="16" FontWeight="Bold" 
                                      Background="{DynamicResource InputBrush}" Foreground="{DynamicResource AccentBrush}" BorderBrush="{DynamicResource BorderBrush}" BorderThickness="1"
                                      VerticalContentAlignment="Center" HorizontalContentAlignment="Center"
                                      ToolTip="امسح باركود العينة المكون من 6 أرقام بالماسح الضوئي أو اكتب واضغط Enter"
                                      KeyDown="TxtQuickScan_KeyDown"/>
-                            <Button Content="بحث (Search)" Style="{DynamicResource PrimaryButtonStyle}" Height="36" Padding="14,2" Margin="8,0,0,0" Click="BtnQuickScan_Click"/>
+                            <Button Content="بحث (Search)" Style="{DynamicResource PrimaryButtonStyle}" Height="40" Padding="16,4" Margin="8,0,0,0" Click="BtnQuickScan_Click"/>
                         </StackPanel>
                     </Border>
                 </StackPanel>
@@ -66,7 +66,7 @@
                     <Border Background="{DynamicResource TopBarCardBrush}" BorderBrush="{DynamicResource TopBarBorderBrush}" BorderThickness="1" CornerRadius="8" Padding="6,2" Margin="0,0,16,0" VerticalAlignment="Center">
                         <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
                             <TextBlock Text="🎨" FontSize="14" VerticalAlignment="Center" Margin="0,0,6,0"/>
-                            <ComboBox x:Name="CmbTopTheme" Width="210" Height="34" FontSize="13" SelectionChanged="CmbTopTheme_SelectionChanged">
+                            <ComboBox x:Name="CmbTopTheme" Width="210" Height="40" FontSize="13.5" SelectionChanged="CmbTopTheme_SelectionChanged">
                                 <ComboBoxItem Tag="BiotechDark"  Content="🧬 Biotech Dark Mode" IsSelected="True"/>
                                 <ComboBoxItem Tag="CleanWhite"   Content="🏥 Medical Clean White"/>
                                 <ComboBoxItem Tag="RoyalBlue"    Content="💎 Clinical Royal Blue"/>
@@ -87,7 +87,7 @@
         <Grid Grid.Row="1">
             <Grid.ColumnDefinitions>
                 <!-- Navigation Sidebar (Left) -->
-                <ColumnDefinition Width="250" MinWidth="210"/>
+                <ColumnDefinition Width="270" MinWidth="230"/>
                 <!-- Content Area (Right) -->
                 <ColumnDefinition Width="*"/>
             </Grid.ColumnDefinitions>
@@ -147,11 +147,11 @@
                             </Grid.ColumnDefinitions>
 
                             <!-- Primary Action: New Patient / New Order -->
-                            <Button Grid.Column="0" x:Name="BtnNewPatient" Content="➕ مراجع جديد (طلب فحص)" Style="{DynamicResource SuccessButtonStyle}" Height="36" Padding="16,0" FontSize="13.5" FontWeight="Bold" Click="BtnNewPatient_Click" ToolTip="تسجيل مراجع جديد أو فتح طلب فحص لمريض مسجل"/>
+                            <Button Grid.Column="0" x:Name="BtnNewPatient" Content="➕ مراجع جديد (طلب فحص)" Style="{DynamicResource SuccessButtonStyle}" Height="40" Padding="18,0" FontSize="13.5" FontWeight="Bold" Click="BtnNewPatient_Click" ToolTip="تسجيل مراجع جديد أو فتح طلب فحص لمريض مسجل"/>
 
                             <!-- Search -->
                             <TextBlock Grid.Column="2" Text="بحث:" VerticalAlignment="Center" Margin="0,0,8,0" FontWeight="SemiBold"/>
-                            <Border Grid.Column="3" Background="{DynamicResource InputBrush}" BorderBrush="{DynamicResource BorderBrush}" BorderThickness="1" CornerRadius="8" Height="36">
+                            <Border Grid.Column="3" Background="{DynamicResource InputBrush}" BorderBrush="{DynamicResource BorderBrush}" BorderThickness="1" CornerRadius="8" Height="40">
                                 <Grid>
                                     <Grid.ColumnDefinitions>
                                         <ColumnDefinition Width="28"/>
@@ -164,7 +164,7 @@
 
                             <!-- Status Filter -->
                             <TextBlock Grid.Column="4" Text="الحالة:" VerticalAlignment="Center" Margin="14,0,8,0" FontWeight="SemiBold"/>
-                            <ComboBox Grid.Column="5" x:Name="CmbOrdersStatusFilter" Height="36" SelectionChanged="CmbOrdersStatusFilter_Changed">
+                            <ComboBox Grid.Column="5" x:Name="CmbOrdersStatusFilter" Height="40" SelectionChanged="CmbOrdersStatusFilter_Changed">
                                 <ComboBoxItem Content="الكل (All)" IsSelected="True"/>
                                 <ComboBoxItem Content="Ordered"/>
                                 <ComboBoxItem Content="Collected"/>
@@ -174,10 +174,10 @@
 
                             <!-- Date Filter -->
                             <TextBlock Grid.Column="6" Text="التاريخ:" VerticalAlignment="Center" Margin="14,0,8,0" FontWeight="SemiBold"/>
-                            <DatePicker Grid.Column="7" x:Name="DpOrdersDateFilter" Height="36" CalendarStyle="{StaticResource ModernCalendarStyle}" SelectedDateChanged="DpOrdersDateFilter_SelectedDateChanged"/>
+                            <DatePicker Grid.Column="7" x:Name="DpOrdersDateFilter" Height="40" CalendarStyle="{StaticResource ModernCalendarStyle}" SelectedDateChanged="DpOrdersDateFilter_SelectedDateChanged"/>
 
                             <!-- Refresh Button -->
-                            <Button Grid.Column="9" Content="تحديث القائمة (Refresh 🔄)" Style="{DynamicResource SecondaryButtonStyle}" Height="36" Padding="16,0" FontSize="13" Click="BtnRefreshOrders_Click"/>
+                            <Button Grid.Column="9" Content="تحديث القائمة (Refresh 🔄)" Style="{DynamicResource SecondaryButtonStyle}" Height="40" Padding="16,0" FontSize="13" Click="BtnRefreshOrders_Click"/>
                         </Grid>
                     </Border>
 
@@ -244,13 +244,13 @@
                             </Grid.ColumnDefinitions>
                             
                             <TextBlock Grid.Column="0" Text="القسم (Department):" VerticalAlignment="Center" Margin="0,0,8,0" FontWeight="SemiBold"/>
-                            <ComboBox Grid.Column="1" x:Name="CmbWorklistDept" Height="36" SelectionChanged="CmbWorklistFilter_Changed">
+                            <ComboBox Grid.Column="1" x:Name="CmbWorklistDept" Height="40" SelectionChanged="CmbWorklistFilter_Changed">
                                 <ComboBoxItem Content="جميع الأقسام (All)" IsSelected="True"/>
                                 <ComboBoxItem Content="Hematology (أمراض الدم)"/>
                             </ComboBox>
 
                             <TextBlock Grid.Column="2" Text="حالة الأنبوب (Status):" VerticalAlignment="Center" Margin="16,0,8,0" FontWeight="SemiBold"/>
-                            <ComboBox Grid.Column="3" x:Name="CmbWorklistStatus" Height="36" SelectionChanged="CmbWorklistFilter_Changed">
+                            <ComboBox Grid.Column="3" x:Name="CmbWorklistStatus" Height="40" SelectionChanged="CmbWorklistFilter_Changed">
                                 <ComboBoxItem Tag="" Content="جميع الحالات (All)" IsSelected="True"/>
                                 <ComboBoxItem Tag="Ordered" Content="بانتظار الاستلام (Ordered)"/>
                                 <ComboBoxItem Tag="Collected" Content="تم الاستلام (Collected)"/>
@@ -260,7 +260,7 @@
                                 <ComboBoxItem Tag="Rejected" Content="مرفوضة (Rejected)"/>
                             </ComboBox>
 
-                            <Button Grid.Column="5" Content="تحديث القائمة (Refresh 🔄)" Style="{DynamicResource SecondaryButtonStyle}" Height="36" Padding="14,0" FontSize="13" Click="BtnRefreshWorklist_Click"/>
+                            <Button Grid.Column="5" Content="تحديث القائمة (Refresh 🔄)" Style="{DynamicResource SecondaryButtonStyle}" Height="40" Padding="16,0" FontSize="13" Click="BtnRefreshWorklist_Click"/>
                         </Grid>
                     </Border>
 
@@ -301,13 +301,13 @@
                                     <DataTemplate>
                                         <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
                                             <!-- Receive / Collect -->
-                                            <Button Content="📥" ToolTip="استلام العينة (Collect)" Style="{DynamicResource SecondaryButtonStyle}" Width="34" Height="30" FontSize="13" Padding="0" Margin="0,0,5,0" Click="BtnWorklistCollect_Click"/>
+                                            <Button Content="📥" ToolTip="استلام العينة (Collect)" Style="{DynamicResource SecondaryButtonStyle}" Width="34" Height="32" FontSize="13" Padding="0" Margin="0,0,5,0" Click="BtnWorklistCollect_Click"/>
                                             <!-- Print Barcode -->
-                                            <Button Content="🖨️" ToolTip="طباعة باركود الأنبوب (Print Barcode)" Style="{DynamicResource SecondaryButtonStyle}" Width="34" Height="30" FontSize="13" Padding="0" Margin="0,0,5,0" Click="BtnWorklistPrintLabel_Click"/>
+                                            <Button Content="🖨️" ToolTip="طباعة باركود الأنبوب (Print Barcode)" Style="{DynamicResource SecondaryButtonStyle}" Width="34" Height="32" FontSize="13" Padding="0" Margin="0,0,5,0" Click="BtnWorklistPrintLabel_Click"/>
                                             <!-- Reject -->
-                                            <Button Content="✕" ToolTip="رفض العينة (Reject)" Style="{DynamicResource SecondaryButtonStyle}" Width="34" Height="30" FontSize="13" FontWeight="Bold" Padding="0" Margin="0,0,5,0" Click="BtnWorklistReject_Click"/>
+                                            <Button Content="✕" ToolTip="رفض العينة (Reject)" Style="{DynamicResource SecondaryButtonStyle}" Width="34" Height="32" FontSize="13" FontWeight="Bold" Padding="0" Margin="0,0,5,0" Click="BtnWorklistReject_Click"/>
                                             <!-- Results -->
-                                            <Button Content="📊" ToolTip="عرض وإدخال النتائج (Results)" Style="{DynamicResource SecondaryButtonStyle}" Width="34" Height="30" FontSize="13" Padding="0" Click="BtnWorklistViewResults_Click"/>
+                                            <Button Content="📊" ToolTip="عرض وإدخال النتائج (Results)" Style="{DynamicResource SecondaryButtonStyle}" Width="34" Height="32" FontSize="13" Padding="0" Click="BtnWorklistViewResults_Click"/>
                                         </StackPanel>
                                     </DataTemplate>
                                 </DataGridTemplateColumn.CellTemplate>
@@ -344,9 +344,9 @@
 
                             <!-- Filters -->
                             <StackPanel Grid.Row="1" Margin="0,0,0,12">
-                                <TextBox x:Name="TxtResultsOrderSearch" Height="36" Style="{DynamicResource SearchTextBoxStyle}" 
+                                <TextBox x:Name="TxtResultsOrderSearch" Height="40" Style="{DynamicResource SearchTextBoxStyle}" 
                                          Tag="بحث باسم المريض أو MRN أو رقم الطلب أو الباركود..." TextChanged="TxtResultsOrderSearch_TextChanged" Margin="0,0,0,8"/>
-                                <ComboBox x:Name="CmbResultsStatusFilter" Height="34" SelectionChanged="CmbResultsStatusFilter_SelectionChanged">
+                                <ComboBox x:Name="CmbResultsStatusFilter" Height="40" SelectionChanged="CmbResultsStatusFilter_SelectionChanged">
                                     <ComboBoxItem Tag="" Content="جميع الحالات (All)" IsSelected="True"/>
                                     <ComboBoxItem Tag="ResultReceived" Content="📊 تم استلام النتيجة (ResultReceived)"/>
                                     <ComboBoxItem Tag="Validated" Content="✅ معتمدة (Validated)"/>
@@ -464,7 +464,7 @@
 
                             <!-- Results DataGrid -->
                             <DataGrid Grid.Row="2" x:Name="GridOrderResults" AutoGenerateColumns="False" CanUserAddRows="False"
-                                      HeadersVisibility="Column" SelectionMode="Single" RowHeight="42">
+                                      HeadersVisibility="Column" SelectionMode="Single" RowHeight="44">
                                 <DataGrid.Columns>
                                     <DataGridTextColumn Header="التحليل الأساسي (Test)" Binding="{Binding DisplayTestName}" FontWeight="Bold" Width="200" IsReadOnly="True"/>
                                     <DataGridTextColumn Header="المكون (Component)" Binding="{Binding DisplayComponentName}" FontWeight="SemiBold" Width="200" IsReadOnly="True"/>
@@ -474,7 +474,7 @@
                                         <DataGridTemplateColumn.CellTemplate>
                                             <DataTemplate>
                                                 <TextBox Text="{Binding ValueText, UpdateSourceTrigger=PropertyChanged}" 
-                                                         FontWeight="Bold" FontSize="14" Padding="6,3"
+                                                         FontWeight="Bold" FontSize="13.5" Padding="8,4" MinHeight="32"
                                                          Background="{DynamicResource InputBrush}"
                                                          Foreground="{DynamicResource TextPrimaryBrush}"
                                                          BorderBrush="{DynamicResource BorderBrush}"
@@ -561,16 +561,16 @@
                                     </Grid.ColumnDefinitions>
 
                                     <TextBlock Grid.Column="0" Text="🔍 بحث:" VerticalAlignment="Center" Margin="0,0,8,0" FontWeight="SemiBold" FontSize="13.5"/>
-                                    <Border Grid.Column="1" Background="{DynamicResource CardBrush}" BorderBrush="{DynamicResource BorderBrush}" BorderThickness="1" CornerRadius="6" Height="36">
+                                    <Border Grid.Column="1" Background="{DynamicResource CardBrush}" BorderBrush="{DynamicResource BorderBrush}" BorderThickness="1" CornerRadius="6" Height="40">
                                         <TextBox x:Name="TxtCatSearch" Background="Transparent" BorderThickness="0" Foreground="{DynamicResource TextPrimaryBrush}" FontSize="13.5" VerticalContentAlignment="Center" Padding="8,0"
                                                  ToolTip="ابحث باسم التحليل أو الكود الفريد..." TextChanged="TxtCatSearch_TextChanged"/>
                                     </Border>
 
                                     <TextBlock Grid.Column="2" Text="القسم:" VerticalAlignment="Center" Margin="14,0,8,0" FontWeight="SemiBold" FontSize="13.5"/>
-                                    <ComboBox Grid.Column="3" x:Name="CmbCatDeptFilter" Height="36" FontSize="13.5" SelectionChanged="CmbCatDeptFilter_SelectionChanged"/>
+                                    <ComboBox Grid.Column="3" x:Name="CmbCatDeptFilter" Height="40" FontSize="13.5" SelectionChanged="CmbCatDeptFilter_SelectionChanged"/>
 
                                     <TextBlock Grid.Column="4" Text="الحالة:" VerticalAlignment="Center" Margin="14,0,8,0" FontWeight="SemiBold" FontSize="13.5"/>
-                                    <ComboBox Grid.Column="5" x:Name="CmbCatStatusFilter" Height="36" FontSize="13.5" SelectionChanged="CmbCatStatusFilter_SelectionChanged">
+                                    <ComboBox Grid.Column="5" x:Name="CmbCatStatusFilter" Height="40" FontSize="13.5" SelectionChanged="CmbCatStatusFilter_SelectionChanged">
                                         <ComboBoxItem Content="جميع التحاليل" IsSelected="True"/>
                                         <ComboBoxItem Content="المفعلة فقط 🟢"/>
                                         <ComboBoxItem Content="المعطلة فقط 🔴"/>
@@ -626,9 +626,9 @@
                                             <ColumnDefinition Width="*"/>
                                         </Grid.ColumnDefinitions>
                                         <RadioButton x:Name="RbCatTabInfo" Grid.Column="0" Content="📝 بيانات الفحص" IsChecked="True"
-                                                     GroupName="CatDetailTabs" Style="{DynamicResource SegmentedTabRadioStyle}" Height="36" Margin="0,0,3,0" Checked="CatTab_Checked"/>
+                                                     GroupName="CatDetailTabs" Style="{DynamicResource SegmentedTabRadioStyle}" Height="40" Margin="0,0,3,0" Checked="CatTab_Checked"/>
                                         <RadioButton x:Name="RbCatTabComponents" Grid.Column="1" Content="🔬 الباراميترات (0)"
-                                                     GroupName="CatDetailTabs" Style="{DynamicResource SegmentedTabRadioStyle}" Height="36" Margin="3,0,0,0" Checked="CatTab_Checked"/>
+                                                     GroupName="CatDetailTabs" Style="{DynamicResource SegmentedTabRadioStyle}" Height="40" Margin="3,0,0,0" Checked="CatTab_Checked"/>
                                     </Grid>
                                 </Border>
 
@@ -637,7 +637,7 @@
                                     <StackPanel>
                                         <TextBlock x:Name="TxtCatFormTitle" Text="➕ إضافة فحص جديد (New Test)" FontSize="15.5" FontWeight="Bold" Foreground="{DynamicResource AccentBrush}" Margin="0,0,0,12"/>
 
-                                        <Button x:Name="BtnCatOpenComponentsQuick" Content="🔬 إدارة بارامترات هذا الفحص والقيم المرجعية" Style="{DynamicResource PrimaryButtonStyle}" Height="38" Margin="0,0,0,12" Click="BtnCatOpenComponentsQuick_Click" Visibility="Collapsed"/>
+                                        <Button x:Name="BtnCatOpenComponentsQuick" Content="🔬 إدارة بارامترات هذا الفحص والقيم المرجعية" Style="{DynamicResource PrimaryButtonStyle}" Height="40" Margin="0,0,0,12" Click="BtnCatOpenComponentsQuick_Click" Visibility="Collapsed"/>
 
                                         <!-- Code + Price in one row -->
                                         <Grid Margin="0,0,0,10">
@@ -647,21 +647,21 @@
                                             </Grid.ColumnDefinitions>
                                             <StackPanel Grid.Column="0" Margin="0,0,8,0">
                                                 <TextBlock Text="كود التحليل (Test Code):" FontSize="13.5" Foreground="{DynamicResource TextSecondaryBrush}" Margin="0,0,0,4"/>
-                                                <TextBox x:Name="TxtCatFormTestCode" Height="36" CharacterCasing="Upper" ToolTip="مثال: T_CBC, T_TSH"/>
+                                                <TextBox x:Name="TxtCatFormTestCode" Height="40" CharacterCasing="Upper" ToolTip="مثال: T_CBC, T_TSH"/>
                                             </StackPanel>
                                             <StackPanel Grid.Column="1">
                                                 <TextBlock Text="السعر (IQD):" FontSize="13.5" Foreground="{DynamicResource TextSecondaryBrush}" Margin="0,0,0,4"/>
-                                                <TextBox x:Name="TxtCatFormPrice" Text="0" Height="36"/>
+                                                <TextBox x:Name="TxtCatFormPrice" Text="0" Height="40"/>
                                             </StackPanel>
                                         </Grid>
 
                                         <!-- Arabic Name -->
                                         <TextBlock Text="اسم التحليل بالعربية (Arabic Name):" FontSize="13.5" Foreground="{DynamicResource TextSecondaryBrush}" Margin="0,0,0,4"/>
-                                        <TextBox x:Name="TxtCatFormNameAr" Height="36" Margin="0,0,0,10"/>
+                                        <TextBox x:Name="TxtCatFormNameAr" Height="40" Margin="0,0,0,10"/>
 
                                         <!-- English Name -->
                                         <TextBlock Text="اسم التحليل بالإنجليزية (English Name):" FontSize="13.5" Foreground="{DynamicResource TextSecondaryBrush}" Margin="0,0,0,4"/>
-                                        <TextBox x:Name="TxtCatFormNameEn" Height="36" Margin="0,0,0,10"/>
+                                        <TextBox x:Name="TxtCatFormNameEn" Height="40" Margin="0,0,0,10"/>
 
                                         <!-- Department + Specimen Type in one row -->
                                         <Grid Margin="0,0,0,10">
@@ -671,11 +671,11 @@
                                             </Grid.ColumnDefinitions>
                                             <StackPanel Grid.Column="0" Margin="0,0,6,0">
                                                 <TextBlock Text="القسم (Department):" FontSize="13.5" Foreground="{DynamicResource TextSecondaryBrush}" Margin="0,0,0,4"/>
-                                                <ComboBox x:Name="CmbCatFormDepartment" Height="36" DisplayMemberPath="DisplayName" SelectedValuePath="Id"/>
+                                                <ComboBox x:Name="CmbCatFormDepartment" Height="40" DisplayMemberPath="DisplayName" SelectedValuePath="Id"/>
                                             </StackPanel>
                                             <StackPanel Grid.Column="1" Margin="6,0,0,0">
                                                 <TextBlock Text="نوع الأنبوب (Tube):" FontSize="13.5" Foreground="{DynamicResource TextSecondaryBrush}" Margin="0,0,0,4"/>
-                                                <ComboBox x:Name="CmbCatFormSpecimenType" Height="36" DisplayMemberPath="DisplayName" SelectedValuePath="Id"/>
+                                                <ComboBox x:Name="CmbCatFormSpecimenType" Height="40" DisplayMemberPath="DisplayName" SelectedValuePath="Id"/>
                                             </StackPanel>
                                         </Grid>
 
@@ -983,19 +983,19 @@
                                 </Grid.ColumnDefinitions>
                                 <StackPanel Grid.Column="0" Margin="0,0,8,0">
                                     <TextBlock Text="اسم المختبر بالعربية (Lab Name - Arabic):" FontSize="13.5" Foreground="{DynamicResource TextSecondaryBrush}" Margin="0,0,0,4"/>
-                                    <TextBox x:Name="TxtSettingsLabNameAr" Height="36" TextChanged="SettingsInputs_Changed"/>
+                                    <TextBox x:Name="TxtSettingsLabNameAr" Height="40" TextChanged="SettingsInputs_Changed"/>
                                 </StackPanel>
                                 <StackPanel Grid.Column="1" Margin="8,0,8,0">
                                     <TextBlock Text="اسم المختبر بالإنجليزية (Lab Name - English):" FontSize="13.5" Foreground="{DynamicResource TextSecondaryBrush}" Margin="0,0,0,4"/>
-                                    <TextBox x:Name="TxtSettingsLabNameEn" Height="36" TextChanged="SettingsInputs_Changed"/>
+                                    <TextBox x:Name="TxtSettingsLabNameEn" Height="40" TextChanged="SettingsInputs_Changed"/>
                                 </StackPanel>
                                 <StackPanel Grid.Column="2" Margin="8,0,8,0">
                                     <TextBlock Text="العنوان (Address):" FontSize="13.5" Foreground="{DynamicResource TextSecondaryBrush}" Margin="0,0,0,4"/>
-                                    <TextBox x:Name="TxtSettingsAddress" Height="36" TextChanged="SettingsInputs_Changed"/>
+                                    <TextBox x:Name="TxtSettingsAddress" Height="40" TextChanged="SettingsInputs_Changed"/>
                                 </StackPanel>
                                 <StackPanel Grid.Column="3" Margin="8,0,0,0">
                                     <TextBlock Text="أرقام الهواتف (Phone Numbers):" FontSize="13.5" Foreground="{DynamicResource TextSecondaryBrush}" Margin="0,0,0,4"/>
-                                    <TextBox x:Name="TxtSettingsPhones" Height="36" TextChanged="SettingsInputs_Changed"/>
+                                    <TextBox x:Name="TxtSettingsPhones" Height="40" TextChanged="SettingsInputs_Changed"/>
                                 </StackPanel>
                             </Grid>
 
@@ -1010,23 +1010,23 @@
                                 </Grid.ColumnDefinitions>
                                 <StackPanel Grid.Column="0" Margin="0,0,8,0">
                                     <TextBlock Text="البريد الإلكتروني (Email):" FontSize="13.5" Foreground="{DynamicResource TextSecondaryBrush}" Margin="0,0,0,4"/>
-                                    <TextBox x:Name="TxtSettingsEmail" Height="36"/>
+                                    <TextBox x:Name="TxtSettingsEmail" Height="40"/>
                                 </StackPanel>
                                 <StackPanel Grid.Column="1" Margin="8,0,8,0">
                                     <TextBlock Text="نص رأس التقرير (Report Header):" FontSize="13.5" Foreground="{DynamicResource TextSecondaryBrush}" Margin="0,0,0,4"/>
-                                    <TextBox x:Name="TxtSettingsHeaderText" Height="36" TextChanged="SettingsInputs_Changed"/>
+                                    <TextBox x:Name="TxtSettingsHeaderText" Height="40" TextChanged="SettingsInputs_Changed"/>
                                 </StackPanel>
                                 <StackPanel Grid.Column="2" Margin="8,0,8,0">
                                     <TextBlock Text="الطبيب المسؤول (Manager Name):" FontSize="13.5" Foreground="{DynamicResource TextSecondaryBrush}" Margin="0,0,0,4"/>
-                                    <TextBox x:Name="TxtSettingsManagerName" Height="36" TextChanged="SettingsInputs_Changed"/>
+                                    <TextBox x:Name="TxtSettingsManagerName" Height="40" TextChanged="SettingsInputs_Changed"/>
                                 </StackPanel>
                                 <StackPanel Grid.Column="3" Margin="8,0,8,0">
                                     <TextBlock Text="اللقب والتخصص (Title):" FontSize="13.5" Foreground="{DynamicResource TextSecondaryBrush}" Margin="0,0,0,4"/>
-                                    <TextBox x:Name="TxtSettingsManagerTitle" Height="36" TextChanged="SettingsInputs_Changed"/>
+                                    <TextBox x:Name="TxtSettingsManagerTitle" Height="40" TextChanged="SettingsInputs_Changed"/>
                                 </StackPanel>
                                 <StackPanel Grid.Column="4" Margin="8,0,0,0">
                                     <TextBlock Text="نص تذييل التقرير (Footer):" FontSize="13.5" Foreground="{DynamicResource TextSecondaryBrush}" Margin="0,0,0,4"/>
-                                    <TextBox x:Name="TxtSettingsFooterText" Height="36" TextChanged="SettingsInputs_Changed"/>
+                                    <TextBox x:Name="TxtSettingsFooterText" Height="40" TextChanged="SettingsInputs_Changed"/>
                                 </StackPanel>
                             </Grid>
                         </StackPanel>
@@ -1102,8 +1102,8 @@
                                                         <ColumnDefinition Width="*"/>
                                                         <ColumnDefinition Width="Auto"/>
                                                     </Grid.ColumnDefinitions>
-                                                    <ComboBox x:Name="CmbSettingsLabelPrinter" IsEditable="True" Height="36"/>
-                                                    <Button Grid.Column="1" Content="🔍" Style="{DynamicResource OutlineButtonStyle}" Margin="5,0,0,0" Width="38" Height="36" ToolTip="استعراض الطابعات (Browse)" Click="BtnBrowseLabelPrinter_Click"/>
+                                                    <ComboBox x:Name="CmbSettingsLabelPrinter" IsEditable="True" Height="40"/>
+                                                    <Button Grid.Column="1" Content="🔍" Style="{DynamicResource OutlineButtonStyle}" Margin="5,0,0,0" Width="38" Height="40" ToolTip="استعراض الطابعات (Browse)" Click="BtnBrowseLabelPrinter_Click"/>
                                                 </Grid>
                                             </StackPanel>
                                             <StackPanel Grid.Column="1" Margin="8,0,0,0">
@@ -1113,8 +1113,8 @@
                                                         <ColumnDefinition Width="*"/>
                                                         <ColumnDefinition Width="Auto"/>
                                                     </Grid.ColumnDefinitions>
-                                                    <ComboBox x:Name="CmbSettingsReportPrinter" IsEditable="True" Height="36"/>
-                                                    <Button Grid.Column="1" Content="🔍" Style="{DynamicResource OutlineButtonStyle}" Margin="5,0,0,0" Width="38" Height="36" ToolTip="استعراض الطابعات (Browse)" Click="BtnBrowseReportPrinter_Click"/>
+                                                    <ComboBox x:Name="CmbSettingsReportPrinter" IsEditable="True" Height="40"/>
+                                                    <Button Grid.Column="1" Content="🔍" Style="{DynamicResource OutlineButtonStyle}" Margin="5,0,0,0" Width="38" Height="40" ToolTip="استعراض الطابعات (Browse)" Click="BtnBrowseReportPrinter_Click"/>
                                                 </Grid>
                                             </StackPanel>
                                         </Grid>
@@ -1128,9 +1128,9 @@
                                                     <ColumnDefinition Width="Auto"/>
                                                     <ColumnDefinition Width="Auto"/>
                                                 </Grid.ColumnDefinitions>
-                                                <ComboBox x:Name="CmbSettingsReceiptPrinter" IsEditable="True" Height="36"/>
-                                                <Button Grid.Column="1" Content="🔍" Style="{DynamicResource OutlineButtonStyle}" Margin="5,0,5,0" Width="38" Height="36" ToolTip="استعراض الطابعات (Browse)" Click="BtnBrowseReceiptPrinter_Click"/>
-                                                <Button Grid.Column="2" Content="🧾 طباعة وصل تجريبي" Style="{DynamicResource OutlineButtonStyle}" Padding="11,0" Height="36" FontSize="13" Click="BtnPrintTestReceipt_Click"/>
+                                                <ComboBox x:Name="CmbSettingsReceiptPrinter" IsEditable="True" Height="40"/>
+                                                <Button Grid.Column="1" Content="🔍" Style="{DynamicResource OutlineButtonStyle}" Margin="5,0,5,0" Width="38" Height="40" ToolTip="استعراض الطابعات (Browse)" Click="BtnBrowseReceiptPrinter_Click"/>
+                                                <Button Grid.Column="2" Content="🧾 طباعة وصل تجريبي" Style="{DynamicResource OutlineButtonStyle}" Padding="11,0" Height="40" FontSize="13" Click="BtnPrintTestReceipt_Click"/>
                                             </Grid>
                                         </StackPanel>
                                     </StackPanel>
@@ -1146,7 +1146,7 @@
                                         <StackPanel Grid.Column="0" Margin="0,0,14,0">
                                             <TextBlock Text="🎯 معايرة موضع الباركود أفقياً (Barcode Alignment Calibration):" FontSize="13.5" FontWeight="Bold" Foreground="{DynamicResource AccentBrush}" Margin="0,0,0,4"/>
                                             <TextBlock Text="إذا كانت الطباعة منحرفة على لاصق 5×2.5 سم، اختر قيمة الإزاحة لتوسيطه بدقة:" FontSize="12.5" Foreground="{DynamicResource TextSecondaryBrush}" Margin="0,0,0,6" TextWrapping="Wrap"/>
-                                            <ComboBox x:Name="CmbBarcodeOffset" IsEditable="True" Height="36" HorizontalAlignment="Stretch" SelectionChanged="CmbBarcodeOffset_SelectionChanged">
+                                            <ComboBox x:Name="CmbBarcodeOffset" IsEditable="True" Height="40" HorizontalAlignment="Stretch" SelectionChanged="CmbBarcodeOffset_SelectionChanged">
                                                 <ComboBoxItem Content="+20 مم (إزاحة لليمين 20 مم)" Tag="20.0"/>
                                                 <ComboBoxItem Content="+18 مم (إزاحة لليمين 18 مم)" Tag="18.0"/>
                                                 <ComboBoxItem Content="+16 مم (إزاحة لليمين 16 مم)" Tag="16.0"/>
@@ -1174,7 +1174,7 @@
                                             <TextBlock Text="🎨 مظهر وتصميم البرنامج (Theme Selection):" FontSize="13.5" FontWeight="Bold" Foreground="{DynamicResource AccentBrush}"/>
                                             <TextBlock Text="اختر مظهر الواجهة المفضل (يحفظ تلقائياً في قاعدة البيانات):" FontSize="12.5" Foreground="{DynamicResource TextSecondaryBrush}" Margin="0,3,0,0"/>
                                         </StackPanel>
-                                        <ComboBox x:Name="CmbSettingsTheme" Grid.Column="1" Height="36" VerticalAlignment="Center" SelectionChanged="CmbSettingsTheme_SelectionChanged">
+                                        <ComboBox x:Name="CmbSettingsTheme" Grid.Column="1" Height="40" VerticalAlignment="Center" SelectionChanged="CmbSettingsTheme_SelectionChanged">
                                             <ComboBoxItem Tag="BiotechDark"  Content="🧬 Biotech Dark Mode — داكن مشرق" IsSelected="True"/>
                                             <ComboBoxItem Tag="CleanWhite"   Content="🏥 Medical Clean White — أبيض طبي نظيف"/>
                                             <ComboBoxItem Tag="RoyalBlue"    Content="💎 Clinical Royal Blue — أزرق ملكي"/>
@@ -1391,12 +1391,12 @@
                                             <ColumnDefinition Width="*"/>
                                         </Grid.ColumnDefinitions>
                                         <StackPanel Grid.Column="0" Margin="0,0,8,0">
-                                            <TextBlock Text="كود الجهاز:" FontSize="11" Foreground="{DynamicResource TextSecondaryBrush}" Margin="0,0,0,4"/>
-                                            <TextBox x:Name="TxtInstCode" Height="34"/>
+                                            <TextBlock Text="كود الجهاز:" FontSize="12" Foreground="{DynamicResource TextSecondaryBrush}" Margin="0,0,0,4"/>
+                                            <TextBox x:Name="TxtInstCode" Height="38"/>
                                         </StackPanel>
                                         <StackPanel Grid.Column="1">
-                                            <TextBlock Text="اسم الجهاز (Name):" FontSize="11" Foreground="{DynamicResource TextSecondaryBrush}" Margin="0,0,0,4"/>
-                                            <TextBox x:Name="TxtInstName" Height="34"/>
+                                            <TextBlock Text="اسم الجهاز (Name):" FontSize="12" Foreground="{DynamicResource TextSecondaryBrush}" Margin="0,0,0,4"/>
+                                            <TextBox x:Name="TxtInstName" Height="38"/>
                                         </StackPanel>
                                     </Grid>
 
@@ -1407,15 +1407,15 @@
                                             <ColumnDefinition Width="*"/>
                                         </Grid.ColumnDefinitions>
                                         <StackPanel Grid.Column="0" Margin="0,0,6,0">
-                                            <TextBlock Text="البروتوكول (Protocol):" FontSize="11" Foreground="{DynamicResource TextSecondaryBrush}" Margin="0,0,0,4"/>
-                                            <ComboBox x:Name="CmbInstProtocol" Height="34">
+                                            <TextBlock Text="البروتوكول (Protocol):" FontSize="12" Foreground="{DynamicResource TextSecondaryBrush}" Margin="0,0,0,4"/>
+                                            <ComboBox x:Name="CmbInstProtocol" Height="38">
                                                 <ComboBoxItem Content="ASTM" IsSelected="True"/>
                                                 <ComboBoxItem Content="HL7"/>
                                             </ComboBox>
                                         </StackPanel>
                                         <StackPanel Grid.Column="1" Margin="6,0,0,0">
-                                            <TextBlock Text="نمط التشغيل (Mode):" FontSize="11" Foreground="{DynamicResource TextSecondaryBrush}" Margin="0,0,0,4"/>
-                                            <ComboBox x:Name="CmbInstOperatingMode" Height="34">
+                                            <TextBlock Text="نمط التشغيل (Mode):" FontSize="12" Foreground="{DynamicResource TextSecondaryBrush}" Margin="0,0,0,4"/>
+                                            <ComboBox x:Name="CmbInstOperatingMode" Height="38">
                                                 <ComboBoxItem Content="Bidirectional" IsSelected="True"/>
                                                 <ComboBoxItem Content="ResultsOnly"/>
                                             </ComboBox>
@@ -1423,7 +1423,7 @@
                                     </Grid>
 
                                     <!-- Connection Type Selector -->
-                                    <TextBlock Text="نوع الاتصال الفعلي (Connection Type):" FontSize="12" FontWeight="Bold" Margin="0,0,0,6"/>
+                                    <TextBlock Text="نوع الاتصال الفعلي (Connection Type):" FontSize="12.5" FontWeight="Bold" Margin="0,0,0,6"/>
                                     <Border Background="{DynamicResource InputBrush}" BorderBrush="{DynamicResource BorderBrush}" BorderThickness="1" CornerRadius="8" Padding="12,8" Margin="0,0,0,12">
                                         <StackPanel Orientation="Horizontal">
                                             <RadioButton x:Name="RbConnTcp" Content="🌐 شبكة TCP/IP" IsChecked="True" Foreground="#FFFFFF" FontWeight="SemiBold" Margin="0,0,24,0" Checked="RbConnType_Checked"/>
@@ -1434,45 +1434,45 @@
                                     <!-- PANEL A: TCP/IP Settings -->
                                     <Border x:Name="PanelTcpSettings" Background="{DynamicResource InputBrush}" BorderBrush="{DynamicResource AccentBrush}" BorderThickness="1" CornerRadius="8" Padding="12" Margin="0,0,0,12">
                                         <StackPanel>
-                                            <TextBlock Text="🌐 معلمات شبكة TCP/IP" FontSize="12" FontWeight="Bold" Foreground="{DynamicResource AccentBrush}" Margin="0,0,0,8"/>
+                                            <TextBlock Text="🌐 معلمات شبكة TCP/IP" FontSize="12.5" FontWeight="Bold" Foreground="{DynamicResource AccentBrush}" Margin="0,0,0,8"/>
                                             <Grid Margin="0,0,0,8">
                                                 <Grid.ColumnDefinitions>
                                                     <ColumnDefinition Width="*"/>
                                                     <ColumnDefinition Width="120"/>
                                                 </Grid.ColumnDefinitions>
                                                 <StackPanel Grid.Column="0" Margin="0,0,6,0">
-                                                    <TextBlock Text="وضع الاتصال (Mode):" FontSize="11" Foreground="{DynamicResource TextSecondaryBrush}" Margin="0,0,0,4"/>
-                                                    <ComboBox x:Name="CmbInstTcpMode" Height="34">
+                                                    <TextBlock Text="وضع الاتصال (Mode):" FontSize="12" Foreground="{DynamicResource TextSecondaryBrush}" Margin="0,0,0,4"/>
+                                                    <ComboBox x:Name="CmbInstTcpMode" Height="38">
                                                         <ComboBoxItem Content="Server" IsSelected="True"/>
                                                         <ComboBoxItem Content="Client"/>
                                                     </ComboBox>
                                                 </StackPanel>
                                                 <StackPanel Grid.Column="1" Margin="6,0,0,0">
-                                                    <TextBlock Text="المنفذ (Port):" FontSize="11" Foreground="{DynamicResource TextSecondaryBrush}" Margin="0,0,0,4"/>
-                                                    <TextBox x:Name="TxtInstPort" Text="5100" Height="34"/>
+                                                    <TextBlock Text="المنفذ (Port):" FontSize="12" Foreground="{DynamicResource TextSecondaryBrush}" Margin="0,0,0,4"/>
+                                                    <TextBox x:Name="TxtInstPort" Text="5100" Height="38"/>
                                                 </StackPanel>
                                             </Grid>
-                                            <TextBlock Text="عنوان IP (Host IP):" FontSize="11" Foreground="{DynamicResource TextSecondaryBrush}" Margin="0,0,0,4"/>
-                                            <TextBox x:Name="TxtInstHost" Text="0.0.0.0" Height="34"/>
+                                            <TextBlock Text="عنوان IP (Host IP):" FontSize="12" Foreground="{DynamicResource TextSecondaryBrush}" Margin="0,0,0,4"/>
+                                            <TextBox x:Name="TxtInstHost" Text="0.0.0.0" Height="38"/>
                                         </StackPanel>
                                     </Border>
 
                                     <!-- PANEL B: RS-232 Serial Settings -->
                                     <Border x:Name="PanelSerialSettings" Visibility="Collapsed" Background="{DynamicResource InputBrush}" BorderBrush="{DynamicResource WarningBrush}" BorderThickness="1" CornerRadius="8" Padding="12" Margin="0,0,0,12">
                                         <StackPanel>
-                                            <TextBlock Text="🔌 معلمات المنفذ التسلسلي RS-232" FontSize="12" FontWeight="Bold" Foreground="{DynamicResource WarningBrush}" Margin="0,0,0,8"/>
+                                            <TextBlock Text="🔌 معلمات المنفذ التسلسلي RS-232" FontSize="12.5" FontWeight="Bold" Foreground="{DynamicResource WarningBrush}" Margin="0,0,0,8"/>
                                             <Grid Margin="0,0,0,8">
                                                 <Grid.ColumnDefinitions>
                                                     <ColumnDefinition Width="*"/>
                                                     <ColumnDefinition Width="*"/>
                                                 </Grid.ColumnDefinitions>
                                                 <StackPanel Grid.Column="0" Margin="0,0,6,0">
-                                                    <TextBlock Text="منفذ COM Port:" FontSize="11" Foreground="{DynamicResource TextSecondaryBrush}" Margin="0,0,0,4"/>
-                                                    <TextBox x:Name="TxtInstComPort" Text="COM1" Height="34"/>
+                                                    <TextBlock Text="منفذ COM Port:" FontSize="12" Foreground="{DynamicResource TextSecondaryBrush}" Margin="0,0,0,4"/>
+                                                    <TextBox x:Name="TxtInstComPort" Text="COM1" Height="38"/>
                                                 </StackPanel>
                                                 <StackPanel Grid.Column="1" Margin="6,0,0,0">
-                                                    <TextBlock Text="معدل النقل (Baud Rate):" FontSize="11" Foreground="{DynamicResource TextSecondaryBrush}" Margin="0,0,0,4"/>
-                                                    <ComboBox x:Name="CmbInstBaud" Height="34">
+                                                    <TextBlock Text="معدل النقل (Baud Rate):" FontSize="12" Foreground="{DynamicResource TextSecondaryBrush}" Margin="0,0,0,4"/>
+                                                    <ComboBox x:Name="CmbInstBaud" Height="38">
                                                         <ComboBoxItem Content="9600" IsSelected="True"/>
                                                         <ComboBoxItem Content="19200"/>
                                                         <ComboBoxItem Content="38400"/>
@@ -1487,27 +1487,27 @@
                                                     <ColumnDefinition Width="*"/>
                                                 </Grid.ColumnDefinitions>
                                                 <StackPanel Grid.Column="0" Margin="0,0,4,0">
-                                                    <TextBlock Text="Data Bits:" FontSize="11" Foreground="{DynamicResource TextSecondaryBrush}" Margin="0,0,0,4"/>
-                                                    <TextBox x:Name="TxtInstDataBits" Text="8" Height="34"/>
+                                                    <TextBlock Text="Data Bits:" FontSize="12" Foreground="{DynamicResource TextSecondaryBrush}" Margin="0,0,0,4"/>
+                                                    <TextBox x:Name="TxtInstDataBits" Text="8" Height="38"/>
                                                 </StackPanel>
                                                 <StackPanel Grid.Column="1" Margin="4,0,4,0">
-                                                    <TextBlock Text="Parity:" FontSize="11" Foreground="{DynamicResource TextSecondaryBrush}" Margin="0,0,0,4"/>
-                                                    <ComboBox x:Name="CmbInstParity" Height="34">
+                                                    <TextBlock Text="Parity:" FontSize="12" Foreground="{DynamicResource TextSecondaryBrush}" Margin="0,0,0,4"/>
+                                                    <ComboBox x:Name="CmbInstParity" Height="38">
                                                         <ComboBoxItem Content="None" IsSelected="True"/>
                                                         <ComboBoxItem Content="Even"/>
                                                         <ComboBoxItem Content="Odd"/>
                                                     </ComboBox>
                                                 </StackPanel>
                                                 <StackPanel Grid.Column="2" Margin="4,0,0,0">
-                                                    <TextBlock Text="Stop Bits:" FontSize="11" Foreground="{DynamicResource TextSecondaryBrush}" Margin="0,0,0,4"/>
-                                                    <ComboBox x:Name="CmbInstStopBits" Height="34">
+                                                    <TextBlock Text="Stop Bits:" FontSize="12" Foreground="{DynamicResource TextSecondaryBrush}" Margin="0,0,0,4"/>
+                                                    <ComboBox x:Name="CmbInstStopBits" Height="38">
                                                         <ComboBoxItem Content="One" IsSelected="True"/>
                                                         <ComboBoxItem Content="Two"/>
                                                     </ComboBox>
                                                 </StackPanel>
                                             </Grid>
-                                            <TextBlock Text="Flow Control:" FontSize="11" Foreground="{DynamicResource TextSecondaryBrush}" Margin="0,0,0,4"/>
-                                            <ComboBox x:Name="CmbInstFlowControl" Height="34">
+                                            <TextBlock Text="Flow Control:" FontSize="12" Foreground="{DynamicResource TextSecondaryBrush}" Margin="0,0,0,4"/>
+                                            <ComboBox x:Name="CmbInstFlowControl" Height="38">
                                                 <ComboBoxItem Content="None" IsSelected="True"/>
                                                 <ComboBoxItem Content="RequestToSend"/>
                                                 <ComboBoxItem Content="XOnXOff"/>

@@ -151,7 +151,7 @@
 
                         <!-- Patient Full Name -->
                         <TextBlock Text="الاسم الكامل بالعربية (مطلوب):" FontSize="13" FontWeight="SemiBold" Foreground="{DynamicResource TextSecondaryBrush}" Margin="0,0,0,4"/>
-                        <TextBox x:Name="TxtPatientNameAr" Height="36" Margin="0,0,0,12" FontSize="13.5"/>
+                        <TextBox x:Name="TxtPatientNameAr" Height="40" Margin="0,0,0,12" FontSize="13.5"/>
 
                         <!-- Gender & Date of Birth -->
                         <Grid Margin="0,0,0,12">
@@ -163,7 +163,7 @@
 
                             <StackPanel Grid.Column="0">
                                 <TextBlock Text="الجنس (Gender):" FontSize="13" FontWeight="SemiBold" Foreground="{DynamicResource TextSecondaryBrush}" Margin="0,0,0,4"/>
-                                <ComboBox x:Name="CmbPatientSex" Height="36">
+                                <ComboBox x:Name="CmbPatientSex" Height="40">
                                     <ComboBoxItem Content="ذكر (Male)" IsSelected="True"/>
                                     <ComboBoxItem Content="أنثى (Female)"/>
                                 </ComboBox>
@@ -171,7 +171,7 @@
 
                             <StackPanel Grid.Column="2">
                                 <TextBlock Text="تاريخ الميلاد (DOB):" FontSize="13" FontWeight="SemiBold" Foreground="{DynamicResource TextSecondaryBrush}" Margin="0,0,0,4"/>
-                                <DatePicker x:Name="DpDateOfBirth" Height="36" CalendarStyle="{StaticResource ModernCalendarStyle}" SelectedDateChanged="DpDateOfBirth_SelectedDateChanged"/>
+                                <DatePicker x:Name="DpDateOfBirth" Height="40" CalendarStyle="{StaticResource ModernCalendarStyle}" SelectedDateChanged="DpDateOfBirth_SelectedDateChanged"/>
                             </StackPanel>
                         </Grid>
 
@@ -193,12 +193,12 @@
 
                             <StackPanel Grid.Column="0">
                                 <TextBlock Text="رقم الهاتف (Phone):" FontSize="13" FontWeight="SemiBold" Foreground="{DynamicResource TextSecondaryBrush}" Margin="0,0,0,4"/>
-                                <TextBox x:Name="TxtPatientPhone" Height="36" FontSize="13.5"/>
+                                <TextBox x:Name="TxtPatientPhone" Height="40" FontSize="13.5"/>
                             </StackPanel>
 
                             <StackPanel Grid.Column="2">
                                 <TextBlock Text="الطبيب المحول (Referring Doctor):" FontSize="13" FontWeight="SemiBold" Foreground="{DynamicResource TextSecondaryBrush}" Margin="0,0,0,4"/>
-                                <TextBox x:Name="TxtReferringDoctor" Height="36" FontSize="13.5"/>
+                                <TextBox x:Name="TxtReferringDoctor" Height="40" FontSize="13.5"/>
                             </StackPanel>
                         </Grid>
 
@@ -214,9 +214,9 @@
                             <ColumnDefinition Width="Auto"/>
                         </Grid.ColumnDefinitions>
 
-                        <Button Grid.Column="0" Content="✕ إلغاء" Style="{DynamicResource SecondaryButtonStyle}" Height="38" Padding="20,0" FontSize="13" Click="BtnCancel_Click"/>
+                        <Button Grid.Column="0" Content="✕ إلغاء" Style="{DynamicResource SecondaryButtonStyle}" Height="42" Padding="20,0" FontSize="13" Click="BtnCancel_Click"/>
 
-                        <Button Grid.Column="2" x:Name="BtnProceedToTests" Content="📋 متابعة وإضافة التحاليل للطلب ➔" Style="{DynamicResource SuccessButtonStyle}" Height="38" Padding="24,0" FontSize="13.5" FontWeight="Bold" Click="BtnProceedToTests_Click"/>
+                        <Button Grid.Column="2" x:Name="BtnProceedToTests" Content="📋 متابعة وإضافة التحاليل للطلب ➔" Style="{DynamicResource SuccessButtonStyle}" Height="42" Padding="24,0" FontSize="13.5" FontWeight="Bold" Click="BtnProceedToTests_Click"/>
                     </Grid>
                 </Border>
             </Grid>

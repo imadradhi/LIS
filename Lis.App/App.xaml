@@ -77,8 +77,9 @@
             <Setter Property="Background" Value="{DynamicResource PrimaryBrush}"/>
             <Setter Property="Foreground" Value="#FFFFFF"/>
             <Setter Property="FontWeight" Value="SemiBold"/>
-            <Setter Property="FontSize" Value="14"/>
-            <Setter Property="Padding" Value="15,8"/>
+            <Setter Property="FontSize" Value="13.5"/>
+            <Setter Property="Padding" Value="18,9"/>
+            <Setter Property="MinHeight" Value="40"/>
             <Setter Property="Cursor" Value="Hand"/>
             <Setter Property="BorderThickness" Value="0"/>
             <Setter Property="Template">
@@ -86,7 +87,8 @@
                     <ControlTemplate TargetType="Button">
                         <Border x:Name="bdr" Background="{TemplateBinding Background}" 
                                 CornerRadius="8" 
-                                Padding="{TemplateBinding Padding}">
+                                Padding="{TemplateBinding Padding}"
+                                SnapsToDevicePixels="True">
                             <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
                         </Border>
                         <ControlTemplate.Triggers>
@@ -108,7 +110,7 @@
             <Setter Property="Template">
                 <Setter.Value>
                     <ControlTemplate TargetType="Button">
-                        <Border x:Name="bdr" Background="{TemplateBinding Background}" CornerRadius="8" Padding="{TemplateBinding Padding}">
+                        <Border x:Name="bdr" Background="{TemplateBinding Background}" CornerRadius="8" Padding="{TemplateBinding Padding}" SnapsToDevicePixels="True">
                             <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
                         </Border>
                         <ControlTemplate.Triggers>
@@ -127,7 +129,7 @@
             <Setter Property="Template">
                 <Setter.Value>
                     <ControlTemplate TargetType="Button">
-                        <Border x:Name="bdr" Background="{TemplateBinding Background}" CornerRadius="8" Padding="{TemplateBinding Padding}">
+                        <Border x:Name="bdr" Background="{TemplateBinding Background}" CornerRadius="8" Padding="{TemplateBinding Padding}" SnapsToDevicePixels="True">
                             <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
                         </Border>
                         <ControlTemplate.Triggers>
@@ -145,8 +147,9 @@
             <Setter Property="Background" Value="{DynamicResource CardBrush}"/>
             <Setter Property="Foreground" Value="{DynamicResource AccentBrush}"/>
             <Setter Property="FontWeight" Value="SemiBold"/>
-            <Setter Property="FontSize" Value="14"/>
-            <Setter Property="Padding" Value="13,7"/>
+            <Setter Property="FontSize" Value="13.5"/>
+            <Setter Property="Padding" Value="16,9"/>
+            <Setter Property="MinHeight" Value="40"/>
             <Setter Property="Cursor" Value="Hand"/>
             <Setter Property="Template">
                 <Setter.Value>
@@ -155,7 +158,8 @@
                                 BorderBrush="{DynamicResource AccentBrush}" 
                                 BorderThickness="1.2" 
                                 CornerRadius="8" 
-                                Padding="{TemplateBinding Padding}">
+                                Padding="{TemplateBinding Padding}"
+                                SnapsToDevicePixels="True">
                             <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
                         </Border>
                         <ControlTemplate.Triggers>
@@ -177,7 +181,8 @@
             <Setter Property="BorderThickness" Value="1"/>
             <Setter Property="FontWeight" Value="SemiBold"/>
             <Setter Property="FontSize" Value="13.5"/>
-            <Setter Property="Padding" Value="14,6"/>
+            <Setter Property="Padding" Value="16,9"/>
+            <Setter Property="MinHeight" Value="40"/>
             <Setter Property="Cursor" Value="Hand"/>
             <Setter Property="Template">
                 <Setter.Value>
@@ -216,9 +221,9 @@
         <!-- Modern High-Contrast TextBox Style -->
         <Style TargetType="TextBox">
             <Setter Property="FontFamily" Value="{StaticResource AppFontFamily}"/>
-            <Setter Property="Padding" Value="10,3"/>
+            <Setter Property="Padding" Value="12,7"/>
             <Setter Property="FontSize" Value="13.5"/>
-            <Setter Property="MinHeight" Value="36"/>
+            <Setter Property="MinHeight" Value="40"/>
 
             <Setter Property="Foreground" Value="{DynamicResource TextPrimaryBrush}"/>
             <Setter Property="Background" Value="{DynamicResource InputBrush}"/>
@@ -299,9 +304,9 @@
             <Setter Property="MaxDropDownHeight" Value="380"/>
             <Setter Property="ScrollViewer.HorizontalScrollBarVisibility" Value="Disabled"/>
             <Setter Property="ScrollViewer.VerticalScrollBarVisibility" Value="Hidden"/>
-            <Setter Property="Padding" Value="12,6,30,6"/>
-            <Setter Property="FontSize" Value="14"/>
-            <Setter Property="Height" Value="38"/>
+            <Setter Property="Padding" Value="12,8,30,8"/>
+            <Setter Property="FontSize" Value="13.5"/>
+            <Setter Property="Height" Value="40"/>
             <Setter Property="VerticalContentAlignment" Value="Center"/>
             <Setter Property="HorizontalContentAlignment" Value="Left"/>
             <Setter Property="Template">
@@ -408,7 +413,7 @@
         <Style TargetType="ComboBoxItem">
             <Setter Property="Foreground" Value="{DynamicResource TextPrimaryBrush}"/>
             <Setter Property="Background" Value="Transparent"/>
-            <Setter Property="Padding" Value="10,8"/>
+            <Setter Property="Padding" Value="12,9"/>
             <Setter Property="FontSize" Value="13.5"/>
             <Setter Property="Cursor" Value="Hand"/>
             <Setter Property="Template">
@@ -802,8 +807,8 @@
             <Setter Property="Background" Value="{DynamicResource InputBrush}"/>
             <Setter Property="BorderBrush" Value="{DynamicResource BorderBrush}"/>
             <Setter Property="BorderThickness" Value="1"/>
-            <Setter Property="FontSize" Value="14"/>
-            <Setter Property="Height" Value="38"/>
+            <Setter Property="FontSize" Value="13.5"/>
+            <Setter Property="Height" Value="40"/>
             <Setter Property="VerticalContentAlignment" Value="Center"/>
             <Setter Property="CalendarStyle" Value="{StaticResource ModernCalendarStyle}"/>
             <Setter Property="Template">
@@ -888,14 +893,14 @@
         <Style x:Key="NavButtonStyle" TargetType="RadioButton">
             <Setter Property="Background" Value="Transparent"/>
             <Setter Property="Foreground" Value="{DynamicResource TextSecondaryBrush}"/>
-            <Setter Property="FontSize" Value="14.5"/>
+            <Setter Property="FontSize" Value="13.5"/>
             <Setter Property="FontWeight" Value="SemiBold"/>
-            <Setter Property="Padding" Value="14,10"/>
+            <Setter Property="Padding" Value="16,12"/>
             <Setter Property="Cursor" Value="Hand"/>
             <Setter Property="Template">
                 <Setter.Value>
                     <ControlTemplate TargetType="RadioButton">
-                        <Border x:Name="border" Background="{TemplateBinding Background}" CornerRadius="9" Padding="{TemplateBinding Padding}" Margin="0,3">
+                        <Border x:Name="border" Background="{TemplateBinding Background}" CornerRadius="10" Padding="{TemplateBinding Padding}" Margin="0,6">
                             <Grid>
                                 <Grid.ColumnDefinitions>
                                     <ColumnDefinition Width="Auto"/>
@@ -976,12 +981,12 @@
             <Setter Property="HorizontalGridLinesBrush" Value="{DynamicResource DataGridGridLinesBrush}"/>
             <Setter Property="VerticalGridLinesBrush" Value="Transparent"/>
             <Setter Property="GridLinesVisibility" Value="Horizontal"/>
-            <Setter Property="FontSize" Value="14"/>
+            <Setter Property="FontSize" Value="13.5"/>
             <Setter Property="CanUserAddRows" Value="False"/>
             <Setter Property="CanUserDeleteRows" Value="False"/>
             <Setter Property="CanUserResizeRows" Value="False"/>
             <Setter Property="SelectionMode" Value="Single"/>
-            <Setter Property="RowHeight" Value="42"/>
+            <Setter Property="RowHeight" Value="44"/>
         </Style>
 
         <!-- DataGrid Column Header Style -->
@@ -990,8 +995,8 @@
             <Setter Property="Foreground" Value="{DynamicResource AccentBrush}"/>
             <Setter Property="FontWeight" Value="Bold"/>
             <Setter Property="FontSize" Value="13.5"/>
-            <Setter Property="Height" Value="42"/>
-            <Setter Property="Padding" Value="10,0"/>
+            <Setter Property="Height" Value="44"/>
+            <Setter Property="Padding" Value="12,0"/>
             <Setter Property="BorderBrush" Value="{DynamicResource BorderBrush}"/>
             <Setter Property="BorderThickness" Value="0,0,1,1"/>
             <Setter Property="HorizontalContentAlignment" Value="Left"/>
@@ -1015,7 +1020,7 @@
 
         <!-- DataGrid Cell Style -->
         <Style TargetType="DataGridCell">
-            <Setter Property="Padding" Value="8,0"/>
+            <Setter Property="Padding" Value="10,2"/>
             <Setter Property="Template">
                 <Setter.Value>
                     <ControlTemplate TargetType="DataGridCell">
