@@ -9,7 +9,7 @@
         AllowsTransparency="True"
         Background="Transparent"
         ResizeMode="NoResize"
-        FlowDirection="RightToLeft"
+        FlowDirection="LeftToRight"
         MouseLeftButtonDown="Window_MouseLeftButtonDown">
 
     <Window.Resources>
@@ -252,15 +252,15 @@
                 <RowDefinition Height="Auto"/>
             </Grid.RowDefinitions>
 
-            <!-- ── ROW 0: TOP STRIP (Server Badge on Right + Window Controls on Left) ── -->
+            <!-- ── ROW 0: TOP STRIP (Server Badge on Left + Window Close on Right) ── -->
             <Grid Grid.Row="0" Margin="0,0,0,14">
                 <Grid.ColumnDefinitions>
                     <ColumnDefinition Width="*"/>
                     <ColumnDefinition Width="Auto"/>
                 </Grid.ColumnDefinitions>
 
-                <!-- Right Side: Server Connection Badge -->
-                <Border Grid.Column="0" HorizontalAlignment="Right" VerticalAlignment="Center"
+                <!-- Left Side: Server Connection Badge -->
+                <Border Grid.Column="0" HorizontalAlignment="Left" VerticalAlignment="Center"
                         Background="#064E3B" BorderBrush="#059669" BorderThickness="1" 
                         CornerRadius="8" Padding="10,4">
                     <StackPanel Orientation="Horizontal">
@@ -269,12 +269,12 @@
                     </StackPanel>
                 </Border>
 
-                <!-- Left Side: Sleek Minimal Window Close Button Only (No Red) -->
+                <!-- Right Side: Sleek Minimal Window Close Button (No Red) -->
                 <Button Grid.Column="1"
                         Style="{StaticResource WindowCloseButtonStyle}" 
                         ToolTip="إغلاق البرنامج" 
                         Click="BtnClose_Click"
-                        HorizontalAlignment="Left" VerticalAlignment="Center">
+                        HorizontalAlignment="Right" VerticalAlignment="Center">
                     <TextBlock Text="✕" FontSize="13" FontWeight="Bold"/>
                 </Button>
             </Grid>
@@ -339,21 +339,23 @@
                         <!-- Masked Password -->
                         <PasswordBox x:Name="TxtPassword" 
                                      Style="{StaticResource FlatPasswordBoxStyle}"
+                                     Padding="14,0,42,0"
                                      KeyDown="TxtPassword_KeyDown"/>
 
                         <!-- Visible Password Text -->
                         <TextBox x:Name="TxtPasswordVisible"
                                  Style="{StaticResource FlatInputBoxStyle}"
+                                 Padding="14,0,42,0"
                                  Visibility="Collapsed"
                                  KeyDown="TxtPasswordVisible_KeyDown"/>
 
-                        <!-- Eye Toggle Button (Positioned at the start/left in RTL) -->
+                        <!-- Eye Toggle Button (Positioned at the right in LTR) -->
                         <Button x:Name="BtnTogglePassword"
                                 Content="👁️"
                                 Width="36" Height="36"
-                                HorizontalAlignment="Left"
+                                HorizontalAlignment="Right"
                                 VerticalAlignment="Center"
-                                Margin="4,0,0,0"
+                                Margin="0,0,6,0"
                                 Background="Transparent"
                                 BorderThickness="0"
                                 Cursor="Hand"
