@@ -3,23 +3,84 @@
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         Title="تسجيل الدخول — نظام إدارة المختبرات الطبية (LIS)" 
         Icon="Assets/app_icon.ico"
-        Width="520" SizeToContent="Height"
+        Width="500" SizeToContent="Height"
         WindowStartupLocation="CenterScreen"
+        WindowStyle="None"
+        AllowsTransparency="True"
+        Background="Transparent"
         ResizeMode="NoResize"
         FlowDirection="RightToLeft"
-        Background="{DynamicResource AppBackgroundBrush}">
+        MouseLeftButtonDown="Window_MouseLeftButtonDown">
 
     <Window.Resources>
-        <!-- Modern Rounded Input Style -->
-        <Style x:Key="ModernInputBoxStyle" TargetType="TextBox">
+        <!-- ── Minimal Window Control Buttons (Close & Minimize) ── -->
+        <Style x:Key="WindowControlButtonBase" TargetType="Button">
+            <Setter Property="Width" Value="34"/>
+            <Setter Property="Height" Value="34"/>
+            <Setter Property="Background" Value="Transparent"/>
+            <Setter Property="Foreground" Value="{DynamicResource TextSecondaryBrush}"/>
+            <Setter Property="FontSize" Value="14"/>
+            <Setter Property="FontWeight" Value="SemiBold"/>
+            <Setter Property="BorderThickness" Value="0"/>
+            <Setter Property="Cursor" Value="Hand"/>
+            <Setter Property="Focusable" Value="False"/>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="Button">
+                        <Border x:Name="btnBorder" 
+                                Background="{TemplateBinding Background}" 
+                                CornerRadius="8">
+                            <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                        </Border>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Setter TargetName="btnBorder" Property="Background" Value="{DynamicResource InputBrush}"/>
+                                <Setter Property="Foreground" Value="{DynamicResource TextPrimaryBrush}"/>
+                            </Trigger>
+                            <Trigger Property="IsPressed" Value="True">
+                                <Setter TargetName="btnBorder" Property="Background" Value="{DynamicResource BorderBrush}"/>
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+
+        <Style x:Key="WindowCloseButtonStyle" TargetType="Button" BasedOn="{StaticResource WindowControlButtonBase}">
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="Button">
+                        <Border x:Name="btnBorder" 
+                                Background="{TemplateBinding Background}" 
+                                CornerRadius="8">
+                            <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                        </Border>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Setter TargetName="btnBorder" Property="Background" Value="#EF4444"/>
+                                <Setter Property="Foreground" Value="#FFFFFF"/>
+                            </Trigger>
+                            <Trigger Property="IsPressed" Value="True">
+                                <Setter TargetName="btnBorder" Property="Background" Value="#DC2626"/>
+                                <Setter Property="Foreground" Value="#FFFFFF"/>
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+
+        <!-- ── Modern Flat Input Style (TextBox) ── -->
+        <Style x:Key="FlatInputBoxStyle" TargetType="TextBox">
             <Setter Property="Height" Value="44"/>
-            <Setter Property="FontSize" Value="14.5"/>
+            <Setter Property="FontSize" Value="14"/>
             <Setter Property="Background" Value="{DynamicResource InputBrush}"/>
             <Setter Property="Foreground" Value="{DynamicResource TextPrimaryBrush}"/>
             <Setter Property="BorderBrush" Value="{DynamicResource BorderBrush}"/>
-            <Setter Property="BorderThickness" Value="1.5"/>
-            <Setter Property="Padding" Value="12,8"/>
+            <Setter Property="BorderThickness" Value="1.2"/>
+            <Setter Property="Padding" Value="14,0"/>
             <Setter Property="VerticalContentAlignment" Value="Center"/>
+            <Setter Property="CaretBrush" Value="{DynamicResource AccentBrush}"/>
             <Setter Property="Template">
                 <Setter.Value>
                     <ControlTemplate TargetType="TextBox">
@@ -28,15 +89,19 @@
                                 BorderBrush="{TemplateBinding BorderBrush}"
                                 BorderThickness="{TemplateBinding BorderThickness}"
                                 CornerRadius="10">
-                            <ScrollViewer x:Name="PART_ContentHost" Focusable="false" HorizontalScrollBarVisibility="Hidden" VerticalScrollBarVisibility="Hidden" VerticalAlignment="Center"/>
+                            <ScrollViewer x:Name="PART_ContentHost" Focusable="false" 
+                                          HorizontalScrollBarVisibility="Hidden" 
+                                          VerticalScrollBarVisibility="Hidden" 
+                                          VerticalAlignment="Center"/>
                         </Border>
                         <ControlTemplate.Triggers>
-                            <Trigger Property="IsMouseOver" Value="true">
+                            <Trigger Property="IsMouseOver" Value="True">
                                 <Setter TargetName="border" Property="BorderBrush" Value="{DynamicResource AccentBrush}"/>
                             </Trigger>
-                            <Trigger Property="IsKeyboardFocused" Value="true">
-                                <Setter TargetName="border" Property="BorderBrush" Value="{DynamicResource PrimaryBrush}"/>
-                                <Setter TargetName="border" Property="BorderThickness" Value="2"/>
+                            <Trigger Property="IsKeyboardFocused" Value="True">
+                                <Setter TargetName="border" Property="BorderBrush" Value="{DynamicResource AccentBrush}"/>
+                                <Setter TargetName="border" Property="BorderThickness" Value="1.8"/>
+                                <Setter TargetName="border" Property="Background" Value="{DynamicResource AppBackgroundBrush}"/>
                             </Trigger>
                         </ControlTemplate.Triggers>
                     </ControlTemplate>
@@ -44,16 +109,17 @@
             </Setter>
         </Style>
 
-        <!-- Modern Rounded PasswordBox Style -->
-        <Style x:Key="ModernPasswordBoxStyle" TargetType="PasswordBox">
+        <!-- ── Modern Flat PasswordBox Style ── -->
+        <Style x:Key="FlatPasswordBoxStyle" TargetType="PasswordBox">
             <Setter Property="Height" Value="44"/>
-            <Setter Property="FontSize" Value="14.5"/>
+            <Setter Property="FontSize" Value="14"/>
             <Setter Property="Background" Value="{DynamicResource InputBrush}"/>
             <Setter Property="Foreground" Value="{DynamicResource TextPrimaryBrush}"/>
             <Setter Property="BorderBrush" Value="{DynamicResource BorderBrush}"/>
-            <Setter Property="BorderThickness" Value="1.5"/>
-            <Setter Property="Padding" Value="12,8"/>
+            <Setter Property="BorderThickness" Value="1.2"/>
+            <Setter Property="Padding" Value="14,0"/>
             <Setter Property="VerticalContentAlignment" Value="Center"/>
+            <Setter Property="CaretBrush" Value="{DynamicResource AccentBrush}"/>
             <Setter Property="Template">
                 <Setter.Value>
                     <ControlTemplate TargetType="PasswordBox">
@@ -62,15 +128,19 @@
                                 BorderBrush="{TemplateBinding BorderBrush}"
                                 BorderThickness="{TemplateBinding BorderThickness}"
                                 CornerRadius="10">
-                            <ScrollViewer x:Name="PART_ContentHost" Focusable="false" HorizontalScrollBarVisibility="Hidden" VerticalScrollBarVisibility="Hidden" VerticalAlignment="Center"/>
+                            <ScrollViewer x:Name="PART_ContentHost" Focusable="false" 
+                                          HorizontalScrollBarVisibility="Hidden" 
+                                          VerticalScrollBarVisibility="Hidden" 
+                                          VerticalAlignment="Center"/>
                         </Border>
                         <ControlTemplate.Triggers>
-                            <Trigger Property="IsMouseOver" Value="true">
+                            <Trigger Property="IsMouseOver" Value="True">
                                 <Setter TargetName="border" Property="BorderBrush" Value="{DynamicResource AccentBrush}"/>
                             </Trigger>
-                            <Trigger Property="IsKeyboardFocused" Value="true">
-                                <Setter TargetName="border" Property="BorderBrush" Value="{DynamicResource PrimaryBrush}"/>
-                                <Setter TargetName="border" Property="BorderThickness" Value="2"/>
+                            <Trigger Property="IsKeyboardFocused" Value="True">
+                                <Setter TargetName="border" Property="BorderBrush" Value="{DynamicResource AccentBrush}"/>
+                                <Setter TargetName="border" Property="BorderThickness" Value="1.8"/>
+                                <Setter TargetName="border" Property="Background" Value="{DynamicResource AppBackgroundBrush}"/>
                             </Trigger>
                         </ControlTemplate.Triggers>
                     </ControlTemplate>
@@ -78,35 +148,35 @@
             </Setter>
         </Style>
 
-        <!-- Prominent Primary Action Button -->
-        <Style x:Key="HeroActionButtonStyle" TargetType="Button">
+        <!-- ── Primary Action Button (Sign In) ── -->
+        <Style x:Key="FlatPrimaryButtonStyle" TargetType="Button">
             <Setter Property="Background" Value="{DynamicResource PrimaryBrush}"/>
             <Setter Property="Foreground" Value="#FFFFFF"/>
             <Setter Property="FontWeight" Value="Bold"/>
             <Setter Property="FontSize" Value="15"/>
-            <Setter Property="Height" Value="48"/>
+            <Setter Property="Height" Value="46"/>
             <Setter Property="Cursor" Value="Hand"/>
+            <Setter Property="BorderThickness" Value="0"/>
             <Setter Property="Template">
                 <Setter.Value>
                     <ControlTemplate TargetType="Button">
                         <Border x:Name="btnBorder"
                                 Background="{TemplateBinding Background}"
-                                CornerRadius="12"
-                                Padding="{TemplateBinding Padding}">
+                                CornerRadius="12">
                             <Border.Effect>
-                                <DropShadowEffect BlurRadius="12" ShadowDepth="3" Direction="270" Opacity="0.3" Color="#0284C7"/>
+                                <DropShadowEffect BlurRadius="12" ShadowDepth="2" Direction="270" Opacity="0.25" Color="#0284C7"/>
                             </Border.Effect>
                             <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
                         </Border>
                         <ControlTemplate.Triggers>
                             <Trigger Property="IsMouseOver" Value="True">
-                                <Setter TargetName="btnBorder" Property="Background" Value="#0284C7"/>
+                                <Setter TargetName="btnBorder" Property="Background" Value="{DynamicResource PrimaryHoverBrush}"/>
                             </Trigger>
                             <Trigger Property="IsPressed" Value="True">
                                 <Setter TargetName="btnBorder" Property="Background" Value="#0369A1"/>
                             </Trigger>
                             <Trigger Property="IsEnabled" Value="False">
-                                <Setter TargetName="btnBorder" Property="Opacity" Value="0.6"/>
+                                <Setter TargetName="btnBorder" Property="Opacity" Value="0.55"/>
                             </Trigger>
                         </ControlTemplate.Triggers>
                     </ControlTemplate>
@@ -114,15 +184,15 @@
             </Setter>
         </Style>
 
-        <!-- Prominent Secondary Action Button -->
-        <Style x:Key="SecondaryActionButtonStyle" TargetType="Button">
-            <Setter Property="Background" Value="{DynamicResource CardHoverBrush}"/>
+        <!-- ── Flat Secondary Action Button ── -->
+        <Style x:Key="FlatSecondaryButtonStyle" TargetType="Button">
+            <Setter Property="Background" Value="{DynamicResource InputBrush}"/>
             <Setter Property="Foreground" Value="{DynamicResource TextPrimaryBrush}"/>
             <Setter Property="BorderBrush" Value="{DynamicResource BorderBrush}"/>
-            <Setter Property="BorderThickness" Value="1.5"/>
+            <Setter Property="BorderThickness" Value="1"/>
             <Setter Property="FontWeight" Value="SemiBold"/>
             <Setter Property="FontSize" Value="13"/>
-            <Setter Property="Height" Value="40"/>
+            <Setter Property="Height" Value="38"/>
             <Setter Property="Cursor" Value="Hand"/>
             <Setter Property="Template">
                 <Setter.Value>
@@ -131,14 +201,13 @@
                                 Background="{TemplateBinding Background}"
                                 BorderBrush="{TemplateBinding BorderBrush}"
                                 BorderThickness="{TemplateBinding BorderThickness}"
-                                CornerRadius="10"
-                                Padding="{TemplateBinding Padding}">
+                                CornerRadius="10">
                             <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
                         </Border>
                         <ControlTemplate.Triggers>
                             <Trigger Property="IsMouseOver" Value="True">
                                 <Setter TargetName="btnBorder" Property="BorderBrush" Value="{DynamicResource AccentBrush}"/>
-                                <Setter TargetName="btnBorder" Property="Background" Value="{DynamicResource InputBrush}"/>
+                                <Setter TargetName="btnBorder" Property="Background" Value="{DynamicResource CardHoverBrush}"/>
                             </Trigger>
                             <Trigger Property="IsPressed" Value="True">
                                 <Setter TargetName="btnBorder" Property="Background" Value="{DynamicResource BorderBrush}"/>
@@ -150,87 +219,143 @@
         </Style>
     </Window.Resources>
 
-    <Border Padding="28,24">
-        <Border Background="{DynamicResource CardBrush}" 
-                BorderBrush="{DynamicResource BorderBrush}" 
-                BorderThickness="1" 
-                CornerRadius="20" 
-                Padding="32,28">
-            <Border.Effect>
-                <DropShadowEffect BlurRadius="32" ShadowDepth="6" Direction="270" Opacity="0.3" Color="#000000"/>
-            </Border.Effect>
+    <!-- ════ OUTER WRAPPER WITH ROUNDED CORNERS & FLAT CARD SHADOW ════ -->
+    <Border Margin="14"
+            CornerRadius="24"
+            Background="{DynamicResource CardBrush}"
+            BorderBrush="{DynamicResource BorderBrush}"
+            BorderThickness="1.2">
+        <Border.Effect>
+            <DropShadowEffect BlurRadius="28" ShadowDepth="4" Direction="270" Opacity="0.4" Color="#000000"/>
+        </Border.Effect>
 
-            <StackPanel>
-                <!-- ════ TOP HERO / BRANDING SECTION ════ -->
-                <Grid Margin="0,0,0,20">
-                    <Grid.ColumnDefinitions>
-                        <ColumnDefinition Width="Auto"/>
-                        <ColumnDefinition Width="*"/>
-                    </Grid.ColumnDefinitions>
+        <Grid Margin="28,18,28,24">
+            <Grid.RowDefinitions>
+                <!-- Row 0: Top Window Control Strip & Server Badge -->
+                <RowDefinition Height="Auto"/>
+                <!-- Row 1: Hero Branding (Logo + Titles) -->
+                <RowDefinition Height="Auto"/>
+                <!-- Row 2: Divider -->
+                <RowDefinition Height="Auto"/>
+                <!-- Row 3: Login Inputs Form -->
+                <RowDefinition Height="Auto"/>
+                <!-- Row 4: Error Banner -->
+                <RowDefinition Height="Auto"/>
+                <!-- Row 5: Action Buttons -->
+                <RowDefinition Height="Auto"/>
+                <!-- Row 6: Default Credentials Helper -->
+                <RowDefinition Height="Auto"/>
+                <!-- Row 7: Footer Version Note -->
+                <RowDefinition Height="Auto"/>
+            </Grid.RowDefinitions>
 
-                    <!-- Laboratory Glowing Logo -->
-                    <Border Grid.Column="0" Width="72" Height="72" CornerRadius="18" Background="#0B132B" BorderBrush="#0284C7" BorderThickness="1.5" Margin="0,0,16,0" VerticalAlignment="Center" ClipToBounds="True">
-                        <Border.Effect>
-                            <DropShadowEffect BlurRadius="18" ShadowDepth="2" Direction="270" Opacity="0.5" Color="#0284C7"/>
-                        </Border.Effect>
-                        <Image Source="Assets/logo.png" Stretch="Uniform" RenderOptions.BitmapScalingMode="HighQuality" Margin="4"/>
-                    </Border>
+            <!-- ── ROW 0: TOP STRIP (Server Badge on Right + Window Controls on Left) ── -->
+            <Grid Grid.Row="0" Margin="0,0,0,14">
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="*"/>
+                    <ColumnDefinition Width="Auto"/>
+                </Grid.ColumnDefinitions>
 
-                    <!-- Laboratory Titles -->
-                    <StackPanel Grid.Column="1" VerticalAlignment="Center">
-                        <TextBlock Text="مختبر التحليلات الطبية التخصصي" 
-                                   FontSize="19" FontWeight="Bold" 
-                                   Foreground="{DynamicResource TextPrimaryBrush}"/>
-                        <TextBlock Text="Laboratory Information System (LIS Interface)" 
-                                   FontSize="12.5" FontWeight="SemiBold" 
-                                   Foreground="{DynamicResource AccentBrush}" Margin="0,3,0,0"/>
-                        <!-- Connected Server Status Pill -->
-                        <Border HorizontalAlignment="Left" Background="#064E3B" BorderBrush="#059669" BorderThickness="1" CornerRadius="6" Padding="8,2" Margin="0,6,0,0">
-                            <StackPanel Orientation="Horizontal">
-                                <TextBlock Text="🟢 السيرفر: " FontSize="11" FontWeight="Bold" Foreground="#34D399"/>
-                                <TextBlock x:Name="TxtServerBadge" Text="192.168.0.2:5432" FontSize="11" FontWeight="Bold" Foreground="#FFFFFF"/>
-                            </StackPanel>
-                        </Border>
+                <!-- Right Side: Server Connection Badge -->
+                <Border Grid.Column="0" HorizontalAlignment="Right" VerticalAlignment="Center"
+                        Background="#064E3B" BorderBrush="#059669" BorderThickness="1" 
+                        CornerRadius="8" Padding="10,4">
+                    <StackPanel Orientation="Horizontal">
+                        <TextBlock Text="🟢 السيرفر: " FontSize="11" FontWeight="Bold" Foreground="#34D399"/>
+                        <TextBlock x:Name="TxtServerBadge" Text="localhost:5432" FontSize="11" FontWeight="Bold" Foreground="#FFFFFF"/>
                     </StackPanel>
-                </Grid>
+                </Border>
 
-                <Separator Background="{DynamicResource BorderBrush}" Margin="0,0,0,20"/>
+                <!-- Left Side: Minimal Window Control Buttons (Minimize & Close) -->
+                <StackPanel Grid.Column="1" Orientation="Horizontal" HorizontalAlignment="Left" VerticalAlignment="Center">
+                    <!-- Minimize Button -->
+                    <Button Style="{StaticResource WindowControlButtonBase}" 
+                            ToolTip="تصغير النافذة" 
+                            Click="BtnMinimize_Click" 
+                            Margin="0,0,4,0">
+                        <TextBlock Text="—" FontSize="12" FontWeight="Bold" Margin="0,-2,0,0"/>
+                    </Button>
+                    <!-- Close Button -->
+                    <Button Style="{StaticResource WindowCloseButtonStyle}" 
+                            ToolTip="إغلاق البرنامج" 
+                            Click="BtnClose_Click">
+                        <TextBlock Text="✕" FontSize="12" FontWeight="Bold"/>
+                    </Button>
+                </StackPanel>
+            </Grid>
 
-                <!-- ════ SIGN IN FORM ════ -->
+            <!-- ── ROW 1: HERO BRANDING (Logo + Titles) ── -->
+            <Grid Grid.Row="1" Margin="0,0,0,16">
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="Auto"/>
+                    <ColumnDefinition Width="*"/>
+                </Grid.ColumnDefinitions>
+
+                <!-- Modern Glowing Logo Card -->
+                <Border Grid.Column="0" Width="68" Height="68" CornerRadius="16" 
+                        Background="#0B132B" BorderBrush="{DynamicResource AccentBrush}" 
+                        BorderThickness="1.2" Margin="0,0,16,0" VerticalAlignment="Center" 
+                        ClipToBounds="True">
+                    <Border.Effect>
+                        <DropShadowEffect BlurRadius="16" ShadowDepth="2" Direction="270" Opacity="0.4" Color="#0284C7"/>
+                    </Border.Effect>
+                    <Image Source="Assets/logo.png" Stretch="Uniform" 
+                           RenderOptions.BitmapScalingMode="HighQuality" Margin="4"/>
+                </Border>
+
+                <!-- Lab Branding Titles -->
+                <StackPanel Grid.Column="1" VerticalAlignment="Center">
+                    <TextBlock Text="مختبر التحليلات الطبية التخصصي" 
+                               FontSize="18.5" FontWeight="Bold" 
+                               Foreground="{DynamicResource TextPrimaryBrush}"/>
+                    <TextBlock Text="Laboratory Information System (LIS Interface)" 
+                               FontSize="12" FontWeight="SemiBold" 
+                               Foreground="{DynamicResource AccentBrush}" Margin="0,4,0,0"/>
+                    <TextBlock Text="نظام إدارة ومتابعة الفحوصات والربط مع الأجهزة" 
+                               FontSize="11" 
+                               Foreground="{DynamicResource TextSecondaryBrush}" Margin="0,3,0,0"/>
+                </StackPanel>
+            </Grid>
+
+            <!-- ── ROW 2: FLAT DIVIDER LINE ── -->
+            <Border Grid.Row="2" Height="1" Background="{DynamicResource BorderBrush}" Margin="0,0,0,18"/>
+
+            <!-- ── ROW 3: LOGIN FORM (Username & Password) ── -->
+            <StackPanel Grid.Row="3">
                 <!-- Username Field -->
                 <StackPanel Margin="0,0,0,14">
-                    <TextBlock Text="👤 اسم المستخدم (Username):" 
-                               FontSize="13.5" FontWeight="SemiBold" 
+                    <TextBlock Text="اسم المستخدم (Username):" 
+                               FontSize="13" FontWeight="SemiBold" 
                                Foreground="{DynamicResource TextSecondaryBrush}" 
                                Margin="0,0,0,6"/>
                     <TextBox x:Name="TxtUsername" 
                              Text="admin"
-                             Style="{StaticResource ModernInputBoxStyle}"
+                             Style="{StaticResource FlatInputBoxStyle}"
                              KeyDown="TxtUsername_KeyDown"/>
                 </StackPanel>
 
-                <!-- Password Field with Show/Hide Eye Toggle -->
+                <!-- Password Field with Show/Hide Toggle -->
                 <StackPanel Margin="0,0,0,16">
-                    <TextBlock Text="🔑 كلمة المرور (Password):" 
-                               FontSize="13.5" FontWeight="SemiBold" 
+                    <TextBlock Text="كلمة المرور (Password):" 
+                               FontSize="13" FontWeight="SemiBold" 
                                Foreground="{DynamicResource TextSecondaryBrush}" 
                                Margin="0,0,0,6"/>
                     <Grid>
                         <!-- Masked Password -->
                         <PasswordBox x:Name="TxtPassword" 
-                                     Style="{StaticResource ModernPasswordBoxStyle}"
+                                     Style="{StaticResource FlatPasswordBoxStyle}"
                                      KeyDown="TxtPassword_KeyDown"/>
 
                         <!-- Visible Password Text -->
                         <TextBox x:Name="TxtPasswordVisible"
-                                 Style="{StaticResource ModernInputBoxStyle}"
+                                 Style="{StaticResource FlatInputBoxStyle}"
                                  Visibility="Collapsed"
                                  KeyDown="TxtPasswordVisible_KeyDown"/>
 
-                        <!-- Eye Toggle Button -->
+                        <!-- Eye Toggle Button (Positioned at the start/left in RTL) -->
                         <Button x:Name="BtnTogglePassword"
                                 Content="👁️"
-                                Width="38" Height="38"
+                                Width="36" Height="36"
                                 HorizontalAlignment="Left"
                                 VerticalAlignment="Center"
                                 Margin="4,0,0,0"
@@ -241,23 +366,31 @@
                                 Click="BtnTogglePassword_Click"/>
                     </Grid>
                 </StackPanel>
+            </StackPanel>
 
-                <!-- Error Message Banner -->
-                <Border x:Name="BdrError" Background="#33EF4444" BorderBrush="#EF4444" BorderThickness="1.5" CornerRadius="10" Padding="12,8" Margin="0,0,0,16" Visibility="Collapsed">
-                    <StackPanel Orientation="Horizontal" HorizontalAlignment="Center">
-                        <TextBlock Text="⚠️ " FontSize="14" VerticalAlignment="Center"/>
-                        <TextBlock x:Name="TxtErrorMessage" Text="اسم المستخدم أو كلمة المرور غير صحيحة" Foreground="#FCA5A5" FontSize="13" FontWeight="SemiBold" TextWrapping="Wrap" VerticalAlignment="Center"/>
-                    </StackPanel>
-                </Border>
+            <!-- ── ROW 4: ERROR BANNER ── -->
+            <Border Grid.Row="4" x:Name="BdrError" 
+                    Background="#26EF4444" BorderBrush="#EF4444" BorderThickness="1.2" 
+                    CornerRadius="10" Padding="12,8" Margin="0,0,0,14" Visibility="Collapsed">
+                <StackPanel Orientation="Horizontal" HorizontalAlignment="Center">
+                    <TextBlock Text="⚠️ " FontSize="13" VerticalAlignment="Center"/>
+                    <TextBlock x:Name="TxtErrorMessage" Text="اسم المستخدم أو كلمة المرور غير صحيحة" 
+                               Foreground="#FCA5A5" FontSize="12.5" FontWeight="SemiBold" 
+                               TextWrapping="Wrap" VerticalAlignment="Center"/>
+                </StackPanel>
+            </Border>
 
-                <!-- ════ PRIMARY ACTION: LOGIN BUTTON ════ -->
+            <!-- ── ROW 5: ACTION BUTTONS ── -->
+            <StackPanel Grid.Row="5">
+                <!-- Primary Sign In Button -->
                 <Button x:Name="BtnLogin" 
-                        Content="🚀 تسجيل الدخول إلى النظام (Sign In)" 
-                        Style="{StaticResource HeroActionButtonStyle}" 
-                        Click="BtnLogin_Click" Margin="0,0,0,12"/>
+                        Content="تسجيل الدخول إلى النظام (Sign In)" 
+                        Style="{StaticResource FlatPrimaryButtonStyle}" 
+                        Click="BtnLogin_Click" 
+                        Margin="0,0,0,12"/>
 
-                <!-- ════ SECONDARY ACTION BUTTONS: SERVER SETTINGS & EXIT ════ -->
-                <Grid Margin="0,0,0,16">
+                <!-- Secondary Actions: Server Settings & Exit -->
+                <Grid Margin="0,0,0,14">
                     <Grid.ColumnDefinitions>
                         <ColumnDefinition Width="*"/>
                         <ColumnDefinition Width="10"/>
@@ -268,50 +401,56 @@
                     <Button Grid.Column="0"
                             x:Name="BtnServerSettings" 
                             Content="⚙️ إعدادات السيرفر (Server IP)" 
-                            Style="{StaticResource SecondaryActionButtonStyle}" 
+                            Style="{StaticResource FlatSecondaryButtonStyle}" 
                             Click="BtnServerSettings_Click"/>
 
                     <!-- Exit Button -->
                     <Button Grid.Column="2"
                             x:Name="BtnExit" 
                             Content="🚪 خروج (Exit)" 
-                            Style="{StaticResource SecondaryActionButtonStyle}" 
+                            Style="{StaticResource FlatSecondaryButtonStyle}" 
                             Click="BtnExit_Click"/>
                 </Grid>
-
-                <!-- ════ DEFAULT CREDENTIALS HELPER WITH AUTO-FILL ════ -->
-                <Border Background="{DynamicResource AppBackgroundBrush}" BorderBrush="{DynamicResource BorderBrush}" BorderThickness="1" CornerRadius="12" Padding="12,10">
-                    <Grid>
-                        <Grid.ColumnDefinitions>
-                            <ColumnDefinition Width="*"/>
-                            <ColumnDefinition Width="Auto"/>
-                        </Grid.ColumnDefinitions>
-                        <StackPanel Grid.Column="0" VerticalAlignment="Center">
-                            <TextBlock Text="💡 حساب المسؤول الافتراضي:" 
-                                       FontSize="12" FontWeight="Bold" 
-                                       Foreground="{DynamicResource AccentBrush}"/>
-                            <TextBlock Text="المستخدم: admin  |  كلمة المرور: Admin123" 
-                                       FontSize="12" 
-                                       Foreground="{DynamicResource TextSecondaryBrush}" Margin="0,2,0,0"/>
-                        </StackPanel>
-                        <!-- Quick Auto-fill button -->
-                        <Button Grid.Column="1"
-                                x:Name="BtnAutoFill"
-                                Content="⚡ تعبئة سريعة"
-                                Style="{DynamicResource SecondaryActionButtonStyle}"
-                                Height="30" Padding="10,0" FontSize="11.5"
-                                VerticalAlignment="Center"
-                                Click="BtnAutoFill_Click"/>
-                    </Grid>
-                </Border>
-
-                <!-- Footer with Version -->
-                <TextBlock Text="نظام إدارة المختبرات الطبية LIS • الإصدار v1.0.0" 
-                           FontSize="11.5" 
-                           Foreground="{DynamicResource TextMutedBrush}" 
-                           HorizontalAlignment="Center" 
-                           Margin="0,14,0,0"/>
             </StackPanel>
-        </Border>
+
+            <!-- ── ROW 6: DEFAULT CREDENTIALS HELPER WITH ONE-CLICK AUTO-FILL ── -->
+            <Border Grid.Row="6" 
+                    Background="{DynamicResource AppBackgroundBrush}" 
+                    BorderBrush="{DynamicResource BorderBrush}" 
+                    BorderThickness="1" 
+                    CornerRadius="12" 
+                    Padding="12,9">
+                <Grid>
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="*"/>
+                        <ColumnDefinition Width="Auto"/>
+                    </Grid.ColumnDefinitions>
+                    <StackPanel Grid.Column="0" VerticalAlignment="Center">
+                        <TextBlock Text="💡 حساب المسؤول الافتراضي:" 
+                                   FontSize="11.5" FontWeight="Bold" 
+                                   Foreground="{DynamicResource AccentBrush}"/>
+                        <TextBlock Text="المستخدم: admin  |  كلمة المرور: Admin123" 
+                                   FontSize="11.5" 
+                                   Foreground="{DynamicResource TextSecondaryBrush}" Margin="0,2,0,0"/>
+                    </StackPanel>
+                    <!-- Quick Auto-fill button -->
+                    <Button Grid.Column="1"
+                            x:Name="BtnAutoFill"
+                            Content="⚡ تعبئة سريعة"
+                            Style="{StaticResource FlatSecondaryButtonStyle}"
+                            Height="30" Padding="10,0" FontSize="11"
+                            VerticalAlignment="Center"
+                            Click="BtnAutoFill_Click"/>
+                </Grid>
+            </Border>
+
+            <!-- ── ROW 7: FOOTER NOTE ── -->
+            <TextBlock Grid.Row="7" 
+                       Text="نظام إدارة المختبرات الطبية LIS • الإصدار v1.0.0" 
+                       FontSize="11" 
+                       Foreground="{DynamicResource TextMutedBrush}" 
+                       HorizontalAlignment="Center" 
+                       Margin="0,14,0,0"/>
+        </Grid>
     </Border>
 </Window>

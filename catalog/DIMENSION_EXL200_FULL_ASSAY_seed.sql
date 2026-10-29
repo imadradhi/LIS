@@ -284,3 +284,4 @@ ON CONFLICT (instrument_id, component_id) DO UPDATE
 DROP TABLE tmp_assay_def;
 
 COMMIT;
+
