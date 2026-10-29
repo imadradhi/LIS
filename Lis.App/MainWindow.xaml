@@ -486,14 +486,33 @@
                               ScrollViewer.HorizontalScrollBarVisibility="Disabled"
                               ScrollViewer.VerticalScrollBarVisibility="Hidden">
                         <DataGrid.Columns>
-                            <DataGridTextColumn Header="باركود الأنبوب (Accession)" Binding="{Binding accession_no}" FontWeight="Bold" Width="140"/>
-                            <DataGridTextColumn Header="نوع الأنبوب (Tube Type)" Binding="{Binding specimen_type_name}" Width="130"/>
-                            <DataGridTextColumn Header="الفحوصات المطلوبة (Tests)" Binding="{Binding test_names}" FontWeight="SemiBold" Width="2*"/>
-                            <DataGridTextColumn Header="اسم المريض (Patient Name)" Binding="{Binding full_name_ar}" Width="170"/>
-                            <DataGridTextColumn Header="MRN" Binding="{Binding mrn}" Width="85"/>
-                            <DataGridTextColumn Header="الحالة (Status)" Binding="{Binding specimen_status}" FontWeight="Bold" Width="120"/>
-                            <DataGridTextColumn Header="وقت الاستلام (Collected At)" Binding="{Binding collected_at, StringFormat='dd/MM/yyyy HH:mm'}" Width="135"/>
-                            <DataGridTemplateColumn Header="إجراء سريع" Width="165">
+                            <DataGridTextColumn Header="باركود الأنبوب (Accession)" Binding="{Binding accession_no}" FontWeight="Bold" Width="1.2*" MinWidth="110"/>
+                            <DataGridTextColumn Header="نوع الأنبوب (Tube Type)" Binding="{Binding specimen_type_name}" Width="1.2*" MinWidth="110"/>
+                            
+                            <DataGridTextColumn Header="الفحوصات المطلوبة (Tests)" Binding="{Binding test_names}" FontWeight="SemiBold" Width="1.8*" MinWidth="130">
+                                <DataGridTextColumn.ElementStyle>
+                                    <Style TargetType="TextBlock">
+                                        <Setter Property="TextTrimming" Value="CharacterEllipsis"/>
+                                        <Setter Property="ToolTip" Value="{Binding test_names}"/>
+                                        <Setter Property="VerticalAlignment" Value="Center"/>
+                                    </Style>
+                                </DataGridTextColumn.ElementStyle>
+                            </DataGridTextColumn>
+
+                            <DataGridTextColumn Header="اسم المريض (Patient Name)" Binding="{Binding full_name_ar}" Width="1.8*" MinWidth="130">
+                                <DataGridTextColumn.ElementStyle>
+                                    <Style TargetType="TextBlock">
+                                        <Setter Property="TextTrimming" Value="CharacterEllipsis"/>
+                                        <Setter Property="ToolTip" Value="{Binding full_name_ar}"/>
+                                        <Setter Property="VerticalAlignment" Value="Center"/>
+                                    </Style>
+                                </DataGridTextColumn.ElementStyle>
+                            </DataGridTextColumn>
+
+                            <DataGridTextColumn Header="MRN" Binding="{Binding mrn}" Width="0.8*" MinWidth="70"/>
+                            <DataGridTextColumn Header="الحالة (Status)" Binding="{Binding specimen_status}" FontWeight="Bold" Width="1.1*" MinWidth="95"/>
+                            <DataGridTextColumn Header="وقت الاستلام (Collected At)" Binding="{Binding collected_at, StringFormat='dd/MM/yyyy HH:mm'}" Width="1.2*" MinWidth="115"/>
+                            <DataGridTemplateColumn Header="إجراء سريع" Width="1.4*" MinWidth="160">
                                 <DataGridTemplateColumn.CellTemplate>
                                     <DataTemplate>
                                         <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
