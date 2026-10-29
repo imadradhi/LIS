@@ -10,6 +10,7 @@
         Background="Transparent"
         ResizeMode="NoResize"
         FlowDirection="LeftToRight"
+        FontFamily="{StaticResource AppFontFamily}"
         MouseLeftButtonDown="Window_MouseLeftButtonDown">
 
     <Window.Resources>

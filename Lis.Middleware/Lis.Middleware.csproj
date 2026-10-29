@@ -20,6 +20,9 @@
 
   <ItemGroup>
     <Resource Include="Assets\**" />
+    <Content Include="Assets\Fonts\**">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </Content>
   </ItemGroup>
 
 </Project>

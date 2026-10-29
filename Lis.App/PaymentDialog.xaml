@@ -1,4 +1,4 @@
-<Window FontFamily="Simplified Arabic" x:Class="Lis.App.PaymentDialog"
+<Window FontFamily="{StaticResource AppFontFamily}" x:Class="Lis.App.PaymentDialog"
         xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         WindowStyle="None"

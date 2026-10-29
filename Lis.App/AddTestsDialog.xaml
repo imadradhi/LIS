@@ -1,7 +1,7 @@
 <Window x:Class="Lis.App.AddTestsDialog"
         xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
-        FontFamily="Simplified Arabic"
+        FontFamily="{StaticResource AppFontFamily}"
         Title="إضافة التحاليل للطلب"
         Icon="Assets/app_icon.ico"
         Width="1020" Height="700"

@@ -1,4 +1,4 @@
-<Window FontFamily="Simplified Arabic" x:Class="Lis.App.SelectTestsDialog"
+<Window FontFamily="{StaticResource AppFontFamily}" x:Class="Lis.App.SelectTestsDialog"
         xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         Title="اختيار وتحديد التحاليل للإضافة إلى الطلب"

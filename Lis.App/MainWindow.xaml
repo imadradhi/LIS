@@ -11,7 +11,7 @@
         WindowStartupLocation="CenterScreen"
         WindowState="Maximized"
         FlowDirection="LeftToRight"
-        FontFamily="Simplified Arabic"
+        FontFamily="{StaticResource AppFontFamily}"
         Background="{DynamicResource AppBackgroundBrush}">
 
     <Grid>

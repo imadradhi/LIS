@@ -53,9 +53,9 @@
 
 
 
-        <!-- ── Global Font: Simplified Arabic (واجهة + تقارير) ─────────── -->
-        <FontFamily x:Key="AppFontFamily">Simplified Arabic, Tahoma, Arial</FontFamily>
-        <FontFamily x:Key="ReportFontFamily">Simplified Arabic</FontFamily>
+        <!-- ── Global Font: boutrosAsma (واجهة + تقارير) ─────────── -->
+        <FontFamily x:Key="AppFontFamily">pack://application:,,,/Assets/Fonts/#BoutrosAsma, ./Assets/Fonts/#BoutrosAsma, BoutrosAsma, Simplified Arabic, Tahoma, Arial</FontFamily>
+        <FontFamily x:Key="ReportFontFamily">pack://application:,,,/Assets/Fonts/#BoutrosAsma, ./Assets/Fonts/#BoutrosAsma, BoutrosAsma, Simplified Arabic</FontFamily>
 
         <!-- Base TextBlock Style -->
         <Style TargetType="TextBlock">
@@ -64,6 +64,11 @@
             <Setter Property="Foreground" Value="{DynamicResource TextPrimaryBrush}"/>
             <Setter Property="TextOptions.TextFormattingMode" Value="Display"/>
             <Setter Property="TextOptions.TextRenderingMode" Value="ClearType"/>
+        </Style>
+
+        <!-- Base Control Style: Ensures All Controls inherit AppFontFamily -->
+        <Style TargetType="Control">
+            <Setter Property="FontFamily" Value="{StaticResource AppFontFamily}"/>
         </Style>
 
 

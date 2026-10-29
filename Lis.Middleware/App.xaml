@@ -26,14 +26,19 @@
         <SolidColorBrush x:Key="TextSecondaryBrush" Color="#94B4D4"/>
         <SolidColorBrush x:Key="TextMutedBrush"     Color="#5A7A9A"/>
 
-        <!-- Font Family -->
-        <FontFamily x:Key="AppFontFamily">Simplified Arabic, Segoe UI, Tahoma, Arial</FontFamily>
+        <!-- Font Family: boutrosAsma -->
+        <FontFamily x:Key="AppFontFamily">pack://application:,,,/Assets/Fonts/#BoutrosAsma, ./Assets/Fonts/#BoutrosAsma, BoutrosAsma, Simplified Arabic, Segoe UI, Tahoma, Arial</FontFamily>
 
         <!-- Base TextBlock Style -->
         <Style TargetType="TextBlock">
             <Setter Property="FontFamily" Value="{StaticResource AppFontFamily}"/>
             <Setter Property="FontSize" Value="13"/>
             <Setter Property="Foreground" Value="{DynamicResource TextPrimaryBrush}"/>
+        </Style>
+
+        <!-- Base Control Style: Ensures All Controls inherit AppFontFamily -->
+        <Style TargetType="Control">
+            <Setter Property="FontFamily" Value="{StaticResource AppFontFamily}"/>
         </Style>
 
         <!-- Card Style -->

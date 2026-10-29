@@ -7,6 +7,7 @@
         WindowStartupLocation="CenterOwner"
         ResizeMode="NoResize"
         FlowDirection="LeftToRight"
+        FontFamily="{StaticResource AppFontFamily}"
         Background="{DynamicResource AppBackgroundBrush}">
 
     <Border Padding="24">
