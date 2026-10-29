@@ -448,57 +448,63 @@
                     </Grid.RowDefinitions>
 
                     <!-- Filter Bar -->
-                    <Border Grid.Row="0" Style="{DynamicResource CardStyle}" Margin="0,0,0,14">
+                    <Border Grid.Row="0" Style="{DynamicResource CardStyle}" Margin="0,0,0,14" Padding="14,10">
                         <Grid>
                             <Grid.ColumnDefinitions>
                                 <ColumnDefinition Width="Auto"/>
                                 <ColumnDefinition Width="220"/>
                                 <ColumnDefinition Width="Auto"/>
-                                <ColumnDefinition Width="180"/>
+                                <ColumnDefinition Width="220"/>
                                 <ColumnDefinition Width="*"/>
                                 <ColumnDefinition Width="Auto"/>
                             </Grid.ColumnDefinitions>
                             
                             <TextBlock Grid.Column="0" Text="القسم (Department):" VerticalAlignment="Center" Margin="0,0,8,0" FontWeight="SemiBold"/>
-                            <ComboBox Grid.Column="1" x:Name="CmbWorklistDept" SelectionChanged="CmbWorklistFilter_Changed">
+                            <ComboBox Grid.Column="1" x:Name="CmbWorklistDept" Height="36" SelectionChanged="CmbWorklistFilter_Changed">
                                 <ComboBoxItem Content="جميع الأقسام (All)" IsSelected="True"/>
                                 <ComboBoxItem Content="Hematology (أمراض الدم)"/>
                             </ComboBox>
 
                             <TextBlock Grid.Column="2" Text="حالة الأنبوب (Status):" VerticalAlignment="Center" Margin="16,0,8,0" FontWeight="SemiBold"/>
-                            <ComboBox Grid.Column="3" x:Name="CmbWorklistStatus" SelectionChanged="CmbWorklistFilter_Changed">
+                            <ComboBox Grid.Column="3" x:Name="CmbWorklistStatus" Height="36" SelectionChanged="CmbWorklistFilter_Changed">
                                 <ComboBoxItem Tag="" Content="جميع الحالات (All)" IsSelected="True"/>
-                                <ComboBoxItem Tag="Ordered" Content="⏳ بانتظار الاستلام (Ordered)"/>
-                                <ComboBoxItem Tag="Collected" Content="🧪 تم الاستلام (Collected)"/>
-                                <ComboBoxItem Tag="InProgress" Content="⚙️ قيد الفحص (InProgress)"/>
-                                <ComboBoxItem Tag="ResultReceived" Content="📊 تم استلام النتائج (ResultReceived)"/>
-                                <ComboBoxItem Tag="Validated" Content="✅ معتمدة (Validated)"/>
-                                <ComboBoxItem Tag="Rejected" Content="🚫 مرفوضة (Rejected)"/>
+                                <ComboBoxItem Tag="Ordered" Content="بانتظار الاستلام (Ordered)"/>
+                                <ComboBoxItem Tag="Collected" Content="تم الاستلام (Collected)"/>
+                                <ComboBoxItem Tag="InProgress" Content="قيد الفحص (InProgress)"/>
+                                <ComboBoxItem Tag="ResultReceived" Content="تم استلام النتائج (ResultReceived)"/>
+                                <ComboBoxItem Tag="Validated" Content="معتمدة (Validated)"/>
+                                <ComboBoxItem Tag="Rejected" Content="مرفوضة (Rejected)"/>
                             </ComboBox>
 
-                            <Button Grid.Column="5" Content="تحديث القائمة (Refresh 🔄)" Style="{DynamicResource OutlineButtonStyle}" Padding="14,6" FontSize="13" Click="BtnRefreshWorklist_Click"/>
+                            <Button Grid.Column="5" Content="تحديث القائمة (Refresh 🔄)" Style="{DynamicResource SecondaryButtonStyle}" Height="36" Padding="14,0" FontSize="13" Click="BtnRefreshWorklist_Click"/>
                         </Grid>
                     </Border>
 
-                    <!-- Worklist DataGrid -->
+                    <!-- Worklist DataGrid (No Horizontal Scrollbar, Compact Icon Actions) -->
                     <DataGrid Grid.Row="1" x:Name="GridWorklist" AutoGenerateColumns="False" CanUserAddRows="False"
-                              IsReadOnly="True" HeadersVisibility="Column" SelectionMode="Single">
+                              IsReadOnly="True" HeadersVisibility="Column" SelectionMode="Single"
+                              ScrollViewer.HorizontalScrollBarVisibility="Disabled"
+                              ScrollViewer.VerticalScrollBarVisibility="Auto">
                         <DataGrid.Columns>
-                            <DataGridTextColumn Header="باركود الأنبوب (Accession)" Binding="{Binding accession_no}" FontWeight="Bold" Width="170"/>
-                            <DataGridTextColumn Header="نوع الأنبوب (Tube Type)" Binding="{Binding specimen_type_name}" Width="150"/>
-                            <DataGridTextColumn Header="الفحوصات المطلوبة (Tests)" Binding="{Binding test_names}" FontWeight="SemiBold" Width="190"/>
-                            <DataGridTextColumn Header="اسم المريض (Patient Name)" Binding="{Binding full_name_ar}" Width="190"/>
-                            <DataGridTextColumn Header="MRN" Binding="{Binding mrn}" Width="95"/>
+                            <DataGridTextColumn Header="باركود الأنبوب (Accession)" Binding="{Binding accession_no}" FontWeight="Bold" Width="140"/>
+                            <DataGridTextColumn Header="نوع الأنبوب (Tube Type)" Binding="{Binding specimen_type_name}" Width="130"/>
+                            <DataGridTextColumn Header="الفحوصات المطلوبة (Tests)" Binding="{Binding test_names}" FontWeight="SemiBold" Width="2*"/>
+                            <DataGridTextColumn Header="اسم المريض (Patient Name)" Binding="{Binding full_name_ar}" Width="170"/>
+                            <DataGridTextColumn Header="MRN" Binding="{Binding mrn}" Width="85"/>
                             <DataGridTextColumn Header="الحالة (Status)" Binding="{Binding specimen_status}" FontWeight="Bold" Width="120"/>
-                            <DataGridTextColumn Header="وقت الاستلام (Collected At)" Binding="{Binding collected_at, StringFormat='dd/MM/yyyy HH:mm'}" Width="150"/>
-                            <DataGridTemplateColumn Header="إجراء سريع (Quick Action)" Width="*">
+                            <DataGridTextColumn Header="وقت الاستلام (Collected At)" Binding="{Binding collected_at, StringFormat='dd/MM/yyyy HH:mm'}" Width="135"/>
+                            <DataGridTemplateColumn Header="إجراء سريع" Width="165">
                                 <DataGridTemplateColumn.CellTemplate>
                                     <DataTemplate>
-                                        <StackPanel Orientation="Horizontal">
-                                            <Button Content="استلام (Collect)" Style="{DynamicResource SuccessButtonStyle}" Padding="10,4" FontSize="12.5" Margin="0,0,5,0" Click="BtnWorklistCollect_Click"/>
-                                            <Button Content="طباعة باركود (Print)" Style="{DynamicResource OutlineButtonStyle}" Padding="10,4" FontSize="12.5" Margin="0,0,5,0" Click="BtnWorklistPrintLabel_Click"/>
-                                            <Button Content="رفض (Reject)" Style="{DynamicResource DangerButtonStyle}" Padding="10,4" FontSize="12.5" Margin="0,0,5,0" Click="BtnWorklistReject_Click"/>
-                                            <Button Content="📊 النتائج (Results)" Style="{DynamicResource PrimaryButtonStyle}" Padding="10,4" FontSize="12.5" Click="BtnWorklistViewResults_Click"/>
+                                        <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
+                                            <!-- Receive / Collect -->
+                                            <Button Content="📥" ToolTip="استلام العينة (Collect)" Style="{DynamicResource SecondaryButtonStyle}" Width="34" Height="30" FontSize="13" Padding="0" Margin="0,0,5,0" Click="BtnWorklistCollect_Click"/>
+                                            <!-- Print Barcode -->
+                                            <Button Content="🖨️" ToolTip="طباعة باركود الأنبوب (Print Barcode)" Style="{DynamicResource SecondaryButtonStyle}" Width="34" Height="30" FontSize="13" Padding="0" Margin="0,0,5,0" Click="BtnWorklistPrintLabel_Click"/>
+                                            <!-- Reject -->
+                                            <Button Content="✕" ToolTip="رفض العينة (Reject)" Style="{DynamicResource SecondaryButtonStyle}" Width="34" Height="30" FontSize="13" FontWeight="Bold" Padding="0" Margin="0,0,5,0" Click="BtnWorklistReject_Click"/>
+                                            <!-- Results -->
+                                            <Button Content="📊" ToolTip="عرض وإدخال النتائج (Results)" Style="{DynamicResource SecondaryButtonStyle}" Width="34" Height="30" FontSize="13" Padding="0" Click="BtnWorklistViewResults_Click"/>
                                         </StackPanel>
                                     </DataTemplate>
                                 </DataGridTemplateColumn.CellTemplate>
