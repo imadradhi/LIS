@@ -3,31 +3,38 @@
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
              StartupUri="MainWindow.xaml">
     <Application.Resources>
-        <!-- Modern Biotechnology Dark Palette -->
-        <SolidColorBrush x:Key="PrimaryBrush"       Color="#0284C7"/>
-        <SolidColorBrush x:Key="PrimaryHoverBrush"  Color="#0369A1"/>
+        <!-- ═════════════════════════════════════════════════════════════════ -->
+        <!-- ULTRA-MODERN DARK SLATE THEME (Datadog / Linear / High-Tech Lab)  -->
+        <!-- ═════════════════════════════════════════════════════════════════ -->
+
+        <!-- Vibrant Accent Palette -->
+        <SolidColorBrush x:Key="PrimaryBrush"       Color="#2563EB"/>
+        <SolidColorBrush x:Key="PrimaryHoverBrush"  Color="#1D4ED8"/>
         <SolidColorBrush x:Key="AccentBrush"        Color="#38BDF8"/>
+        <SolidColorBrush x:Key="AccentGlowBrush"    Color="#0284C7"/>
         <SolidColorBrush x:Key="SuccessBrush"       Color="#10B981"/>
         <SolidColorBrush x:Key="SuccessHoverBrush"  Color="#059669"/>
         <SolidColorBrush x:Key="DangerBrush"        Color="#EF4444"/>
         <SolidColorBrush x:Key="DangerHoverBrush"   Color="#DC2626"/>
         <SolidColorBrush x:Key="WarningBrush"       Color="#F59E0B"/>
 
-        <!-- Surface brushes -->
-        <SolidColorBrush x:Key="AppBackgroundBrush" Color="#0B0F1A"/>
-        <SolidColorBrush x:Key="SidebarBrush"       Color="#0F172A"/>
-        <SolidColorBrush x:Key="CardBrush"          Color="#1A2540"/>
-        <SolidColorBrush x:Key="CardHoverBrush"     Color="#213057"/>
-        <SolidColorBrush x:Key="InputBrush"         Color="#0F1B30"/>
-        <SolidColorBrush x:Key="BorderBrush"        Color="#2D4060"/>
+        <!-- Surface Brushes (Deep Space Slate Layers) -->
+        <SolidColorBrush x:Key="AppBackgroundBrush" Color="#080C14"/>
+        <SolidColorBrush x:Key="SidebarBrush"       Color="#0B111E"/>
+        <SolidColorBrush x:Key="CardBrush"          Color="#0F172A"/>
+        <SolidColorBrush x:Key="CardElevatedBrush"  Color="#141E33"/>
+        <SolidColorBrush x:Key="CardHoverBrush"     Color="#1E293B"/>
+        <SolidColorBrush x:Key="InputBrush"         Color="#070B14"/>
+        <SolidColorBrush x:Key="BorderBrush"        Color="#1E293B"/>
+        <SolidColorBrush x:Key="BorderLightBrush"   Color="#334155"/>
 
-        <!-- Text brushes -->
-        <SolidColorBrush x:Key="TextPrimaryBrush"   Color="#F1F5F9"/>
-        <SolidColorBrush x:Key="TextSecondaryBrush" Color="#94B4D4"/>
-        <SolidColorBrush x:Key="TextMutedBrush"     Color="#5A7A9A"/>
+        <!-- Text Brushes -->
+        <SolidColorBrush x:Key="TextPrimaryBrush"   Color="#F8FAFC"/>
+        <SolidColorBrush x:Key="TextSecondaryBrush" Color="#94A3B8"/>
+        <SolidColorBrush x:Key="TextMutedBrush"     Color="#64748B"/>
 
-        <!-- Font Family: boutrosAsma -->
-        <FontFamily x:Key="AppFontFamily">pack://application:,,,/Assets/Fonts/#BoutrosAsma, ./Assets/Fonts/#BoutrosAsma, BoutrosAsma, Simplified Arabic, Segoe UI, Tahoma, Arial</FontFamily>
+        <!-- Font Family: Segoe UI with fallback -->
+        <FontFamily x:Key="AppFontFamily">Segoe UI, -apple-system, BlinkMacSystemFont, "Helvetica Neue", Arial, sans-serif</FontFamily>
 
         <!-- Base TextBlock Style -->
         <Style TargetType="TextBlock">
@@ -36,12 +43,12 @@
             <Setter Property="Foreground" Value="{DynamicResource TextPrimaryBrush}"/>
         </Style>
 
-        <!-- Base Control Style: Ensures All Controls inherit AppFontFamily -->
+        <!-- Base Control Style -->
         <Style TargetType="Control">
             <Setter Property="FontFamily" Value="{StaticResource AppFontFamily}"/>
         </Style>
 
-        <!-- Card Style -->
+        <!-- Sleek Card Style with Glass Accent Border -->
         <Style x:Key="CardStyle" TargetType="Border">
             <Setter Property="Background" Value="{DynamicResource CardBrush}"/>
             <Setter Property="BorderBrush" Value="{DynamicResource BorderBrush}"/>
@@ -50,7 +57,16 @@
             <Setter Property="Padding" Value="14"/>
         </Style>
 
-        <!-- Primary Button Style -->
+        <!-- KPI Metric Card Style -->
+        <Style x:Key="KpiCardStyle" TargetType="Border">
+            <Setter Property="Background" Value="#0E1628"/>
+            <Setter Property="BorderBrush" Value="#1E2B45"/>
+            <Setter Property="BorderThickness" Value="1"/>
+            <Setter Property="CornerRadius" Value="10"/>
+            <Setter Property="Padding" Value="14,10"/>
+        </Style>
+
+        <!-- Primary Button Style (Gradient Blue) -->
         <Style x:Key="PrimaryButtonStyle" TargetType="Button">
             <Setter Property="Background" Value="{DynamicResource PrimaryBrush}"/>
             <Setter Property="Foreground" Value="#FFFFFF"/>
@@ -61,36 +77,219 @@
             <Setter Property="Template">
                 <Setter.Value>
                     <ControlTemplate TargetType="Button">
-                        <Border Background="{TemplateBinding Background}" CornerRadius="6" Padding="{TemplateBinding Padding}">
+                        <Border x:Name="bdr" Background="{TemplateBinding Background}" CornerRadius="6" Padding="{TemplateBinding Padding}">
                             <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
                         </Border>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Setter TargetName="bdr" Property="Background" Value="{DynamicResource PrimaryHoverBrush}"/>
+                            </Trigger>
+                        </ControlTemplate.Triggers>
                     </ControlTemplate>
                 </Setter.Value>
             </Setter>
-            <Style.Triggers>
-                <Trigger Property="IsMouseOver" Value="True">
-                    <Setter Property="Background" Value="{DynamicResource PrimaryHoverBrush}"/>
-                </Trigger>
-            </Style.Triggers>
         </Style>
 
-        <!-- Secondary Button Style -->
+        <!-- Secondary Button Style (Dark Slate with Neon Hover Glow) -->
         <Style x:Key="SecondaryButtonStyle" TargetType="Button">
-            <Setter Property="Background" Value="{DynamicResource InputBrush}"/>
-            <Setter Property="Foreground" Value="{DynamicResource TextPrimaryBrush}"/>
-            <Setter Property="BorderBrush" Value="{DynamicResource BorderBrush}"/>
+            <Setter Property="Background" Value="#141E33"/>
+            <Setter Property="Foreground" Value="#E2E8F0"/>
+            <Setter Property="BorderBrush" Value="#25354F"/>
             <Setter Property="BorderThickness" Value="1"/>
             <Setter Property="Padding" Value="10,6"/>
+            <Setter Property="FontSize" Value="11.5"/>
+            <Setter Property="FontWeight" Value="SemiBold"/>
             <Setter Property="Cursor" Value="Hand"/>
             <Setter Property="Template">
                 <Setter.Value>
                     <ControlTemplate TargetType="Button">
-                        <Border Background="{TemplateBinding Background}" BorderBrush="{TemplateBinding BorderBrush}" BorderThickness="{TemplateBinding BorderThickness}" CornerRadius="6" Padding="{TemplateBinding Padding}">
+                        <Border x:Name="bdr" Background="{TemplateBinding Background}" BorderBrush="{TemplateBinding BorderBrush}" BorderThickness="{TemplateBinding BorderThickness}" CornerRadius="6" Padding="{TemplateBinding Padding}">
                             <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
                         </Border>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Setter TargetName="bdr" Property="Background" Value="#1E293B"/>
+                                <Setter TargetName="bdr" Property="BorderBrush" Value="#38BDF8"/>
+                            </Trigger>
+                            <Trigger Property="IsPressed" Value="True">
+                                <Setter TargetName="bdr" Property="Background" Value="#0F172A"/>
+                            </Trigger>
+                        </ControlTemplate.Triggers>
                     </ControlTemplate>
                 </Setter.Value>
             </Setter>
+        </Style>
+
+        <!-- Base TextBox Style -->
+        <Style TargetType="TextBox">
+            <Setter Property="Background" Value="#070B14"/>
+            <Setter Property="Foreground" Value="#F8FAFC"/>
+            <Setter Property="BorderBrush" Value="#1E2B45"/>
+            <Setter Property="BorderThickness" Value="1"/>
+            <Setter Property="CaretBrush" Value="#38BDF8"/>
+            <Setter Property="SelectionBrush" Value="#2563EB"/>
+            <Setter Property="Padding" Value="6,4"/>
+            <Setter Property="VerticalContentAlignment" Value="Center"/>
+        </Style>
+
+        <!-- Base CheckBox Style -->
+        <Style TargetType="CheckBox">
+            <Setter Property="Foreground" Value="{DynamicResource TextSecondaryBrush}"/>
+            <Setter Property="Cursor" Value="Hand"/>
+        </Style>
+
+        <!-- ═════════════════════════════════════════════════════════════════ -->
+        <!-- MODERN DARK SLATE COMBOBOX & POPUP TEMPLATE                      -->
+        <!-- ═════════════════════════════════════════════════════════════════ -->
+        <ControlTemplate x:Key="ComboBoxToggleButtonTemplate" TargetType="ToggleButton">
+            <Border x:Name="templateRoot" 
+                    Background="{TemplateBinding Background}" 
+                    BorderBrush="{TemplateBinding BorderBrush}" 
+                    BorderThickness="{TemplateBinding BorderThickness}" 
+                    CornerRadius="6">
+                <Border x:Name="splitBorder" Width="24" HorizontalAlignment="Right" Background="Transparent">
+                    <Path x:Name="arrow" Data="M 0 0 L 4 4 L 8 0" 
+                          Stroke="#94A3B8" StrokeThickness="1.6" 
+                          HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                </Border>
+            </Border>
+            <ControlTemplate.Triggers>
+                <Trigger Property="IsMouseOver" Value="True">
+                    <Setter TargetName="templateRoot" Property="BorderBrush" Value="#38BDF8"/>
+                    <Setter TargetName="arrow" Property="Stroke" Value="#38BDF8"/>
+                </Trigger>
+                <Trigger Property="IsChecked" Value="True">
+                    <Setter TargetName="templateRoot" Property="BorderBrush" Value="#0284C7"/>
+                    <Setter TargetName="arrow" Property="Stroke" Value="#38BDF8"/>
+                </Trigger>
+            </ControlTemplate.Triggers>
+        </ControlTemplate>
+
+        <Style TargetType="ComboBox">
+            <Setter Property="Foreground" Value="#F8FAFC"/>
+            <Setter Property="Background" Value="#0C1527"/>
+            <Setter Property="BorderBrush" Value="#1E2B45"/>
+            <Setter Property="BorderThickness" Value="1"/>
+            <Setter Property="MaxDropDownHeight" Value="300"/>
+            <Setter Property="Padding" Value="8,4,26,4"/>
+            <Setter Property="FontSize" Value="11.5"/>
+            <Setter Property="VerticalContentAlignment" Value="Center"/>
+            <Setter Property="HorizontalContentAlignment" Value="Left"/>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="ComboBox">
+                        <Grid x:Name="templateRoot" SnapsToDevicePixels="True">
+                            <!-- Dropdown Popup with Dark Background, Border, and DropShadow -->
+                            <Popup x:Name="PART_Popup" 
+                                   AllowsTransparency="True" 
+                                   IsOpen="{Binding IsDropDownOpen, Mode=TwoWay, RelativeSource={RelativeSource TemplatedParent}}" 
+                                   Placement="Bottom" 
+                                   PopupAnimation="Fade">
+                                <Grid Margin="0,2,8,8">
+                                    <Border x:Name="dropDownBorder" 
+                                            Background="#0C1527" 
+                                            BorderBrush="#1E2B45" 
+                                            BorderThickness="1" 
+                                            CornerRadius="6" 
+                                            Padding="4" 
+                                            MinHeight="32" 
+                                            MaxHeight="{TemplateBinding MaxDropDownHeight}" 
+                                            MinWidth="{Binding ActualWidth, ElementName=templateRoot}">
+                                        <Border.Effect>
+                                            <DropShadowEffect BlurRadius="14" ShadowDepth="4" Direction="270" Opacity="0.5" Color="#000000"/>
+                                        </Border.Effect>
+                                        <ScrollViewer x:Name="dropDownScrollViewer" Focusable="False">
+                                            <ItemsPresenter x:Name="ItemsPresenter" KeyboardNavigation.DirectionalNavigation="Contained"/>
+                                        </ScrollViewer>
+                                    </Border>
+                                </Grid>
+                            </Popup>
+
+                            <!-- Background ToggleButton -->
+                            <ToggleButton x:Name="toggleButton" 
+                                          Background="{TemplateBinding Background}" 
+                                          BorderBrush="{TemplateBinding BorderBrush}" 
+                                          BorderThickness="{TemplateBinding BorderThickness}" 
+                                          IsChecked="{Binding IsDropDownOpen, Mode=TwoWay, RelativeSource={RelativeSource TemplatedParent}}" 
+                                          Template="{StaticResource ComboBoxToggleButtonTemplate}"/>
+
+                            <!-- Selected Item Content Display (Crisp, High Contrast Text) -->
+                            <ContentPresenter x:Name="contentPresenter" 
+                                              Content="{TemplateBinding SelectionBoxItem}" 
+                                              ContentTemplate="{TemplateBinding SelectionBoxItemTemplate}" 
+                                              ContentTemplateSelector="{TemplateBinding ItemTemplateSelector}" 
+                                              HorizontalAlignment="{TemplateBinding HorizontalContentAlignment}" 
+                                              IsHitTestVisible="False" 
+                                              Margin="8,0,26,0" 
+                                              VerticalAlignment="{TemplateBinding VerticalContentAlignment}"/>
+                        </Grid>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Setter TargetName="toggleButton" Property="BorderBrush" Value="#38BDF8"/>
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+
+        <!-- ComboBox Item Style (Dark Background, Pure Crisp White Text, Cyan Hover) -->
+        <Style TargetType="ComboBoxItem">
+            <Setter Property="Foreground" Value="#F8FAFC"/>
+            <Setter Property="Background" Value="Transparent"/>
+            <Setter Property="Padding" Value="10,6"/>
+            <Setter Property="FontSize" Value="11.5"/>
+            <Setter Property="FontWeight" Value="SemiBold"/>
+            <Setter Property="Cursor" Value="Hand"/>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="ComboBoxItem">
+                        <Border x:Name="itemBorder" 
+                                Background="{TemplateBinding Background}" 
+                                CornerRadius="4" 
+                                Padding="{TemplateBinding Padding}" 
+                                Margin="1,1">
+                            <ContentPresenter HorizontalAlignment="Left" VerticalAlignment="Center"/>
+                        </Border>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Setter TargetName="itemBorder" Property="Background" Value="#172554"/>
+                                <Setter Property="Foreground" Value="#38BDF8"/>
+                            </Trigger>
+                            <Trigger Property="IsSelected" Value="True">
+                                <Setter TargetName="itemBorder" Property="Background" Value="#1E3A8A"/>
+                                <Setter Property="Foreground" Value="#FFFFFF"/>
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+
+        <!-- DataGrid Row Hover and Selection Style -->
+        <Style TargetType="DataGridRow">
+            <Setter Property="BorderThickness" Value="0,0,0,1"/>
+            <Setter Property="BorderBrush" Value="#151E33"/>
+            <Style.Triggers>
+                <Trigger Property="IsMouseOver" Value="True">
+                    <Setter Property="Background" Value="#1A2640"/>
+                </Trigger>
+                <Trigger Property="IsSelected" Value="True">
+                    <Setter Property="Background" Value="#172554"/>
+                </Trigger>
+            </Style.Triggers>
+        </Style>
+
+        <!-- DataGrid Cell Selection (Border highlight) -->
+        <Style TargetType="DataGridCell">
+            <Setter Property="BorderThickness" Value="0"/>
+            <Setter Property="FocusVisualStyle" Value="{x:Null}"/>
+            <Style.Triggers>
+                <Trigger Property="IsSelected" Value="True">
+                    <Setter Property="Background" Value="Transparent"/>
+                    <Setter Property="Foreground" Value="#FFFFFF"/>
+                </Trigger>
+            </Style.Triggers>
         </Style>
     </Application.Resources>
 </Application>

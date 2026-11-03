@@ -394,7 +394,7 @@ namespace Lis.Core.Services
             const string sql = @"
                 SELECT o.id, o.order_datetime, o.status, o.referring_doctor,
                        p.mrn, p.full_name_ar, p.full_name_en, p.phone, p.sex, p.date_of_birth,
-                       inv.net AS total_amount, inv.status AS invoice_status,
+                       inv.net AS total_amount, COALESCE(inv.paid, 0) AS paid_amount, inv.status AS invoice_status,
                        COUNT(s.id) AS specimen_count
                 FROM orders o
                 JOIN patients p ON p.id = o.patient_id

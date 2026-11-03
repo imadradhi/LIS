@@ -1,0 +1,604 @@
+@page "/worklist"
+@inject IOrderService OrderService
+@inject ITestCatalogService CatalogService
+@inject NavigationManager NavManager
+@inject DirectPrintService PrintService
+@inject UserPreferencesService Prefs
+@implements IDisposable
+
+<PageTitle>@Prefs.T("قائمة العمل والأنابيب - LIS Web", "Laboratory Worklist & Tubes - LIS Web")</PageTitle>
+
+@if (!string.IsNullOrEmpty(StatusAlertMessage))
+{
+    <div class="alert @StatusAlertClass mb-3 py-2 px-3 shadow d-flex justify-content-between align-items-center">
+        <span>@StatusAlertMessage</span>
+        <button type="button" class="btn-close btn-close-white" @onclick="() => StatusAlertMessage = null"></button>
+    </div>
+}
+
+<!-- Top Title & Stats Bar -->
+<div class="d-flex align-items-center justify-content-between mb-4 flex-wrap gap-2">
+    <div>
+        <h3 class="fw-bold text-white mb-1 d-flex align-items-center gap-2">
+            <i class="fas fa-vial text-info"></i>
+            <span>@Prefs.T("قائمة العمل والأنابيب (Laboratory Worklist)", "Laboratory Worklist & Tubes")</span>
+        </h3>
+        <p class="text-secondary mb-0 small">@Prefs.T("استلام العينات، طباعة باركودات الأنابيب، معالجة الرفض وإعادة السحب", "Sample accessioning, tube barcode printing, rejection & redraw handling.")</p>
+    </div>
+    <div class="d-flex gap-2 align-items-center">
+        <span class="badge bg-primary fs-6 py-2 px-3">
+            @Prefs.T("إجمالي العينات:", "Total Tubes:") @(WorklistItems?.Count ?? 0)
+        </span>
+        <button class="btn btn-outline-secondary" data-mdb-ripple-init @onclick="RefreshWorklist">
+            <i class="fas fa-sync-alt me-1"></i> @Prefs.T("تحديث القائمة", "Refresh Worklist")
+        </button>
+    </div>
+</div>
+
+<!-- Filters Bar (MDB Card) -->
+<div class="card p-3 mb-4 border-0 shadow-2-strong" style="background: var(--bg-card);">
+    <div class="row g-2 align-items-center">
+        <div class="col-xxl-4 col-xl-4 col-lg-5 col-md-6 col-12">
+            <div class="input-group">
+                <span class="input-group-text bg-dark border-secondary text-secondary">
+                    <i class="fas fa-barcode"></i>
+                </span>
+                <input type="text" class="form-control fw-bold font-monospace barcode-input-glow" placeholder="@Prefs.T("مسح أو كتابة باركود الأنبوب (Accession)...", "Scan or enter accession barcode...")" 
+                       @bind="FilterBarcodeQuery" @bind:event="oninput" @onkeyup="FilterWorklist" />
+                @if (!string.IsNullOrEmpty(FilterBarcodeQuery))
+                {
+                    <button class="btn btn-outline-secondary" @onclick="ClearBarcodeFilter">✕</button>
+                }
+            </div>
+        </div>
+
+        <div class="col-xxl-3 col-xl-3 col-lg-4 col-md-6 col-12">
+            <div class="d-flex align-items-center gap-2">
+                <span class="text-secondary fw-semibold text-nowrap small">@Prefs.T("القسم:", "Department:")</span>
+                <select class="form-select" @bind="SelectedDepartment" @bind:after="RefreshWorklist">
+                    <option value="">@Prefs.T("جميع الأقسام (All)", "All Departments")</option>
+                    @if (Departments != null)
+                    {
+                        @foreach (var d in Departments)
+                        {
+                            <option value="@d.Id">@(string.IsNullOrWhiteSpace(d.NameAr) ? d.NameEn : d.NameAr) (@d.NameEn)</option>
+                        }
+                    }
+                </select>
+            </div>
+        </div>
+
+        <div class="col-xxl-3 col-xl-3 col-lg-3 col-md-6 col-12">
+            <div class="d-flex align-items-center gap-2">
+                <span class="text-secondary fw-semibold text-nowrap small">@Prefs.T("الحالة:", "Status:")</span>
+                <select class="form-select" @bind="SelectedStatus" @bind:after="RefreshWorklist">
+                    <option value="">جميع الحالات (All)</option>
+                    <option value="Ordered">بانتظار الاستلام (Ordered)</option>
+                    <option value="Collected">تم الاستلام (Collected)</option>
+                    <option value="InProgress">قيد الفحص (InProgress)</option>
+                    <option value="ResultReceived">تم استلام النتائج (ResultReceived)</option>
+                    <option value="Validated">معتمدة (Validated)</option>
+                    <option value="Rejected">مرفوضة (Rejected)</option>
+                </select>
+            </div>
+        </div>
+
+        <div class="col-xxl-2 col-xl-2 col-lg-12 col-md-6 col-12 text-end">
+            <button class="btn btn-primary w-100 fw-bold" data-mdb-ripple-init @onclick="RefreshWorklist">
+                <i class="fas fa-filter me-1"></i> @Prefs.T("تطبيق الفلتر", "Apply Filter")
+            </button>
+        </div>
+    </div>
+</div>
+
+<!-- Worklist Table (MDB Card & Table) -->
+<div class="card p-0 border-0 shadow-2-strong overflow-hidden mb-4" style="background: var(--bg-card);">
+    @if (WorklistItems == null)
+    {
+        <div class="text-center py-5 text-secondary">
+            <div class="spinner-border text-info mb-2" role="status"></div>
+            <div>جاري تحميل قائمة العمل...</div>
+        </div>
+    }
+    else if (!WorklistItems.Any())
+    {
+        <div class="text-center py-5 text-secondary">
+            <div style="font-size: 40px;" class="mb-2">🧪</div>
+            <div>لا توجد عينات أو أنابيب مطابقة للفلتر المحدد.</div>
+        </div>
+    }
+    else
+    {
+        <div class="table-responsive">
+            <table class="table table-hover align-middle mb-0 table-stagger">
+                <thead>
+                    <tr>
+                        <th>@Prefs.T("باركود الأنبوب", "Tube Barcode")</th>
+                        <th>@Prefs.T("نوع الأنبوب", "Tube Type")</th>
+                        <th>@Prefs.T("الفحوصات المطلوبة", "Requested Tests")</th>
+                        <th>@Prefs.T("اسم المريض", "Patient Name")</th>
+                        <th>MRN</th>
+                        <th>@Prefs.T("الحالة", "Status")</th>
+                        <th>@Prefs.T("وقت الاستلام", "Received Time")</th>
+                        <th class="text-center">@Prefs.T("إجراء سريع", "Quick Action")</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @foreach (var item in WorklistItems)
+                    {
+                        long specimenId = item.specimen_id;
+                        long orderId = item.order_id;
+                        string accession = item.accession_no;
+                        string tubeName = item.specimen_type_name;
+                        string testNames = item.test_names;
+                        string patientName = item.full_name_ar;
+                        string mrn = item.mrn.ToString();
+                        string status = item.specimen_status;
+                        string tubeColor = GetTubeColor(tubeName);
+                        <tr>
+                            <!-- Accession Barcode with Tube Color Indicator -->
+                            <td>
+                                <div class="d-flex align-items-center gap-2">
+                                    <span style="width: 12px; height: 12px; border-radius: 50%; background-color: @tubeColor; display: inline-block;" title="@tubeName"></span>
+                                    <strong class="text-info fs-6 font-monospace">@accession</strong>
+                                </div>
+                            </td>
+
+                            <!-- Tube Type (No grey background; transparent with color border and font matching tube color) -->
+                            <td>
+                                <span class="badge rounded-pill fw-bold font-monospace px-2 py-1" style="background: transparent; border: 1.5px solid @tubeColor; color: @tubeColor; font-size: 11.5px;">
+                                    @tubeName
+                                </span>
+                            </td>
+
+                            <!-- Tests Summary -->
+                            <td class="fw-semibold" style="max-width: 250px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;" title="@testNames">
+                                @testNames
+                            </td>
+
+                            <!-- Patient Name -->
+                            <td class="fw-bold fs-6">
+                                @patientName
+                            </td>
+
+                            <!-- MRN -->
+                            <td class="text-secondary font-monospace">
+                                @mrn
+                            </td>
+
+                            <!-- Status (Text-only with distinct color per status, NO colored background) -->
+                            <td>
+                                <span class="fw-bold font-monospace d-inline-flex align-items-center gap-1" style="color: @GetStatusTextColor(status); font-size: 13px;">
+                                    <i class="@GetStatusIcon(status)" style="font-size: 11px;"></i>
+                                    <span>@status</span>
+                                </span>
+                            </td>
+
+                            <!-- Collected Time -->
+                            <td class="text-secondary small font-monospace">
+                                @FormatDateTime(item.collected_at)
+                            </td>
+
+                            <!-- Actions -->
+                            <td>
+                                <div class="d-flex align-items-center justify-content-center gap-2">
+                                    <!-- Collect Button (Icon only) -->
+                                    @if (status == "Ordered")
+                                    {
+                                        <button class="btn btn-sm btn-success p-0" style="width: 34px; height: 34px; min-height: 34px; border-radius: 8px;" data-mdb-ripple-init title="استلام الأنبوب في المختبر" @onclick="() => CollectSpecimen(specimenId)">
+                                            <i class="fas fa-inbox fs-6"></i>
+                                        </button>
+                                    }
+                                    else
+                                    {
+                                        <button class="btn btn-sm btn-outline-secondary p-0 opacity-50" style="width: 34px; height: 34px; min-height: 34px; border-radius: 8px;" disabled title="تم الاستلام مسبقاً">
+                                            <i class="fas fa-check fs-6 text-success"></i>
+                                        </button>
+                                    }
+
+                                    <!-- Print Barcode Label (Direct Silent Print - Icon only) -->
+                                    <button class="btn btn-sm btn-outline-primary p-0" style="width: 34px; height: 34px; min-height: 34px; border-radius: 8px;" data-mdb-ripple-init title="طباعة ملصق الباركود فورياً لطابعة الباركود" @onclick="() => PrintSilentLabel(item)">
+                                        <i class="fas fa-print fs-6"></i>
+                                    </button>
+
+                                    <!-- Reject Button: Active if Ordered, Disabled if already collected/processed (Never removed) -->
+                                    @if (status == "Ordered")
+                                    {
+                                        <button class="btn btn-sm btn-outline-danger p-0" style="width: 34px; height: 34px; min-height: 34px; border-radius: 8px;" data-mdb-ripple-init title="رفض العينة وتحديد السبب" @onclick="() => OpenRejectModal(item)">
+                                            <i class="fas fa-times fs-6"></i>
+                                        </button>
+                                    }
+                                    else
+                                    {
+                                        <button class="btn btn-sm btn-outline-secondary p-0 opacity-40" style="width: 34px; height: 34px; min-height: 34px; border-radius: 8px;" disabled title="@(status == "Rejected" ? "تم رفض العينة مسبقاً" : "تم استلام العينة - غير قابل للرفض")">
+                                            <i class="fas fa-times fs-6"></i>
+                                        </button>
+                                    }
+
+                                    <!-- Results Link (Icon only) -->
+                                    <a href="results?orderId=@orderId" class="btn btn-sm btn-primary p-0 text-decoration-none d-flex align-items-center justify-content-center" style="width: 34px; height: 34px; min-height: 34px; border-radius: 8px;" data-mdb-ripple-init title="عرض وإدخال النتائج الطبية">
+                                        <i class="fas fa-microscope fs-6"></i>
+                                    </a>
+                                </div>
+                            </td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
+        </div>
+    }
+</div>
+
+<!-- ========================================================================= -->
+<!-- MODAL: Reject Specimen                                                    -->
+<!-- ========================================================================= -->
+@if (SelectedSpecimenToReject != null)
+{
+    <div class="modal fade show d-block" tabindex="-1" style="background: rgba(0,0,0,0.8); backdrop-filter: blur(4px); z-index: 1060;">
+        <div class="modal-dialog modal-dialog-centered">
+            <div class="modal-content card border-0 shadow-5-strong" style="background: var(--bg-card);">
+                <div class="modal-header border-bottom border-secondary d-flex justify-content-between align-items-center">
+                    <h5 class="modal-title text-danger fw-bold mb-0 d-flex align-items-center gap-2">
+                        <i class="fas fa-ban text-danger"></i>
+                        <span>رفض العينة الطبية</span>
+                    </h5>
+                    <button type="button" class="btn-close btn-close-white" @onclick="() => SelectedSpecimenToReject = null"></button>
+                </div>
+                <div class="modal-body p-4">
+                    <p class="text-white mb-3">
+                        أنت على وشك رفض الأنبوب: <strong class="text-info font-monospace">@SelectedSpecimenToReject.accession_no</strong> 
+                        الخاص بالمراجع: <strong class="text-white">@SelectedSpecimenToReject.full_name_ar</strong>
+                    </p>
+
+                    <div class="mb-3">
+                        <label class="form-label text-secondary fw-semibold">سبب الرفض (Rejection Reason):</label>
+                        <select class="form-select" @bind="RejectionReasonId">
+                            <option value="1">تخثر العينة (Clotted Specimen)</option>
+                            <option value="2">انحلال الدم (Hemolyzed Specimen)</option>
+                            <option value="3">كمية غير كافية للفحص (Insufficient Volume - QNS)</option>
+                            <option value="4">نوع أنبوب غير صحيح (Wrong Tube Type)</option>
+                            <option value="5">عينة غير صالحة / دهنية (Lipemic Specimen)</option>
+                        </select>
+                    </div>
+
+                    <div class="mb-3">
+                        <label class="form-label text-secondary fw-semibold">ملاحظات إضافية:</label>
+                        <textarea class="form-control" rows="2" placeholder="ملاحظات توضيحية اختيارية..." @bind="RejectionNotes"></textarea>
+                    </div>
+
+                    <div class="form-check form-switch mb-3">
+                        <input class="form-check-input" type="checkbox" id="chkRecollect" @bind="RecollectRequired" />
+                        <label class="form-check-label text-white fw-bold" for="chkRecollect">
+                            طلب إعادة سحب عينة جديدة تلقائياً لنفس الفحوصات
+                        </label>
+                    </div>
+                </div>
+                <div class="modal-footer border-top border-secondary d-flex justify-content-between">
+                    <button type="button" class="btn btn-outline-secondary" data-mdb-ripple-init @onclick="() => SelectedSpecimenToReject = null">إلغاء</button>
+                    <button type="button" class="btn btn-danger fw-bold px-4" data-mdb-ripple-init @onclick="ConfirmRejectSpecimen">
+                        <i class="fas fa-check me-1"></i> تأكيد رفض العينة
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+}
+
+<!-- ========================================================================= -->
+<!-- MODAL: Barcode Thermal Label Preview (50×25mm)                            -->
+<!-- ========================================================================= -->
+@if (SelectedSpecimenForLabel != null)
+{
+    <div class="modal fade show d-block" tabindex="-1" style="background: rgba(0,0,0,0.8); backdrop-filter: blur(4px); z-index: 1060;">
+        <div class="modal-dialog modal-dialog-centered" style="max-width: 480px;">
+            <div class="modal-content card border-0 shadow-5-strong" style="background: var(--bg-card);">
+                <div class="modal-header border-bottom border-secondary d-flex justify-content-between align-items-center">
+                    <h5 class="modal-title text-white fw-bold mb-0 d-flex align-items-center gap-2">
+                        <i class="fas fa-barcode text-info"></i>
+                        <span>معاينة ملصق باركود الأنبوب (50×25 مم)</span>
+                    </h5>
+                    <button type="button" class="btn-close btn-close-white" @onclick="() => SelectedSpecimenForLabel = null"></button>
+                </div>
+                <div class="modal-body p-4 text-center bg-dark">
+                    <!-- Thermal 50x25mm Label Simulator -->
+                    <div class="d-inline-block text-start p-3 bg-white text-dark rounded shadow" 
+                         style="width: 320px; height: 160px; font-family: 'Segoe UI', Tahoma, sans-serif; border: 1px solid #ccc; line-height: 1.2;">
+                        <div class="d-flex justify-content-between align-items-center mb-1">
+                            <strong style="font-size: 13px;">@GetShortPatientName(SelectedSpecimenForLabel.full_name_ar)</strong>
+                            <span style="font-size: 11px;">MRN: @SelectedSpecimenForLabel.mrn</span>
+                        </div>
+                        
+                        <!-- Simulated Barcode Lines -->
+                        <div class="text-center my-1">
+                            <div style="font-family: monospace; font-size: 26px; font-weight: 900; letter-spacing: 3px; color: black; line-height: 1;">
+                                |||| ||| ||||| || ||||
+                            </div>
+                            <strong style="font-size: 14px; letter-spacing: 3px; font-family: monospace;">*@SelectedSpecimenForLabel.accession_no*</strong>
+                        </div>
+
+                        <div class="d-flex justify-content-between align-items-center mt-1" style="font-size: 11px;">
+                            <span>@SelectedSpecimenForLabel.specimen_type_name</span>
+                            <span>@DateTime.Now.ToString("dd/MM/yyyy HH:mm")</span>
+                        </div>
+                        <div class="text-truncate fw-bold mt-1" style="font-size: 11px; max-width: 290px;">
+                            @SelectedSpecimenForLabel.test_names
+                        </div>
+                    </div>
+                </div>
+                <div class="modal-footer border-top border-secondary d-flex justify-content-between">
+                    <button type="button" class="btn btn-outline-secondary" data-mdb-ripple-init @onclick="() => SelectedSpecimenForLabel = null">إلغاء</button>
+                    <div class="d-flex gap-2">
+                        <button type="button" class="btn btn-primary fw-bold px-3" data-mdb-ripple-init @onclick="() => PrintSilentLabel(SelectedSpecimenForLabel)">
+                            <i class="fas fa-bolt me-1"></i> طباعة صامتة فورية
+                        </button>
+                        <button type="button" class="btn btn-success fw-bold px-3" data-mdb-ripple-init onclick="window.print()">
+                            <i class="fas fa-print me-1"></i> طباعة المتصفح
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+}
+
+@code {
+    public class WorklistItemDto
+    {
+        public long specimen_id { get; set; }
+        public string accession_no { get; set; } = string.Empty;
+        public string specimen_status { get; set; } = string.Empty;
+        public DateTime? collected_at { get; set; }
+        public string specimen_type_name { get; set; } = string.Empty;
+        public string? color { get; set; }
+        public long order_id { get; set; }
+        public DateTime order_datetime { get; set; }
+        public long mrn { get; set; }
+        public string full_name_ar { get; set; } = string.Empty;
+        public string sex { get; set; } = string.Empty;
+        public DateTime? date_of_birth { get; set; }
+        public string test_names { get; set; } = string.Empty;
+        public decimal paid_amount { get; set; }
+        public string invoice_status { get; set; } = string.Empty;
+    }
+
+    [SupplyParameterFromQuery(Name = "scan")]
+    public string? ScanBarcode { get; set; }
+
+    private List<WorklistItemDto>? WorklistItems;
+    private List<WorklistItemDto>? AllWorklistItems;
+    private IEnumerable<DepartmentDto>? Departments;
+    private string SelectedDepartment = "";
+    private string SelectedStatus = "";
+    private string FilterBarcodeQuery = "";
+
+    // Rejection Modal State
+    private WorklistItemDto? SelectedSpecimenToReject;
+    private int RejectionReasonId = 1;
+    private string RejectionNotes = "";
+    private bool RecollectRequired = true;
+
+    // Label Print Modal State
+    private WorklistItemDto? SelectedSpecimenForLabel;
+    private string? StatusAlertMessage;
+    private string StatusAlertClass = "alert-info";
+
+    private async Task PrintSilentLabel(WorklistItemDto? item)
+    {
+        if (item == null) return;
+        try
+        {
+            var labelData = new SpecimenLabelData
+            {
+                AccessionNo = item.accession_no,
+                Mrn = item.mrn,
+                PatientNameAr = item.full_name_ar,
+                DateOfBirth = item.date_of_birth ?? DateTime.Today,
+                SpecimenTypeName = string.IsNullOrWhiteSpace(item.specimen_type_name) ? "Sample" : item.specimen_type_name
+            };
+
+            var res = await PrintService.PrintLabelDirectAsync(labelData);
+            StatusAlertClass = res.Success ? "alert-success" : "alert-danger";
+            StatusAlertMessage = res.Message;
+        }
+        catch (Exception ex)
+        {
+            StatusAlertClass = "alert-danger";
+            StatusAlertMessage = $"خطأ أثناء الطباعة الصامتة: {ex.Message}";
+        }
+    }
+
+    protected override async Task OnInitializedAsync()
+    {
+        Prefs.OnChange += OnPrefsChanged;
+        if (!string.IsNullOrWhiteSpace(ScanBarcode))
+        {
+            FilterBarcodeQuery = ScanBarcode.Trim();
+        }
+
+        try
+        {
+            Departments = await CatalogService.GetDepartmentsAsync();
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"[Departments Load Error] {ex.Message}");
+        }
+
+        await RefreshWorklist();
+    }
+
+    private async Task RefreshWorklist()
+    {
+        try
+        {
+            long? deptId = long.TryParse(SelectedDepartment, out var d) ? d : null;
+            var res = await OrderService.GetDepartmentWorklistAsync(
+                departmentId: deptId,
+                status: string.IsNullOrWhiteSpace(SelectedStatus) ? null : SelectedStatus,
+                limit: 300);
+
+            AllWorklistItems = res.Select(r => new WorklistItemDto
+            {
+                specimen_id = Convert.ToInt64(r.specimen_id),
+                accession_no = (r.accession_no ?? "").ToString(),
+                specimen_status = (r.specimen_status ?? "").ToString(),
+                collected_at = r.collected_at is DateTime dt ? dt : (DateTime.TryParse(r.collected_at?.ToString(), out DateTime parsed) ? parsed : (DateTime?)null),
+                specimen_type_name = (r.specimen_type_name ?? "").ToString(),
+                color = r.color?.ToString(),
+                order_id = Convert.ToInt64(r.order_id),
+                order_datetime = r.order_datetime is DateTime odt ? odt : (DateTime.TryParse(r.order_datetime?.ToString(), out DateTime p2) ? p2 : DateTime.Now),
+                mrn = Convert.ToInt64(r.mrn),
+                full_name_ar = (r.full_name_ar ?? "").ToString(),
+                sex = (r.sex ?? "").ToString(),
+                date_of_birth = r.date_of_birth is DateTime dob ? dob : (DateTime.TryParse(r.date_of_birth?.ToString(), out DateTime p3) ? p3 : (DateTime?)null),
+                test_names = (r.test_names ?? "").ToString(),
+                paid_amount = Convert.ToDecimal(r.paid_amount ?? 0),
+                invoice_status = (r.invoice_status ?? "").ToString()
+            }).ToList();
+
+            FilterWorklist();
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"[Worklist Load Error] {ex.Message}");
+        }
+    }
+
+    private void FilterWorklist()
+    {
+        if (AllWorklistItems == null) return;
+        var q = AllWorklistItems.AsEnumerable();
+
+        if (!string.IsNullOrWhiteSpace(SelectedStatus))
+        {
+            q = q.Where(i => string.Equals(i.specimen_status, SelectedStatus, StringComparison.OrdinalIgnoreCase));
+        }
+
+        if (!string.IsNullOrWhiteSpace(FilterBarcodeQuery))
+        {
+            var b = FilterBarcodeQuery.Trim();
+            q = q.Where(i => i.accession_no.Contains(b, StringComparison.OrdinalIgnoreCase) ||
+                             i.full_name_ar.Contains(b, StringComparison.OrdinalIgnoreCase) ||
+                             i.mrn.ToString().Contains(b, StringComparison.OrdinalIgnoreCase));
+        }
+
+        WorklistItems = q.ToList();
+    }
+
+    private void ClearBarcodeFilter()
+    {
+        FilterBarcodeQuery = "";
+        FilterWorklist();
+    }
+
+    private async Task CollectSpecimen(long specimenId)
+    {
+        try
+        {
+            await OrderService.MarkSpecimenCollectedAsync(specimenId, currentUserId: 1);
+            await RefreshWorklist();
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"[Collect Error] {ex.Message}");
+        }
+    }
+
+    private void OpenRejectModal(WorklistItemDto item)
+    {
+        SelectedSpecimenToReject = item;
+        RejectionReasonId = 1;
+        RejectionNotes = "";
+        RecollectRequired = true;
+    }
+
+    private async Task ConfirmRejectSpecimen()
+    {
+        if (SelectedSpecimenToReject == null) return;
+        try
+        {
+            long specimenId = SelectedSpecimenToReject.specimen_id;
+            await OrderService.RejectSpecimenAsync(specimenId, RejectionReasonId, RejectionNotes, RecollectRequired, currentUserId: 1);
+            SelectedSpecimenToReject = null;
+            await RefreshWorklist();
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"[Confirm Reject Error] {ex.Message}");
+        }
+    }
+
+    private void OpenLabelPrintModal(WorklistItemDto item)
+    {
+        SelectedSpecimenForLabel = item;
+    }
+
+    private string GetShortPatientName(string? fullName)
+    {
+        if (string.IsNullOrWhiteSpace(fullName)) return "--";
+        var parts = fullName.Trim().Split(' ', StringSplitOptions.RemoveEmptyEntries);
+        return parts.Length <= 2 ? fullName : $"{parts[0]} {parts[1]}";
+    }
+
+    private static string FormatDateTime(object? val, string format = "dd/MM/yyyy HH:mm")
+    {
+        if (val == null || val is DBNull) return "--";
+        if (val is DateTime dt) return dt.ToString(format);
+        if (DateTime.TryParse(val.ToString(), out var parsed)) return parsed.ToString(format);
+        return "--";
+    }
+
+    private string GetTubeColor(string? specimenType)
+    {
+        if (string.IsNullOrEmpty(specimenType)) return "#94A3B8";
+        var s = specimenType.ToLower();
+        if (s.Contains("edta") || s.Contains("purple") || s.Contains("lavender")) return "#8B5CF6"; // Purple
+        if (s.Contains("serum") || s.Contains("red") || s.Contains("gold") || s.Contains("yellow")) return "#EF4444"; // Red
+        if (s.Contains("citrate") || s.Contains("blue")) return "#3B82F6"; // Blue
+        if (s.Contains("heparin") || s.Contains("green")) return "#10B981"; // Green
+        if (s.Contains("glucose") || s.Contains("gray")) return "#64748B"; // Gray
+        return "#00B4D8";
+    }
+
+    private string GetStatusClass(string status) => status?.ToLower() switch
+    {
+        "ordered" => "badge-ordered",
+        "collected" => "badge-collected",
+        "inprogress" => "badge-inprogress",
+        "resultreceived" => "badge-resultreceived",
+        "validated" => "badge-validated",
+        "rejected" => "badge-rejected",
+        _ => "badge-secondary"
+    };
+
+    private static string GetStatusTextColor(string? status) => status?.ToLower() switch
+    {
+        "ordered" => "#3B82F6",          // Royal Blue
+        "collected" => "#8B5CF6",        // Purple
+        "inprogress" => "#F59E0B",       // Orange
+        "resultreceived" => "#06B6D4",   // Cyan / Teal
+        "validated" => "#10B981",        // Emerald Green
+        "rejected" => "#EF4444",         // Red
+        "cancelled" => "#64748B",        // Gray
+        _ => "#94A3B8"
+    };
+
+    private static string GetStatusIcon(string? status) => status?.ToLower() switch
+    {
+        "ordered" => "fas fa-clock",
+        "collected" => "fas fa-inbox",
+        "inprogress" => "fas fa-spinner fa-spin",
+        "resultreceived" => "fas fa-file-medical",
+        "validated" => "fas fa-check-circle",
+        "rejected" => "fas fa-ban",
+        "cancelled" => "fas fa-times-circle",
+        _ => "fas fa-circle"
+    };
+
+    private void OnPrefsChanged() => InvokeAsync(StateHasChanged);
+
+    public void Dispose()
+    {
+        Prefs.OnChange -= OnPrefsChanged;
+    }
+}

@@ -29,6 +29,7 @@ namespace Lis.Core.Drivers
         public bool InTransaction => _inTransaction;
         public string InstrumentCode => _instrument.Code;
         public bool IsConnected => _transport.IsConnected;
+        public DateTime? LastActivity { get; private set; }
 
         public event EventHandler<string>? StatusChanged;
 
@@ -62,6 +63,7 @@ namespace Lis.Core.Drivers
 
         private async void OnTransportDataReceived(object? sender, byte[] bytes)
         {
+            LastActivity = DateTime.UtcNow;
             for (int i = 0; i < bytes.Length; i++)
             {
                 byte b = bytes[i];
@@ -87,13 +89,41 @@ namespace Lis.Core.Drivers
                 }
                 else
                 {
+                    if (b == AstmConstants.STX && _inboundBuffer.Length > 0 && !_inboundBuffer.ToString().Contains('\n'))
+                    {
+                        // Reset if stale incomplete buffer exists
+                        _inboundBuffer.Clear();
+                    }
+
                     // Accumulate characters inside frame
                     char c = (char)b;
                     _inboundBuffer.Append(c);
 
-                    if (c == '\n' && _inboundBuffer.ToString().EndsWith("\r\n"))
+                    // Check for Dimension Protocol (<STX>...<FS>...<ETX>)
+                    if (b == DimensionProtocol.ETX && _inboundBuffer.ToString().Contains((char)DimensionProtocol.FS))
                     {
-                        // Frame complete
+                        string dimFrame = _inboundBuffer.ToString().TrimStart((char)DimensionProtocol.ACK);
+                        _inboundBuffer.Clear();
+
+                        // Link-Layer Rule: Unconditionally send ACK (0x06) immediately if checksum is valid
+                        bool isValid = DimensionProtocol.ValidateChecksum(dimFrame);
+                        if (isValid)
+                        {
+                            await _transport.SendByteAsync(DimensionProtocol.ACK);
+                        }
+                        else
+                        {
+                            await _transport.SendByteAsync(DimensionProtocol.NAK);
+                            await LogMiddlewareMessageAsync(DimensionProtocol.ToReadableString(dimFrame), "IN", "CHECKSUM_ERROR");
+                            return;
+                        }
+
+                        // Dispatch frame logic
+                        await HandleDimensionFrameAsync(dimFrame);
+                    }
+                    else if (c == '\n' && _inboundBuffer.ToString().EndsWith("\r\n"))
+                    {
+                        // ASTM Frame complete
                         string frameStr = _inboundBuffer.ToString();
                         _inboundBuffer.Clear();
 
@@ -112,6 +142,143 @@ namespace Lis.Core.Drivers
                         }
                     }
                 }
+            }
+        }
+
+        private async Task HandleDimensionFrameAsync(string frameStr)
+        {
+            string readable = DimensionProtocol.ToReadableString(frameStr);
+
+            // Strip STX / ETX
+            string trimmed = frameStr.Trim('\x02', '\x03');
+            string[] fields = trimmed.Split((char)DimensionProtocol.FS);
+            string recordType = fields.Length > 0 ? fields[0].Trim() : string.Empty;
+
+            if (recordType.StartsWith("P", StringComparison.OrdinalIgnoreCase))
+            {
+                // Siemens Dimension Poll Message -> Reply with No-Request (<STX>N<FS>6A<ETX>)
+                await _transport.SendAsync(DimensionProtocol.BuildNoRequest());
+                await LogMiddlewareMessageAsync(readable, "IN", "OK");
+                await LogMiddlewareMessageAsync("<STX>N<FS>6A<ETX>", "OUT", "OK");
+            }
+            else if (recordType.StartsWith("R", StringComparison.OrdinalIgnoreCase))
+            {
+                // Siemens Dimension Result Message -> Send Acceptance (<STX>M<FS>A<FS><FS>E2<ETX>)
+                await _transport.SendAsync(DimensionProtocol.BuildAcceptance());
+                await LogMiddlewareMessageAsync(readable, "IN", "OK");
+                await LogMiddlewareMessageAsync("<STX>M<FS>A<FS><FS>E2<ETX>", "OUT", "OK");
+
+                // Parse test results and save to results table
+                if (DimensionProtocol.TryParseDimensionResult(frameStr, out var dimRecord) && dimRecord != null)
+                {
+                    var astmMsg = new ParsedAstmMessage
+                    {
+                        Order = new AstmOrderRecord { SpecimenId = dimRecord.AccessionNo }
+                    };
+
+                    foreach (var r in dimRecord.Results)
+                    {
+                        astmMsg.Results.Add(new AstmResultRecord
+                        {
+                            UniversalTestCode = r.TestCode,
+                            Value = r.Value,
+                            Units = r.Units,
+                            ResultAbnormalFlag = r.Flag
+                        });
+                    }
+
+                    await HandleResultsAsync(astmMsg);
+                }
+            }
+            else if (recordType.StartsWith("C", StringComparison.OrdinalIgnoreCase))
+            {
+                // Siemens Dimension Calibration Result Message -> Send Acceptance (<STX>M<FS>A<FS><FS>E2<ETX>)
+                await _transport.SendAsync(DimensionProtocol.BuildAcceptance());
+                await LogMiddlewareMessageAsync(readable, "IN", "OK");
+                await LogMiddlewareMessageAsync("<STX>M<FS>A<FS><FS>E2<ETX>", "OUT", "OK");
+            }
+            else if (recordType.StartsWith("M", StringComparison.OrdinalIgnoreCase))
+            {
+                // Siemens Dimension Acceptance/Rejection of Host Download -> Log instrument response
+                await LogMiddlewareMessageAsync(readable, "IN", "OK");
+            }
+            else if (recordType.StartsWith("I", StringComparison.OrdinalIgnoreCase))
+            {
+                await LogMiddlewareMessageAsync(readable, "IN", "OK");
+
+                string accessionNo = fields.Length > 1 ? fields[1].Trim() : string.Empty;
+                if (!string.IsNullOrWhiteSpace(accessionNo))
+                {
+                    try
+                    {
+                        using var conn = _connectionFactory.CreateConnection();
+                        var specimen = await conn.QueryFirstOrDefaultAsync<dynamic>(@"
+                            SELECT s.id AS specimen_id, s.order_id, p.full_name_ar, p.mrn
+                            FROM specimens s
+                            JOIN orders o ON o.id = s.order_id
+                            JOIN patients p ON p.id = o.patient_id
+                            WHERE (
+                                s.accession_no = @AccessionNo
+                                OR s.accession_no = LPAD(@AccessionNo, 6, '0')
+                                OR LPAD(s.accession_no, 6, '0') = LPAD(@AccessionNo, 6, '0')
+                                OR TRIM(LEADING '0' FROM s.accession_no) = TRIM(LEADING '0' FROM @AccessionNo)
+                            ) AND s.archived = FALSE
+                            ORDER BY s.id DESC
+                            LIMIT 1;
+                        ", new { AccessionNo = accessionNo });
+
+                        if (specimen != null)
+                        {
+                            var testCodes = (await conn.QueryAsync<string>(@"
+                                SELECT DISTINCT it.instrument_test_code
+                                FROM order_tests ot
+                                JOIN instrument_tests it ON it.test_id = ot.test_id
+                                WHERE ot.specimen_id = @SpecimenId 
+                                  AND it.instrument_id = @InstrumentId;
+                            ", new
+                            {
+                                SpecimenId = (long)specimen.specimen_id,
+                                InstrumentId = _instrument.Id
+                            })).ToList();
+
+                            if (testCodes.Count > 0)
+                            {
+                                // Download Work Order via Sample Request Message (D)
+                                string safePatientId = specimen.mrn != null ? specimen.mrn.ToString() : accessionNo;
+                                byte[] downloadPacket = DimensionProtocol.BuildSampleRequest(
+                                    accessionNo,
+                                    safePatientId,
+                                    testCodes);
+
+                                await Task.Delay(50);
+                                await _transport.SendAsync(downloadPacket);
+                                await LogMiddlewareMessageAsync(DimensionProtocol.ToReadableString(Encoding.ASCII.GetString(downloadPacket)), "OUT", "OK");
+
+                                await conn.ExecuteAsync(
+                                    "UPDATE specimens SET status = 'InProgress', updated_at = clock_timestamp() WHERE id = @Id AND status IN ('Ordered','Collected');",
+                                    new { Id = (long)specimen.specimen_id });
+
+                                return;
+                            }
+                        }
+                    }
+                    catch (Exception ex)
+                    {
+                        System.Diagnostics.Debug.WriteLine($"[Dimension Query Error] {ex.Message}");
+                    }
+                }
+
+                // If no tests found or unknown barcode, send No-Request
+                await Task.Delay(50);
+                await _transport.SendAsync(DimensionProtocol.BuildNoRequest());
+                await LogMiddlewareMessageAsync("<STX>N<FS>6A<ETX>", "OUT", "OK");
+            }
+            else
+            {
+                // Unrecognized Dimension frame -> Reply with No-Request to prevent instrument lock
+                await _transport.SendAsync(DimensionProtocol.BuildNoRequest());
+                await LogMiddlewareMessageAsync(readable, "IN", "OK");
+                await LogMiddlewareMessageAsync("<STX>N<FS>6A<ETX>", "OUT", "OK");
             }
         }
 
@@ -200,10 +367,11 @@ namespace Lis.Core.Drivers
             }
 
             // Build worklist reply frames
+            string safePatientName = (specimen.mrn != null) ? $"Patient_{specimen.mrn}" : "Patient";
             var frames = AstmMessageParser.BuildWorklistFrames(
                 accessionNo,
                 (long)specimen.mrn,
-                (string)specimen.full_name_ar,
+                safePatientName,
                 testCodes,
                 (string)specimen.specimen_type_name);
 

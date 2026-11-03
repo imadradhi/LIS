@@ -1,0 +1,835 @@
+@page "/results"
+@inject IResultService ResultService
+@inject ILabSettingsService LabSettingsService
+@inject IQcService QcService
+@inject NavigationManager NavManager
+@inject DirectPrintService PrintService
+@inject UserPreferencesService Prefs
+@implements IDisposable
+
+<PageTitle>@Prefs.T("النتائج والاعتماد الطبي - LIS Web", "Results Entry & Validation - LIS Web")</PageTitle>
+
+<!-- Top Title Bar -->
+<div class="d-flex align-items-center justify-content-between mb-4 flex-wrap gap-2">
+    <div>
+        <h3 class="fw-bold text-white mb-1 d-flex align-items-center gap-2">
+            <i class="fas fa-vial text-info"></i>
+            <span>@Prefs.T("النتائج والاعتماد الطبي (Results & Medical Validation)", "Results Entry & Clinical Validation")</span>
+        </h3>
+        <p class="text-secondary mb-0 small">@Prefs.T("إدخال النتائج المخبرية، تدقيق القيم الحرجة، ومراجعة واعتماد التقارير النهائية", "Results entry, critical value verification, and clinical report validation.")</p>
+    </div>
+</div>
+
+<div class="row g-4">
+    <!-- Left Column: Orders List (col-xxl-3 / col-xl-4 / col-lg-5 / col-12) -->
+    <div class="col-xxl-3 col-xl-4 col-lg-5 col-12">
+        <div class="card p-3 border-0 shadow-2-strong" style="background: var(--bg-card);">
+            <div class="d-flex justify-content-between align-items-center mb-3">
+                <h6 class="fw-bold text-white mb-0 d-flex align-items-center gap-2">
+                    <i class="fas fa-clipboard-list text-info"></i>
+                    <span>@Prefs.T("طلبات الفحص والنتائج", "Lab Orders & Results")</span>
+                </h6>
+                <button class="btn btn-sm btn-outline-secondary" data-mdb-ripple-init @onclick="LoadOrders" title="تحديث">
+                    <i class="fas fa-sync-alt"></i>
+                </button>
+            </div>
+
+            <div class="mb-3">
+                <div class="input-group mb-2">
+                    <span class="input-group-text bg-dark border-secondary text-secondary">
+                        <i class="fas fa-search"></i>
+                    </span>
+                    <input type="text" class="form-control" placeholder="@Prefs.T("بحث باسم المريض أو رقم الطلب أو MRN...", "Search patient, order #, or MRN...")" 
+                           @bind="OrderSearch" @bind:event="oninput" @onkeyup="LoadOrders" />
+                </div>
+                <select class="form-select" @bind="StatusFilter" @bind:after="LoadOrders">
+                    <option value="">@Prefs.T("جميع الحالات (All)", "All Statuses")</option>
+                    <option value="ResultReceived">تم استلام النتيجة (ResultReceived)</option>
+                    <option value="Validated">معتمدة ومكتملة (Validated)</option>
+                    <option value="Collected">تم الاستلام (Collected)</option>
+                    <option value="InProgress">قيد الفحص (InProgress)</option>
+                    <option value="Ordered">مطلوبة (Ordered)</option>
+                </select>
+            </div>
+
+            <div style="max-height: 70vh; overflow-y: auto;">
+                @if (OrdersList == null)
+                {
+                    <div class="text-center py-4 text-secondary">
+                        <div class="spinner-border spinner-border-sm text-info mb-2"></div>
+                        <div>جاري التحميل...</div>
+                    </div>
+                }
+                else if (!OrdersList.Any())
+                {
+                    <div class="text-center py-4 text-secondary">لا توجد طلبات مطابقة.</div>
+                }
+                else
+                {
+                    <div class="list-group list-group-flush gap-2">
+                        @foreach (var o in OrdersList)
+                        {
+                            bool isSelected = SelectedOrderId == o.OrderId;
+                            <button type="button" class="list-group-item list-group-item-action text-white p-3 rounded transition-all @(isSelected ? "border-info bg-primary bg-opacity-25" : "border-secondary")" 
+                                    style="@(!isSelected ? "background: var(--bg-hover);" : "")"
+                                    data-mdb-ripple-init
+                                    @onclick="() => SelectOrder(o.OrderId)">
+                                <div class="d-flex justify-content-between align-items-center mb-1">
+                                    <span class="fw-bold fs-6 text-white">@o.PatientName</span>
+                                    <span class="badge" style="background-color: @o.StatusBadgeBrush">@o.Status</span>
+                                </div>
+                                <div class="d-flex justify-content-between text-secondary small">
+                                    <span>طلب <strong class="text-info">#@o.OrderId</strong> | @o.AgeDisplay (@(o.Sex == "F" ? "أنثى" : "ذكر"))</span>
+                                    <span>@o.OrderDatetime.ToString("dd/MM HH:mm")</span>
+                                </div>
+                                <div class="small text-truncate mt-1 text-info opacity-75" title="@o.TestsSummary">
+                                    <i class="fas fa-flask me-1"></i> @(o.TestsSummary ?? "--")
+                                </div>
+                            </button>
+                        }
+                    </div>
+                }
+            </div>
+        </div>
+    </div>
+
+    <!-- Right Column: Results Grid & Actions (col-xxl-9 / col-xl-8 / col-lg-7 / col-12) -->
+    <div class="col-xxl-9 col-xl-8 col-lg-7 col-12">
+        @if (CurrentOrderResults == null)
+        {
+            <div class="card p-5 text-center border-0 shadow-2-strong" style="background: var(--bg-card);">
+                <div class="mb-3 text-info">
+                    <i class="fas fa-microscope fa-4x"></i>
+                </div>
+                <h4 class="text-white fw-bold mb-2">@Prefs.T("إدخال واعتماد النتائج الطبية", "Results Entry & Medical Validation")</h4>
+                <p class="text-secondary max-w-md mx-auto">
+                    @Prefs.T("اختر طلباً من القائمة الجانبية للبدء بمراجعة أو إدخال النتائج الطبية، وتدقيق التنبيهات، واعتماد التقرير النهائي.", "Select an order from the side list to review, enter results, verify alerts, and validate the final report.")
+                </p>
+            </div>
+        }
+        else
+        {
+            <!-- Critical Value Emergency Alert Banner -->
+            @if (CurrentOrderResults.HasCriticalResults)
+            {
+                <div class="alert alert-danger d-flex align-items-center gap-3 p-3 mb-3 border border-danger shadow-lg animate-pulse">
+                    <i class="fas fa-triangle-exclamation fa-2x"></i>
+                    <div>
+                        <strong class="fs-6 d-block text-white">تنبيه قيم حرجة (Panic / Critical Value Alert):</strong>
+                        <span class="small text-white opacity-90">
+                            يحتوي هذا الطلب على نتائج حرجة تتطلب إشعار الطبيب المعالج فوراً!
+                            (@string.Join(", ", CurrentOrderResults.CriticalResults.Select(r => $"{r.DisplayComponentName}: {r.ValueText} {r.Unit}")))
+                        </span>
+                    </div>
+                </div>
+            }
+
+            <!-- Delta Check Alert Banner -->
+            @if (CurrentOrderResults.HasDeltaAlerts)
+            {
+                <div class="alert alert-warning d-flex align-items-center gap-3 p-3 mb-3 border border-warning shadow">
+                    <i class="fas fa-bolt fa-2x"></i>
+                    <div>
+                        <strong class="fs-6 d-block">تنبيه فحص التغير الحاد (Delta Check Warning):</strong>
+                        <span class="small">
+                            هناك تغير ملحوظ في النتائج مقارنة بالزيارات السابقة لنفس المريض.
+                        </span>
+                    </div>
+                </div>
+            }
+
+            <!-- Quality Control (QC) Warning Banner -->
+            @if (QcWarningBanners.Any())
+            {
+                <div class="alert alert-warning d-flex align-items-center gap-3 p-3 mb-3 border border-warning shadow" style="background: rgba(245, 158, 11, 0.15); border-color: #F59E0B !important;">
+                    <i class="fas fa-shield-halved fa-2x text-warning"></i>
+                    <div>
+                        <strong class="fs-6 d-block text-warning">تنبيه ضبط الجودة (QC Warning):</strong>
+                        <ul class="mb-0 small ps-3">
+                            @foreach (var w in QcWarningBanners)
+                            {
+                                <li>@w</li>
+                            }
+                        </ul>
+                    </div>
+                </div>
+            }
+
+            <!-- Patient Header Banner (MDB Card) -->
+            <div class="card p-3 mb-3 border-0 shadow-2-strong" style="background: var(--bg-card);">
+                <div class="d-flex justify-content-between align-items-center flex-wrap gap-2">
+                    <div>
+                        <div class="d-flex align-items-center gap-2">
+                            <h4 class="fw-bold text-white mb-0">@CurrentOrderResults.FullNameAr</h4>
+                            <span class="badge bg-dark border border-secondary text-info">P.ID: @CurrentOrderResults.Mrn</span>
+                            <span class="badge bg-primary text-white">طلب #@CurrentOrderResults.OrderId</span>
+                        </div>
+                        <div class="d-flex gap-3 text-secondary small mt-2">
+                            <span>@Prefs.T("الجنس:", "Gender:") <strong class="text-white">@CurrentOrderResults.GenderDisplay</strong></span>
+                            <span>•</span>
+                            <span>@Prefs.T("العمر:", "Age:") <strong class="text-white">@CurrentOrderResults.AgeDisplay</strong></span>
+                            <span>•</span>
+                            <span>@Prefs.T("الطبيب:", "Doctor:") <strong class="text-white">@(CurrentOrderResults.ReferringDoctor ?? Prefs.T("غير محدد", "Unassigned"))</strong></span>
+                            <span>•</span>
+                            <span>@Prefs.T("التاريخ:", "Date:") <strong class="text-white">@CurrentOrderResults.OrderDatetime.ToString("dd/MM/yyyy HH:mm")</strong></span>
+                        </div>
+                    </div>
+                    <div>
+                        <span class="badge-status @GetStatusClass(CurrentOrderResults.OrderStatus) fs-6 py-2 px-3">
+                            @CurrentOrderResults.OrderStatus
+                        </span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Action Buttons Bar (MDB Card) -->
+            <div class="card p-3 mb-3 border-0 shadow-2-strong" style="background: var(--bg-card);">
+                <div class="d-flex justify-content-between align-items-center flex-wrap gap-2">
+                    <div class="d-flex gap-2">
+                        <button class="btn btn-primary fw-bold" data-mdb-ripple-init @onclick="SaveResults" disabled="@IsProcessing">
+                            <i class="fas fa-floppy-disk me-1"></i> @Prefs.T("حفظ النتائج", "Save Results")
+                        </button>
+                        <button class="btn btn-success fw-bold" data-mdb-ripple-init @onclick="ValidateResults" disabled="@IsProcessing">
+                            <i class="fas fa-check-double me-1"></i> @Prefs.T("اعتماد النتائج", "Validate Results")
+                        </button>
+                        <button class="btn btn-outline-secondary" data-mdb-ripple-init @onclick="UnvalidateResults" disabled="@IsProcessing">
+                            <i class="fas fa-undo me-1"></i> @Prefs.T("فك الاعتماد", "Unvalidate")
+                        </button>
+                    </div>
+                    <div class="d-flex align-items-center gap-2 flex-wrap">
+                        <!-- Target Printer Selector Dropdown -->
+                        <div class="input-group input-group-sm" style="width: auto; min-width: 250px;">
+                            <span class="input-group-text bg-dark border-secondary text-info">
+                                <i class="fas fa-print"></i>
+                            </span>
+                            <select class="form-select form-select-sm bg-dark text-white border-secondary font-monospace" @bind="SelectedReportPrinter" @bind:after="OnReportPrinterSelected" title='@Prefs.T("اختيار الطابعة المستهدفة لطباعة التقرير", "Select target report printer")'>
+                                <option value="">@Prefs.T("طابعة التقارير الافتراضية", "Default Report") (@(ConfiguredReportPrinter ?? "Default"))</option>
+                                @foreach (var printer in InstalledPrinters)
+                                {
+                                    <option value="@printer">@printer</option>
+                                }
+                            </select>
+                            <button type="button" class="btn btn-outline-info" title='@Prefs.T("حفظ كطابعة افتراضية للتقارير في النظام", "Save as default report printer")' @onclick="SaveAsDefaultReportPrinter">
+                                <i class="fas fa-floppy-disk"></i>
+                            </button>
+                        </div>
+                        <button class="btn btn-success fw-bold" data-mdb-ripple-init @onclick="PrintSilentReport" disabled="@IsProcessing" title='@Prefs.T("إرسال تقرير النتائج A4 مباشرة إلى الطابعة المحددة بدون نافذة معاينة", "Send A4 report directly to selected printer")'>
+                            <i class="fas fa-bolt me-1"></i> @Prefs.T("طباعة فورية", "Quick Print")
+                        </button>
+                        <button class="btn btn-outline-info fw-bold" data-mdb-ripple-init @onclick="OpenReportPreview">
+                            <i class="fas fa-eye me-1"></i> @Prefs.T("معاينة التقرير", "Preview A4")
+                        </button>
+                        <button class="btn btn-outline-secondary" data-mdb-ripple-init @onclick="OpenReportAndPrint">
+                            <i class="fas fa-print me-1"></i> @Prefs.T("طباعة المتصفح", "Print Dialog")
+                        </button>
+                    </div>
+                </div>
+
+                @if (!string.IsNullOrEmpty(AlertMessage))
+                {
+                    <div class="alert @AlertClass py-2 px-3 mt-3 mb-0">@AlertMessage</div>
+                }
+            </div>
+
+            <!-- Results Data Table (MDB Table) -->
+            <div class="card p-0 border-0 shadow-2-strong overflow-hidden" style="background: var(--bg-card);">
+                <div class="table-responsive">
+                    <table class="table table-hover align-middle mb-0 table-stagger" style="color: var(--text-main);">
+                        <thead>
+                            <tr>
+                                <th>@Prefs.T("التحليل", "Test")</th>
+                                <th>@Prefs.T("المكون", "Symbol")</th>
+                                <th style="width: 140px;">@Prefs.T("النتيجة", "Result")</th>
+                                <th class="text-center" style="width: 80px;">@Prefs.T("التنبيه", "Flag")</th>
+                                <th>@Prefs.T("الوحدة", "Unit")</th>
+                                <th>@Prefs.T("المعدل الطبيعي", "Reference Range")</th>
+                                <th>@Prefs.T("الجهاز", "Instrument")</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            @foreach (var res in CurrentOrderResults.Results)
+                            {
+                                string componentSymbol = !string.IsNullOrWhiteSpace(res.DisplayCode) ? res.DisplayCode : res.ComponentCode;
+                                string flag = res.Flag?.ToUpper().Trim() ?? "";
+                                bool hasValue = !string.IsNullOrWhiteSpace(res.ValueText);
+                                <tr>
+                                    <td class="fw-bold text-info">@res.DisplayTestName</td>
+                                    <!-- Component Column: Symbol Only (WBC, HGB, PLT, etc.) -->
+                                    <td class="fw-bold font-monospace fs-6">@componentSymbol</td>
+                                    <td>
+                                        <input type="text" class="form-control form-control-sm text-center fw-bold fs-6" 
+                                               @bind="res.ValueText" placeholder="--" />
+                                    </td>
+                                    <!-- Alert/Flag Column: N in Green, H or L in Red (No background, No phrases) -->
+                                    <td class="text-center">
+                                        @if (flag == "H" || flag == "HH")
+                                        {
+                                            <span class="fw-bold font-monospace fs-5 text-danger d-inline-flex align-items-center justify-content-center gap-1" title="مرتفع (High)">
+                                                <span class="beacon-dot-danger"></span>H
+                                            </span>
+                                        }
+                                        else if (flag == "L" || flag == "LL")
+                                        {
+                                            <span class="fw-bold font-monospace fs-5 text-danger d-inline-flex align-items-center justify-content-center gap-1" title="منخفض (Low)">
+                                                <span class="beacon-dot-danger"></span>L
+                                            </span>
+                                        }
+                                        else if (flag == "N" || hasValue)
+                                        {
+                                            <span class="fw-bold font-monospace fs-5 text-success" title="طبيعي (Normal)">N</span>
+                                        }
+                                        else
+                                        {
+                                            <span class="text-muted font-monospace">--</span>
+                                        }
+                                    </td>
+                                    <td class="text-secondary small font-monospace">@res.Unit</td>
+                                    <td class="small fw-semibold">@res.ReferenceRangeText</td>
+                                    <!-- Instrument Column: Text color only, NO background -->
+                                    <td class="small font-monospace">
+                                        <span class="fw-semibold @(res.InstrumentName != null ? "text-primary" : "text-muted")">
+                                            @(res.InstrumentName ?? "يدوي (Manual)")
+                                        </span>
+                                    </td>
+                                </tr>
+                            }
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        }
+    </div>
+</div>
+
+<!-- ========================================================================= -->
+<!-- MODAL: A4 Medical Patient Report Preview & Direct Print                   -->
+<!-- ========================================================================= -->
+@if (IsReportModalOpen && CurrentOrderResults != null && LabSettings != null)
+{
+    <div class="modal fade show d-block" tabindex="-1" style="background: rgba(0,0,0,0.85); backdrop-filter: blur(5px);">
+        <div class="modal-dialog modal-xl modal-dialog-centered" style="max-width: 900px;">
+            <div class="modal-content lis-card border-info" style="max-height: 95vh; display: flex; flex-direction: column;">
+                <div class="modal-header border-bottom border-secondary d-flex justify-content-between align-items-center">
+                    <h5 class="modal-title text-white fw-bold mb-0">
+                        <i class="fas fa-file-medical text-info me-2"></i> تقرير الفحص الطبي الرسمي A4
+                    </h5>
+                    <div class="d-flex align-items-center gap-2 flex-wrap">
+                        <div class="input-group input-group-sm" style="width: auto; min-width: 240px;">
+                            <span class="input-group-text bg-dark border-secondary text-info py-0">
+                                <i class="fas fa-print"></i>
+                            </span>
+                            <select class="form-select form-select-sm bg-dark text-white border-secondary font-monospace" @bind="SelectedReportPrinter" @bind:after="OnReportPrinterSelected">
+                                <option value="">@Prefs.T("الافتراضية للتقارير", "Default Report") (@(ConfiguredReportPrinter ?? "Default"))</option>
+                                @foreach (var printer in InstalledPrinters)
+                                {
+                                    <option value="@printer">@printer</option>
+                                }
+                            </select>
+                            <button type="button" class="btn btn-outline-info" title='@Prefs.T("حفظ كطابعة افتراضية", "Save as default")' @onclick="SaveAsDefaultReportPrinter">
+                                <i class="fas fa-floppy-disk"></i>
+                            </button>
+                        </div>
+                        <button class="btn btn-primary btn-sm fw-bold px-3" data-mdb-ripple-init @onclick="PrintSilentReport">
+                            <i class="fas fa-bolt me-1"></i> @Prefs.T("طباعة فورية", "Quick Print")
+                        </button>
+                        <button class="btn btn-success btn-sm fw-bold px-3" data-mdb-ripple-init onclick="window.print()">
+                            <i class="fas fa-print me-1"></i> @Prefs.T("طباعة المتصفح", "Print Dialog")
+                        </button>
+                        <button type="button" class="btn-close btn-close-white" @onclick="() => IsReportModalOpen = false"></button>
+                    </div>
+                </div>
+
+                <div class="modal-body p-4 overflow-auto bg-white text-dark" style="flex: 1;" id="printable-report-area">
+                    <!-- A4 Sheet Container (LTR & ButrosAsma font) -->
+                    <div class="medical-report-container" style="font-family: 'ButrosAsma', 'Boutros Asma', 'BoutrosAsma', 'Segoe UI', Tahoma, Arial, sans-serif; direction: ltr; text-align: left; color: #111;">
+                        <!-- Header (Left-to-Right) -->
+                        <div class="d-flex justify-content-between align-items-center border-bottom pb-3 mb-3" style="border-color: #00B4D8 !important; border-width: 2px !important;">
+                            <div class="d-flex align-items-center gap-3">
+                                @if (LabSettings.LogoData != null && LabSettings.LogoData.Length > 0)
+                                {
+                                    <div class="border rounded p-1 bg-white shadow-sm d-flex align-items-center justify-content-center" style="width: 75px; height: 75px; min-width: 75px;">
+                                        <img src="data:image/png;base64,@Convert.ToBase64String(LabSettings.LogoData)" 
+                                             alt="Lab Logo" 
+                                             style="max-width: 68px; max-height: 68px; object-fit: contain;" />
+                                    </div>
+                                }
+                                else
+                                {
+                                    <div class="d-inline-flex align-items-center justify-content-center rounded-3 bg-dark text-info shadow-sm"
+                                         style="width: 65px; height: 65px; min-width: 65px; font-size: 32px; border: 2px solid #00b4d8;">
+                                        🔬
+                                    </div>
+                                }
+                                <div>
+                                    <h3 class="fw-bold mb-0 text-dark" style="font-family: 'ButrosAsma', 'Boutros Asma', sans-serif;">
+                                        @(string.IsNullOrWhiteSpace(LabSettings.LabNameEn) ? "Specialized Medical Laboratory" : LabSettings.LabNameEn)
+                                    </h3>
+                                    <div class="fw-semibold text-secondary" style="font-size: 14px;">
+                                        @(string.IsNullOrWhiteSpace(LabSettings.LabNameAr) ? "مختبر التحليلات التخصصي" : LabSettings.LabNameAr)
+                                    </div>
+                                    <div class="small text-muted" style="font-size: 11px;">
+                                        @(string.IsNullOrWhiteSpace(LabSettings.ReportHeaderText) ? "Clinical Pathology, Biochemistry & Diagnostic Assays" : LabSettings.ReportHeaderText)
+                                    </div>
+                                    <small class="text-muted">@LabSettings.Address | Tel: @LabSettings.Phones</small>
+                                </div>
+                            </div>
+                            <div class="text-end">
+                                <div class="fw-bold text-dark mb-1" style="font-size: 14px; letter-spacing: 1.5px; font-family: 'ButrosAsma', 'Boutros Asma', sans-serif;">
+                                    MEDICAL LABORATORY REPORT
+                                </div>
+                                <div class="text-secondary small font-monospace">
+                                    Patient ID: <strong class="text-dark">@CurrentOrderResults.Mrn</strong>
+                                </div>
+                                <div class="text-secondary small font-monospace">
+                                    Sample No: <strong class="text-dark">@(CurrentOrderResults.Results.FirstOrDefault()?.AccessionNo ?? CurrentOrderResults.OrderId.ToString())</strong>
+                                </div>
+                                <div class="small text-muted" style="font-size: 10.5px;">
+                                    Printed: @DateTime.Now.ToString("dd/MM/yyyy HH:mm")
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Patient Demographics Box -->
+                        <div class="p-3 mb-3 rounded" style="background-color: #f8fafc; border: 1px solid #cbd5e1; font-size: 12.5px;">
+                            <div class="row g-2 mb-1">
+                                <div class="col-5"><strong>Patient Name:</strong> @CurrentOrderResults.FullNameAr @(!string.IsNullOrWhiteSpace(CurrentOrderResults.FullNameEn) ? $"({CurrentOrderResults.FullNameEn})" : "")</div>
+                                <div class="col-4"><strong>MRN:</strong> <span class="font-monospace fw-bold">@CurrentOrderResults.Mrn</span></div>
+                                <div class="col-3 text-end"><strong>Order ID:</strong> <span class="font-monospace fw-bold">#@CurrentOrderResults.OrderId</span></div>
+                            </div>
+                            <div class="row g-2 text-muted" style="font-size: 11.5px;">
+                                <div class="col-3"><strong>Age:</strong> @CurrentOrderResults.AgeDisplay</div>
+                                <div class="col-2"><strong>Gender:</strong> @CurrentOrderResults.GenderDisplay</div>
+                                <div class="col-4"><strong>Referring Doctor:</strong> @(CurrentOrderResults.ReferringDoctor ?? "Self / None")</div>
+                                <div class="col-3 text-end"><strong>Date:</strong> @CurrentOrderResults.OrderDatetime.ToString("dd/MM/yyyy HH:mm")</div>
+                            </div>
+                        </div>
+
+                        <!-- Medical Results Grouped by Department / Section -->
+                        @foreach (var deptGroup in CurrentOrderResults.Results.GroupBy(r => r.DisplayDepartmentName))
+                        {
+                            <div class="department-section mb-3">
+                                <!-- Department Banner -->
+                                <div class="d-flex align-items-center justify-content-between px-3 py-1 mb-2 rounded" 
+                                     style="background-color: #f1f5f9; color: #0b132b; border: 1px solid #cbd5e1; border-left: 5px solid #00b4d8;">
+                                    <div class="fw-bold" style="font-size: 13px; letter-spacing: 0.5px; color: #0b132b;">
+                                        <i class="fas fa-microscope text-info me-2"></i>
+                                        <span>@deptGroup.Key.ToUpperInvariant()</span>
+                                    </div>
+                                    <span class="badge bg-white text-secondary border font-monospace" style="font-size: 10px;">
+                                        @deptGroup.Count() @(deptGroup.Count() == 1 ? "TEST" : "TESTS")
+                                    </span>
+                                </div>
+
+                                <!-- Department Results Table -->
+                                <table class="table table-bordered table-sm mb-2" style="border-color: #cbd5e1; font-size: 13px;">
+                                    <thead style="background-color: #f1f5f9; color: #1e293b;">
+                                        <tr>
+                                            <th style="width: 34%; text-align: left;">Test / Parameter</th>
+                                            <th style="width: 17%; text-align: center;">Result</th>
+                                            <th style="width: 13%; text-align: center;">Flag</th>
+                                            <th style="width: 14%; text-align: center;">Unit</th>
+                                            <th style="width: 22%; text-align: left;">Reference Range</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        @foreach (var testGroup in deptGroup.GroupBy(r => new { r.TestId, r.DisplayTestName, r.TestCode }))
+                                        {
+                                            @if (testGroup.Count() > 1)
+                                            {
+                                                <!-- Panel/Test Name Header (Printed ONCE for tests with multiple parameters) -->
+                                                <tr style="background-color: #f1f5f9; border-top: 1.5px solid #cbd5e1; border-bottom: 1px solid #cbd5e1;">
+                                                    <td colspan="5" class="py-1 px-3 fw-bold" style="font-size: 12.5px; color: #0b132b; background-color: #f1f5f9;">
+                                                        <i class="fas fa-flask text-info me-1" style="font-size: 10px;"></i>
+                                                        <span>@testGroup.Key.DisplayTestName</span>
+                                                        @if (!string.IsNullOrWhiteSpace(testGroup.Key.TestCode) && !testGroup.Key.DisplayTestName.Contains(testGroup.Key.TestCode, StringComparison.OrdinalIgnoreCase))
+                                                        {
+                                                            <span class="text-secondary font-monospace ms-1" style="font-size: 11px;">(@testGroup.Key.TestCode)</span>
+                                                        }
+                                                    </td>
+                                                </tr>
+                                                @foreach (var r in testGroup)
+                                                {
+                                                    bool hasFlag = !string.IsNullOrEmpty(r.Flag) && r.Flag != "N";
+                                                    <tr style="border-bottom: 1px solid #e2e8f0;">
+                                                        <td class="ps-4 fw-semibold text-dark">
+                                                            <span>@r.DisplayComponentName</span>
+                                                            @if (!string.IsNullOrWhiteSpace(r.DisplayCode) && !string.Equals(r.DisplayCode, r.DisplayComponentName, StringComparison.OrdinalIgnoreCase))
+                                                            {
+                                                                <span class="text-secondary font-monospace ms-1" style="font-size: 11px;">(@r.DisplayCode)</span>
+                                                            }
+                                                        </td>
+                                                        <td class="text-center fw-bold @(hasFlag ? "text-danger" : "text-dark")" style="font-size: 14.5px;">
+                                                            @(string.IsNullOrWhiteSpace(r.ValueText) ? "--" : r.ValueText)
+                                                        </td>
+                                                        <td class="text-center font-monospace">
+                                                            @if (r.Flag == "H" || r.Flag == "HH")
+                                                            {
+                                                                <strong class="text-danger fw-bold" style="font-size: 13.5px;">@(r.Flag == "HH" ? "HH ↑↑" : "H ↑")</strong>
+                                                            }
+                                                            else if (r.Flag == "L" || r.Flag == "LL")
+                                                            {
+                                                                <strong class="text-primary fw-bold" style="font-size: 13.5px;">@(r.Flag == "LL" ? "LL ↓↓" : "L ↓")</strong>
+                                                            }
+                                                            else if (r.Flag == "N" || !string.IsNullOrWhiteSpace(r.ValueText))
+                                                            {
+                                                                <span class="text-success fw-bold" style="font-size: 13.5px;">N</span>
+                                                            }
+                                                            else
+                                                            {
+                                                                <span class="text-muted">--</span>
+                                                            }
+                                                        </td>
+                                                        <td class="text-center text-secondary font-monospace" style="font-size: 12px;">@r.Unit</td>
+                                                        <td class="small fw-semibold text-secondary" style="font-size: 12px;">@r.ReferenceRangeText</td>
+                                                    </tr>
+                                                }
+                                            }
+                                            else
+                                            {
+                                                <!-- Single Parameter Test: Displays directly without repetitive header -->
+                                                var r = testGroup.First();
+                                                bool hasFlag = !string.IsNullOrEmpty(r.Flag) && r.Flag != "N";
+                                                <tr style="border-bottom: 1px solid #e2e8f0;">
+                                                    <td class="fw-bold text-dark">
+                                                        <span>@r.DisplayTestName</span>
+                                                        @if (!string.IsNullOrWhiteSpace(r.DisplayCode) && !r.DisplayTestName.Contains(r.DisplayCode, StringComparison.OrdinalIgnoreCase))
+                                                        {
+                                                            <span class="text-secondary font-monospace ms-1" style="font-size: 11px;">(@r.DisplayCode)</span>
+                                                        }
+                                                        else if (!string.IsNullOrWhiteSpace(r.TestCode) && !r.DisplayTestName.Contains(r.TestCode, StringComparison.OrdinalIgnoreCase))
+                                                        {
+                                                            <span class="text-secondary font-monospace ms-1" style="font-size: 11px;">(@r.TestCode)</span>
+                                                        }
+                                                    </td>
+                                                    <td class="text-center fw-bold @(hasFlag ? "text-danger" : "text-dark")" style="font-size: 14.5px;">
+                                                        @(string.IsNullOrWhiteSpace(r.ValueText) ? "--" : r.ValueText)
+                                                    </td>
+                                                    <td class="text-center font-monospace">
+                                                        @if (r.Flag == "H" || r.Flag == "HH")
+                                                        {
+                                                            <strong class="text-danger fw-bold" style="font-size: 13.5px;">@(r.Flag == "HH" ? "HH ↑↑" : "H ↑")</strong>
+                                                        }
+                                                        else if (r.Flag == "L" || r.Flag == "LL")
+                                                        {
+                                                            <strong class="text-primary fw-bold" style="font-size: 13.5px;">@(r.Flag == "LL" ? "LL ↓↓" : "L ↓")</strong>
+                                                        }
+                                                        else if (r.Flag == "N" || !string.IsNullOrWhiteSpace(r.ValueText))
+                                                        {
+                                                            <span class="text-success fw-bold" style="font-size: 13.5px;">N</span>
+                                                        }
+                                                        else
+                                                        {
+                                                            <span class="text-muted">--</span>
+                                                        }
+                                                    </td>
+                                                    <td class="text-center text-secondary font-monospace" style="font-size: 12px;">@r.Unit</td>
+                                                    <td class="small fw-semibold text-secondary" style="font-size: 12px;">@r.ReferenceRangeText</td>
+                                                </tr>
+                                            }
+                                        }
+                                    </tbody>
+                                </table>
+                            </div>
+                        }
+
+                        <!-- Footer and Signatures -->
+                        <div class="row pt-3 mt-3 border-top" style="border-color: #cbd5e1 !important;">
+                            <div class="col-7">
+                                <small class="text-muted d-block mb-1 fw-bold">Laboratory Clinical Notes:</small>
+                                <small class="text-secondary" style="font-size: 11px;">@(string.IsNullOrWhiteSpace(LabSettings.ReportFooterText) ? "Notice: Laboratory results should be interpreted in conjunction with other clinical findings." : LabSettings.ReportFooterText)</small>
+                            </div>
+                            <div class="col-5 text-center">
+                                <small class="text-muted d-block mb-1" style="font-size: 11px;">Consultant / Laboratory Director:</small>
+                                <strong class="d-block text-dark" style="font-size: 14px; font-family: 'ButrosAsma', 'Boutros Asma', sans-serif;">@LabSettings.ManagerName</strong>
+                                <small class="text-secondary d-block">@LabSettings.ManagerTitle</small>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="modal-footer border-top border-secondary d-flex justify-content-between align-items-center flex-wrap gap-2">
+                    <div class="d-flex align-items-center gap-2">
+                        <label class="text-secondary small fw-semibold">
+                            <i class="fas fa-print text-info me-1"></i> @Prefs.T("طابعة التقرير:", "Report Printer:")
+                        </label>
+                        <div class="input-group input-group-sm" style="width: 260px;">
+                            <select class="form-select form-select-sm bg-dark text-white border-secondary font-monospace" @bind="SelectedReportPrinter" @bind:after="OnReportPrinterSelected">
+                                <option value="">@Prefs.T("الافتراضية للتقارير", "Default Report") (@(ConfiguredReportPrinter ?? "Default"))</option>
+                                @foreach (var printer in InstalledPrinters)
+                                {
+                                    <option value="@printer">@printer</option>
+                                }
+                            </select>
+                            <button type="button" class="btn btn-outline-info" title='@Prefs.T("حفظ كطابعة افتراضية", "Save as default")' @onclick="SaveAsDefaultReportPrinter">
+                                <i class="fas fa-floppy-disk"></i>
+                            </button>
+                        </div>
+                    </div>
+                    <div class="d-flex gap-2">
+                        <button type="button" class="btn btn-outline-secondary" @onclick="() => IsReportModalOpen = false">@Prefs.T("إغلاق", "Close")</button>
+                        <button type="button" class="btn btn-primary fw-bold px-3" @onclick="PrintSilentReport">
+                            <i class="fas fa-bolt me-1"></i> @Prefs.T("طباعة فورية صامتة (Direct Silent)", "Direct Silent Print")
+                        </button>
+                        <button type="button" class="btn btn-success fw-bold px-4" onclick="window.print()">
+                            <i class="fas fa-print me-1"></i> @Prefs.T("طباعة المتصفح A4", "Browser Print A4")
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+}
+
+@code {
+    [SupplyParameterFromQuery(Name = "orderId")]
+    public long? QueryOrderId { get; set; }
+
+    private List<OrderWorklistHeaderDto>? OrdersList;
+    private OrderResultsDto? CurrentOrderResults;
+    private LabSettingsDto? LabSettings;
+    private long? SelectedOrderId;
+    private string OrderSearch = "";
+    private string StatusFilter = "";
+    private string AlertMessage = "";
+    private string AlertClass = "alert-success";
+    private bool IsProcessing = false;
+    private bool IsReportModalOpen = false;
+    private List<string> QcWarningBanners = new();
+    private List<string> InstalledPrinters = new();
+    private string? SelectedReportPrinter = "";
+    private string? ConfiguredReportPrinter = "";
+
+    protected override async Task OnInitializedAsync()
+    {
+        Prefs.OnChange += OnPrefsChanged;
+        try
+        {
+            InstalledPrinters = PrintService.GetInstalledPrinters();
+            LabSettings = await LabSettingsService.GetSettingsAsync();
+            ConfiguredReportPrinter = LabSettings?.ReportPrinter;
+            SelectedReportPrinter = ConfiguredReportPrinter ?? "";
+
+            await LoadOrders();
+
+            if (QueryOrderId.HasValue && QueryOrderId.Value > 0)
+            {
+                await SelectOrder(QueryOrderId.Value);
+            }
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"[Results Init Error] {ex.Message}");
+        }
+    }
+
+    private async Task LoadOrders()
+    {
+        try
+        {
+            OrdersList = await ResultService.GetOrdersForResultsAsync(
+                status: string.IsNullOrWhiteSpace(StatusFilter) ? null : StatusFilter,
+                search: string.IsNullOrWhiteSpace(OrderSearch) ? null : OrderSearch.Trim(),
+                limit: 200);
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"[LoadOrders Error] {ex.Message}");
+        }
+    }
+
+    private async Task SelectOrder(long orderId)
+    {
+        SelectedOrderId = orderId;
+        AlertMessage = "";
+        QcWarningBanners.Clear();
+        try
+        {
+            CurrentOrderResults = await ResultService.GetOrderResultsAsync(orderId);
+            if (CurrentOrderResults?.Results != null)
+            {
+                var instrumentItems = CurrentOrderResults.Results
+                    .Where(r => r.InstrumentId.HasValue && r.InstrumentId.Value > 0)
+                    .GroupBy(r => (r.InstrumentId!.Value, r.ComponentId))
+                    .Select(g => g.First())
+                    .ToList();
+
+                foreach (var itm in instrumentItems)
+                {
+                    try
+                    {
+                        var st = await QcService.GetTodayQcStatusAsync(itm.InstrumentId!.Value, itm.ComponentId);
+                        if (st.Status == "NotRun")
+                        {
+                            QcWarningBanners.Add($"فحص [{itm.DisplayComponentName}] لم تُسجَّل له قراءة ضبط جودة (QC) اليوم على جهاز [{itm.InstrumentName ?? "الجهاز"}]");
+                        }
+                        else if (st.Status == "Failed")
+                        {
+                            QcWarningBanners.Add($"فحص [{itm.DisplayComponentName}] لديه مخالفة ضبط جودة نشطة ({st.LastViolation}) على جهاز [{itm.InstrumentName ?? "الجهاز"}]");
+                        }
+                    }
+                    catch { }
+                }
+            }
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"[SelectOrder Error] {ex.Message}");
+        }
+    }
+
+    private async Task SaveResults()
+    {
+        if (CurrentOrderResults == null) return;
+        IsProcessing = true;
+        AlertMessage = "";
+
+        try
+        {
+            var batch = CurrentOrderResults.Results
+                .Select(r => (r.OrderTestId, r.ComponentId, r.ValueText))
+                .ToList();
+
+            await ResultService.SaveOrderResultsBatchAsync(CurrentOrderResults.OrderId, batch, currentUserId: 1);
+            AlertClass = "alert-success";
+            AlertMessage = "✅ تم حفظ النتائج بنجاح! وتم تحديث التنبيهات تلقائياً.";
+            await SelectOrder(CurrentOrderResults.OrderId);
+            await LoadOrders();
+        }
+        catch (Exception ex)
+        {
+            AlertClass = "alert-danger";
+            AlertMessage = $"حدث خطأ أثناء الحفظ: {ex.Message}";
+        }
+        finally
+        {
+            IsProcessing = false;
+        }
+    }
+
+    private async Task ValidateResults()
+    {
+        if (CurrentOrderResults == null) return;
+        IsProcessing = true;
+        AlertMessage = "";
+
+        try
+        {
+            await ResultService.ValidateOrderResultsAsync(CurrentOrderResults.OrderId, validatorUserId: 1);
+            AlertClass = "alert-success";
+            AlertMessage = "✅ تم اعتماد وتوثيق النتائج الطبية بنجاح!";
+            await SelectOrder(CurrentOrderResults.OrderId);
+            await LoadOrders();
+        }
+        catch (Exception ex)
+        {
+            AlertClass = "alert-danger";
+            AlertMessage = $"فشل الاعتماد: {ex.Message}";
+        }
+        finally
+        {
+            IsProcessing = false;
+        }
+    }
+
+    private async Task UnvalidateResults()
+    {
+        if (CurrentOrderResults == null) return;
+        IsProcessing = true;
+        AlertMessage = "";
+
+        try
+        {
+            await ResultService.UnvalidateOrderResultsAsync(CurrentOrderResults.OrderId, currentUserId: 1);
+            AlertClass = "alert-warning";
+            AlertMessage = "↩ تم فك الاعتماد للطلب لإتاحة التعديل.";
+            await SelectOrder(CurrentOrderResults.OrderId);
+            await LoadOrders();
+        }
+        catch (Exception ex)
+        {
+            AlertClass = "alert-danger";
+            AlertMessage = $"فشل فك الاعتماد: {ex.Message}";
+        }
+        finally
+        {
+            IsProcessing = false;
+        }
+    }
+
+    private async Task PrintSilentReport()
+    {
+        if (CurrentOrderResults == null) return;
+        try
+        {
+            var targetPrinter = string.IsNullOrWhiteSpace(SelectedReportPrinter) ? null : SelectedReportPrinter;
+            var res = await PrintService.PrintReportDirectAsync(CurrentOrderResults, targetPrinter);
+            AlertClass = res.Success ? "alert-success" : "alert-danger";
+            AlertMessage = res.Message;
+        }
+        catch (Exception ex)
+        {
+            AlertClass = "alert-danger";
+            AlertMessage = $"خطأ أثناء الطباعة الصامتة للتقرير: {ex.Message}";
+        }
+    }
+
+    private async Task OnReportPrinterSelected()
+    {
+        await SaveAsDefaultReportPrinter();
+    }
+
+    private async Task SaveAsDefaultReportPrinter()
+    {
+        if (LabSettings == null) return;
+        try
+        {
+            LabSettings.ReportPrinter = string.IsNullOrWhiteSpace(SelectedReportPrinter) ? null : SelectedReportPrinter;
+            await LabSettingsService.SaveSettingsAsync(LabSettings, currentUserId: 1);
+            ConfiguredReportPrinter = LabSettings.ReportPrinter;
+            AlertClass = "alert-success";
+            AlertMessage = Prefs.T($"✅ تم حفظ وتعيين [{ConfiguredReportPrinter ?? "طابعة التقارير الافتراضية"}] كطابعة افتراضية للتقارير بنجاح!", $"✅ Saved [{ConfiguredReportPrinter ?? "Default Report Printer"}] as system default report printer!");
+        }
+        catch (Exception ex)
+        {
+            AlertClass = "alert-danger";
+            AlertMessage = Prefs.T($"حدث خطأ أثناء حفظ الطابعة: {ex.Message}", $"Error saving report printer: {ex.Message}");
+        }
+    }
+
+    private void OpenReportPreview()
+    {
+        IsReportModalOpen = true;
+    }
+
+    private void OpenReportAndPrint()
+    {
+        IsReportModalOpen = true;
+    }
+
+    private string GetFlagColor(string flag) => flag?.ToUpper() switch
+    {
+        "H" => "#EF4444",
+        "HH" => "#DC2626",
+        "L" => "#3B82F6",
+        "LL" => "#1D4ED8",
+        _ => "#10B981"
+    };
+
+    private string GetStatusClass(string status) => status?.ToLower() switch
+    {
+        "ordered" => "badge-ordered",
+        "collected" => "badge-collected",
+        "inprogress" => "badge-inprogress",
+        "resultreceived" => "badge-resultreceived",
+        "validated" => "badge-validated",
+        "rejected" => "badge-rejected",
+        _ => "badge-secondary"
+    };
+
+    private void OnPrefsChanged() => InvokeAsync(StateHasChanged);
+
+    public void Dispose()
+    {
+        Prefs.OnChange -= OnPrefsChanged;
+    }
+}

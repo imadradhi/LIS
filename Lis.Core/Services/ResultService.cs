@@ -20,6 +20,21 @@ namespace Lis.Core.Services
         public string? TestNameAr { get; set; }
         public string DisplayTestName => TestNameEn;
 
+        public long? DepartmentId { get; set; }
+        public string? DepartmentNameEn { get; set; }
+        public string? DepartmentNameAr { get; set; }
+        public string DisplayDepartmentName
+        {
+            get
+            {
+                if (!string.IsNullOrWhiteSpace(DepartmentNameEn))
+                    return DepartmentNameEn;
+                if (!string.IsNullOrWhiteSpace(DepartmentNameAr))
+                    return DepartmentNameAr;
+                return "General / Clinical Chemistry";
+            }
+        }
+
         public long SpecimenId { get; set; }
         public string AccessionNo { get; set; } = string.Empty;
         public string SpecimenTypeName { get; set; } = string.Empty;
@@ -129,12 +144,12 @@ namespace Lis.Core.Services
 
         public string FlagDisplayText => Flag switch
         {
-            "H"  => "مرتفع (H ⬆)",
-            "HH" => "حرج مرتفع (HH ⬆⬆)",
-            "L"  => "منخفض (L ⬇)",
-            "LL" => "حرج منخفض (LL ⬇⬇)",
-            "N"  => "طبيعي (N)",
-            _    => !string.IsNullOrWhiteSpace(ValueText) ? "طبيعي (N)" : "بانتظار الفحص"
+            "H"  => "H ↑",
+            "HH" => "HH ↑↑",
+            "L"  => "L ↓",
+            "LL" => "LL ↓↓",
+            "N"  => "N",
+            _    => !string.IsNullOrWhiteSpace(ValueText) ? "N" : "--"
         };
 
         public string FlagBadgeBrush => Flag switch
@@ -395,6 +410,9 @@ namespace Lis.Core.Services
                        t.test_code AS testcode,
                        t.name_en AS testnameen,
                        t.name_ar AS testnamear,
+                       t.department_id AS departmentid,
+                       d.name_en AS departmentnameen,
+                       d.name_ar AS departmentnamear,
                        s.id AS specimenid,
                        s.accession_no AS accessionno,
                        st.name_en AS specimentypename,
@@ -416,6 +434,7 @@ namespace Lis.Core.Services
                        inst.name AS instrumentname
                 FROM order_tests ot
                 JOIN tests t ON t.id = ot.test_id
+                LEFT JOIN departments d ON d.id = t.department_id
                 JOIN specimens s ON s.id = ot.specimen_id
                 JOIN specimen_types st ON st.id = s.specimen_type_id
                 JOIN components c ON c.test_id = t.id
@@ -423,7 +442,7 @@ namespace Lis.Core.Services
                 LEFT JOIN users u ON u.id = r.validated_by
                 LEFT JOIN instruments inst ON inst.id = r.instrument_id
                 WHERE ot.order_id = @OrderId
-                ORDER BY t.sort_order, t.id, c.sort_order, c.id;
+                ORDER BY COALESCE(d.id, 999), t.sort_order, t.id, c.sort_order, c.id;
             ";
 
             var rawResults = (await conn.QueryAsync<dynamic>(resultsSql, new { OrderId = orderId })).ToList();
@@ -529,6 +548,9 @@ namespace Lis.Core.Services
                     TestCode = GetVal("testcode", "test_code")?.ToString() ?? "",
                     TestNameEn = GetVal("testnameen", "name_en")?.ToString() ?? "",
                     TestNameAr = GetVal("testnamear", "name_ar")?.ToString(),
+                    DepartmentId = GetVal("departmentid", "department_id") != null ? Convert.ToInt64(GetVal("departmentid", "department_id")) : null,
+                    DepartmentNameEn = GetVal("departmentnameen", "department_name_en")?.ToString(),
+                    DepartmentNameAr = GetVal("departmentnamear", "department_name_ar")?.ToString(),
                     SpecimenId = Convert.ToInt64(GetVal("specimenid", "specimen_id") ?? 0),
                     AccessionNo = GetVal("accessionno", "accession_no")?.ToString() ?? "",
                     SpecimenTypeName = GetVal("specimentypename", "specimen_type_name")?.ToString() ?? "",

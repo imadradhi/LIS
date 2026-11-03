@@ -61,6 +61,7 @@ namespace Lis.Core.Services
         public long? InstrumentId { get; set; }
         public string? InstrumentTestCode { get; set; }
         public string? InstrumentName { get; set; }
+        public string? InstrumentCode { get; set; }
 
         public string DisplaySummary => $"{DisplayCode} - {NameEn}" + (!string.IsNullOrWhiteSpace(Unit) ? $" ({Unit})" : "");
     }
@@ -92,11 +93,11 @@ namespace Lis.Core.Services
             : $">= {AgeMin:0.#} {AgeUnit}";
 
         public string RangeDisplay => (Low.HasValue || High.HasValue)
-            ? $"{Low?.ToString("0.##") ?? "—"}  إلى  {High?.ToString("0.##") ?? "—"}"
+            ? $"{Low?.ToString("0.##") ?? "—"} - {High?.ToString("0.##") ?? "—"}"
             : "بدون مدى رقمي";
 
         public string CriticalDisplay => (CriticalLow.HasValue || CriticalHigh.HasValue)
-            ? $"[{CriticalLow?.ToString("0.##") ?? "—"} / {CriticalHigh?.ToString("0.##") ?? "—"}]"
+            ? $"L: < {CriticalLow?.ToString("0.##") ?? "—"} | H: > {CriticalHigh?.ToString("0.##") ?? "—"}"
             : "—";
     }
 
@@ -323,7 +324,7 @@ namespace Lis.Core.Services
                        c.unit, c.decimals, c.result_type AS ResultType, c.notes, c.sort_order AS SortOrder,
                        (SELECT COUNT(*) FROM reference_ranges rr WHERE rr.component_id = c.id) AS RangesCount,
                        it.instrument_id AS InstrumentId, it.instrument_test_code AS InstrumentTestCode,
-                       ins.name AS InstrumentName
+                       ins.name AS InstrumentName, ins.code AS InstrumentCode
                 FROM components c
                 LEFT JOIN instrument_tests it ON it.component_id = c.id
                 LEFT JOIN instruments ins ON ins.id = it.instrument_id
@@ -342,7 +343,7 @@ namespace Lis.Core.Services
                        c.unit, c.decimals, c.result_type AS ResultType, c.notes, c.sort_order AS SortOrder,
                        (SELECT COUNT(*) FROM reference_ranges rr WHERE rr.component_id = c.id) AS RangesCount,
                        it.instrument_id AS InstrumentId, it.instrument_test_code AS InstrumentTestCode,
-                       ins.name AS InstrumentName
+                       ins.name AS InstrumentName, ins.code AS InstrumentCode
                 FROM components c
                 LEFT JOIN instrument_tests it ON it.component_id = c.id
                 LEFT JOIN instruments ins ON ins.id = it.instrument_id

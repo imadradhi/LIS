@@ -1,0 +1,1830 @@
+@page "/orders"
+@inject IOrderService OrderService
+@inject IPatientService PatientService
+@inject ITestCatalogService CatalogService
+@inject IBillingService BillingService
+@inject ILabSettingsService LabSettingsService
+@inject NavigationManager NavManager
+@inject DirectPrintService PrintService
+@inject UserPreferencesService Prefs
+@implements IDisposable
+
+<PageTitle>@Prefs.T("سجل المراجعين والطلبات - LIS Web", "Orders & Patients Registry - LIS Web")</PageTitle>
+
+<!-- Top Bar Title & Actions -->
+<div class="d-flex align-items-center justify-content-between mb-4 flex-wrap gap-2">
+    <div>
+        <h3 class="fw-bold text-white mb-1 d-flex align-items-center gap-2">
+            <i class="fas fa-clipboard-list text-info"></i>
+            <span>@Prefs.T("إدارة المراجعين والطلبات (Orders & Patients)", "Orders & Patient Registration")</span>
+        </h3>
+        <p class="text-secondary mb-0 small">@Prefs.T("تسجيل مراجع جديد، إنشاء طلبات الفحوصات، إدارة الفواتير والباركود", "Patient registration, lab order creation, billing & barcode printing.")</p>
+    </div>
+    <div class="d-flex gap-2">
+        <button class="btn btn-success fw-bold px-4" data-mdb-ripple-init @onclick="StartNewOrderFlow">
+            <i class="fas fa-user-plus me-1"></i> @Prefs.T("مراجع جديد (طلب فحص)", "New Patient Order")
+        </button>
+    </div>
+</div>
+
+<!-- Filters & Search Bar (MDB Card) -->
+<div class="card p-3 mb-4 border-0 shadow-2-strong" style="background: var(--bg-card);">
+    <div class="row g-2 align-items-center">
+        <div class="col-xxl-4 col-xl-4 col-lg-5 col-md-6 col-12">
+            <div class="input-group">
+                <span class="input-group-text bg-dark border-secondary text-secondary">
+                    <i class="fas fa-search"></i>
+                </span>
+                <input type="text" class="form-control" placeholder="@Prefs.T("ابحث باسم المريض، رقم الطلب، الهاتف أو MRN...", "Search patient, order #, phone or MRN...")" 
+                       @bind="SearchQuery" @bind:event="oninput" @onkeyup="FilterOrders" />
+            </div>
+        </div>
+
+        <div class="col-xxl-3 col-xl-3 col-lg-3 col-md-6 col-12">
+            <div class="d-flex align-items-center gap-2">
+                <span class="text-secondary fw-semibold text-nowrap small">@Prefs.T("الحالة:", "Status:")</span>
+                <select class="form-select" @bind="SelectedStatus" @bind:after="FilterOrders">
+                    <option value="">@Prefs.T("جميع الحالات (All)", "All Statuses")</option>
+                    <option value="Ordered">Ordered (مطلوبة)</option>
+                    <option value="Collected">Collected (تم الاستلام)</option>
+                    <option value="InProgress">InProgress (قيد الفحص)</option>
+                    <option value="ResultReceived">ResultReceived (تم استلام النتائج)</option>
+                    <option value="Validated">Validated (معتمدة ومكتملة)</option>
+                </select>
+            </div>
+        </div>
+
+        <div class="col-xxl-3 col-xl-3 col-lg-4 col-md-6 col-12">
+            <div class="d-flex align-items-center gap-2">
+                <span class="text-secondary fw-semibold text-nowrap small">@Prefs.T("التاريخ:", "Date:")</span>
+                <input type="date" class="form-control" @bind="SelectedDate" @bind:after="FilterOrders" />
+            </div>
+        </div>
+
+        <div class="col-xxl-2 col-xl-2 col-lg-12 col-md-6 col-12 text-end">
+            <button class="btn btn-outline-secondary w-100" data-mdb-ripple-init @onclick="RefreshOrders">
+                <i class="fas fa-sync-alt me-1"></i> @Prefs.T("تحديث", "Refresh")
+            </button>
+        </div>
+    </div>
+</div>
+
+<!-- Orders Full Data Table (MDB Card & Table) -->
+<div class="card p-0 border-0 shadow-2-strong overflow-hidden mb-4" style="background: var(--bg-card);">
+    @if (OrdersList == null)
+    {
+        <div class="text-center py-5 text-secondary">
+            <div class="spinner-border text-info mb-2" role="status"></div>
+            <div>جاري تحميل سجل الطلبات...</div>
+        </div>
+    }
+    else if (!OrdersList.Any())
+    {
+        <div class="text-center py-5 text-secondary">
+            <div style="font-size: 40px;" class="mb-2">📋</div>
+            <div>لا توجد طلبات فحص مطابقة للبحث.</div>
+        </div>
+    }
+    else
+    {
+        <div class="table-responsive">
+            <table class="table table-hover align-middle mb-0 table-stagger">
+                <thead>
+                    <tr>
+                        <th>#</th>
+                        <th>@Prefs.T("التاريخ والوقت", "Date & Time")</th>
+                        <th>@Prefs.T("اسم المريض", "Patient Name")</th>
+                        <th>MRN</th>
+                        <th>@Prefs.T("الجنس / العمر", "Gender / Age")</th>
+                        <th>@Prefs.T("الهاتف", "Phone")</th>
+                        <th>@Prefs.T("الطبيب المحول", "Referring Doctor")</th>
+                        <th>@Prefs.T("الحالة المخبرية", "Lab Status")</th>
+                        <th>@Prefs.T("المبلغ الإجمالي (حالة الدفع)", "Total Amount (Payment)")</th>
+                        <th class="text-center">@Prefs.T("إجراءات", "Actions")</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @foreach (var order in OrdersList)
+                    {
+                        long id = Convert.ToInt64(order.id);
+                        string fullName = order.full_name_ar?.ToString() ?? "";
+                        string mrn = order.mrn?.ToString() ?? "";
+                        string phone = order.phone?.ToString() ?? "--";
+                        string doctor = order.referring_doctor?.ToString() ?? "--";
+                        string status = order.status?.ToString() ?? "Ordered";
+                        string invStatus = order.invoice_status?.ToString() ?? "";
+                        var total = ToDecimal(order.total_amount);
+                        var paid = ToDecimal(order.paid_amount);
+                        var remaining = Math.Max(0, total - paid);
+                        bool isPaid = (total > 0 && remaining <= 0) || invStatus.Equals("Paid", StringComparison.OrdinalIgnoreCase);
+
+                        <tr>
+                            <td class="fw-bold text-primary font-monospace">#@id</td>
+                            <td class="small font-monospace text-muted">@FormatDateTime(order.order_datetime)</td>
+                            <td class="fw-bold fs-6">@fullName</td>
+                            <td><span class="badge bg-dark bg-opacity-25 border border-secondary border-opacity-50 text-secondary font-monospace px-2 py-1">@mrn</span></td>
+                            <td class="small font-monospace">
+                                <span class="fw-bold @(order.sex?.ToString()?.ToUpper() == "F" ? "text-danger" : "text-info")">@FormatGender(order.sex)</span>
+                                <span class="text-secondary mx-1">/</span>
+                                <span class="fw-semibold text-white">@FormatAge(order.date_of_birth)</span>
+                            </td>
+                            <td class="small font-monospace text-muted">@phone</td>
+                            <td class="text-secondary small">@doctor</td>
+                            <!-- Laboratory Status (Text-only with distinct color per status, matching Worklist) -->
+                            <td>
+                                <span class="fw-bold font-monospace d-inline-flex align-items-center gap-1" style="color: @GetStatusTextColor(status); font-size: 13px;">
+                                    <i class="@GetStatusIcon(status)" style="font-size: 11px;"></i>
+                                    <span>@status</span>
+                                </span>
+                            </td>
+                            <!-- Total Amount (Text color only by payment status, NO background) -->
+                            <td>
+                                @if (isPaid)
+                                {
+                                    <span class="fw-bold font-monospace d-inline-flex align-items-center gap-1 text-success" style="font-size: 13.5px;" title="المبلغ مدفوع بالكامل">
+                                        <i class="fas fa-check-circle" style="font-size: 11.5px;"></i>
+                                        <span>@total.ToString("N0") د.ع</span>
+                                    </span>
+                                }
+                                else
+                                {
+                                    <span class="fw-bold font-monospace d-inline-flex align-items-center gap-1 text-danger" style="font-size: 13.5px;" title="المبلغ غير مدفوع (متبقي: @remaining.ToString("N0") د.ع)">
+                                        <i class="fas fa-exclamation-circle" style="font-size: 11.5px;"></i>
+                                        <span>@total.ToString("N0") د.ع</span>
+                                    </span>
+                                }
+                            </td>
+                            <td>
+                                <div class="d-flex align-items-center justify-content-center gap-2">
+                                    <button class="btn btn-sm btn-outline-primary btn-action-icon p-0" style="width: 34px; height: 34px; min-height: 34px; border-radius: 8px;" data-mdb-ripple-init title='@Prefs.T("عرض تفاصيل الطلب والفحوصات والدفعات", "View Order Details")' @onclick="() => ViewOrderDetails(id)">
+                                        <i class="fas fa-eye fs-6"></i>
+                                    </button>
+                                    <button class="btn btn-sm btn-outline-info btn-action-icon p-0" style="width: 34px; height: 34px; min-height: 34px; border-radius: 8px;" data-mdb-ripple-init title='@Prefs.T("طباعة ومعاينة باركود الأنابيب للمراجع", "Print & Preview Tube Barcode")' @onclick="() => OpenBarcodeModalForOrderId(id)">
+                                        <i class="fas fa-barcode fs-6"></i>
+                                    </button>
+                                    <a href="results?orderId=@id" class="btn btn-sm btn-primary btn-action-icon p-0 text-decoration-none" style="width: 34px; height: 34px; min-height: 34px; border-radius: 8px;" data-mdb-ripple-init title='@Prefs.T("إدخال واعتماد النتائج المخبرية", "Enter Results")'>
+                                        <i class="fas fa-microscope fs-6"></i>
+                                    </a>
+                                </div>
+                            </td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
+        </div>
+    }
+</div>
+
+<!-- ========================================================================= -->
+<!-- STEP 1 MODAL: Patient Registration / Existing Patient Search              -->
+<!-- ========================================================================= -->
+@if (IsStep1PatientModalOpen)
+{
+    <div class="modal fade show d-block" tabindex="-1" style="background: rgba(0,0,0,0.75); backdrop-filter: blur(4px);">
+        <div class="modal-dialog modal-lg modal-dialog-centered">
+            <div class="modal-content card border-0 shadow-5-strong" style="background: var(--bg-card);">
+                <div class="modal-header border-bottom border-secondary d-flex justify-content-between align-items-center">
+                    <div>
+                        <h5 class="modal-title text-white fw-bold mb-0 d-flex align-items-center gap-2">
+                            <i class="fas fa-user-plus text-info"></i>
+                            <span>@Prefs.T("الخطوة 1: بيانات المراجع (Patient Demographics)", "Step 1: Patient Demographics")</span>
+                        </h5>
+                        <small class="text-info">@Prefs.T("ابحث عن مريض سابق برقم الملف/الهاتف، أو سجل مراجعاً جديداً", "Search previous patient by MRN/phone, or register a new patient")</small>
+                    </div>
+                    <button type="button" class="btn-close btn-close-white" @onclick="CloseModals"></button>
+                </div>
+                <div class="modal-body p-4">
+                    <!-- Search Existing Patient Box -->
+                    <div class="mb-4 p-3 rounded" style="background: rgba(11, 19, 43, 0.7); border: 1px dashed var(--accent);">
+                        <label class="form-label text-info fw-bold small mb-1 d-flex align-items-center gap-1">
+                            <i class="fas fa-search"></i>
+                            <span>@Prefs.T("بحث عن مراجع مسجل سابقاً (Search Existing Patient):", "Search Existing Patient:")</span>
+                        </label>
+                        <div class="input-group">
+                            <input type="text" class="form-control" placeholder="@Prefs.T("اكتب اسم المريض أو رقم الهاتف أو رقم الملف MRN...", "Type patient name, phone, or MRN...")" 
+                                   @bind="PatientSearchQuery" @bind:event="oninput" @onkeyup="HandlePatientSearch" />
+                            @if (!string.IsNullOrEmpty(PatientSearchQuery))
+                            {
+                                <button class="btn btn-outline-secondary" data-mdb-ripple-init @onclick="ClearPatientSearch">
+                                    <i class="fas fa-times me-1"></i> @Prefs.T("مسح", "Clear")
+                                </button>
+                            }
+                        </div>
+
+                        <!-- Dropdown Search Suggestions -->
+                        @if (PatientSearchResults != null && PatientSearchResults.Any())
+                        {
+                            <div class="list-group mt-2 border border-info rounded shadow-lg" style="max-height: 180px; overflow-y: auto;">
+                                @foreach (var p in PatientSearchResults)
+                                {
+                                    <button type="button" class="list-group-item list-group-item-action bg-dark text-white d-flex justify-content-between align-items-center"
+                                            data-mdb-ripple-init
+                                            @onclick="() => SelectExistingPatient(p)">
+                                        <div>
+                                            <strong class="text-info">@p.FullNameAr</strong>
+                                            <span class="text-secondary small ms-2">MRN: @p.Mrn | @(p.Sex == "F" ? "أنثى" : "ذكر") | هاتف: @(p.Phone ?? "--")</span>
+                                        </div>
+                                        <span class="badge bg-primary">@Prefs.T("اختيار ➔", "Select ➔")</span>
+                                    </button>
+                                }
+                            </div>
+                        }
+                    </div>
+
+                    @if (SelectedExistingPatient != null)
+                    {
+                        <div class="alert alert-success d-flex justify-content-between align-items-center py-2 px-3 mb-3">
+                            <div class="d-flex align-items-center gap-2">
+                                <i class="fas fa-check-circle fs-5"></i>
+                                <span><strong>@Prefs.T("تم تحديد المراجع المسجل:", "Selected Patient:")</strong> @SelectedExistingPatient.FullNameAr (MRN: @SelectedExistingPatient.Mrn)</span>
+                            </div>
+                            <button class="btn btn-sm btn-outline-danger" data-mdb-ripple-init @onclick="ResetToNewPatient">
+                                <i class="fas fa-rotate-left me-1"></i> @Prefs.T("تفريغ وإلغاء", "Reset")
+                            </button>
+                        </div>
+                    }
+
+                    <!-- Demographics Form -->
+                    <div class="row g-3">
+                        <div class="col-md-12">
+                            <label class="form-label text-secondary fw-semibold">@Prefs.T("الاسم الكامل بالعربية", "Full Name (Ar)") <span class="text-danger">*</span>:</label>
+                            <input type="text" class="form-control" @bind="PatientFullName" placeholder="@Prefs.T("الاسم الثلاثي أو الرباعي...", "Full patient name...")" />
+                        </div>
+
+                        <div class="col-md-4">
+                            <label class="form-label text-secondary fw-semibold">@Prefs.T("الجنس:", "Gender:")</label>
+                            <select class="form-select" @bind="PatientSex">
+                                <option value="M">@Prefs.T("ذكر (Male)", "Male")</option>
+                                <option value="F">@Prefs.T("أنثى (Female)", "Female")</option>
+                            </select>
+                        </div>
+
+                        <div class="col-md-4">
+                            <label class="form-label text-secondary fw-semibold">@Prefs.T("تاريخ الميلاد", "Date of Birth") <span class="text-danger">*</span>:</label>
+                            <input type="date" class="form-control" @bind="PatientDob" @bind:after="UpdateCalculatedAge" />
+                        </div>
+
+                        <div class="col-md-4">
+                            <label class="form-label text-secondary fw-semibold">@Prefs.T("العمر المحسوب:", "Calculated Age:")</label>
+                            <input type="text" class="form-control text-center fw-bold text-success" value="@CalculatedAgeText" readonly />
+                        </div>
+
+                        <div class="col-md-6">
+                            <label class="form-label text-secondary fw-semibold">@Prefs.T("رقم الهاتف:", "Phone Number:")</label>
+                            <input type="text" class="form-control" @bind="PatientPhone" placeholder="07XXXXXXXXX" />
+                        </div>
+
+                        <div class="col-md-6">
+                            <label class="form-label text-secondary fw-semibold">الطبيب أو العيادة المحولة:</label>
+                            <input type="text" class="form-control" @bind="ReferringDoctor" placeholder="د. فلان / المستشفى..." />
+                        </div>
+
+                        <div class="col-md-12">
+                            <label class="form-label text-secondary fw-semibold">ملاحظات سريرية أو تشخيص أولي:</label>
+                            <input type="text" class="form-control" @bind="ClinicalNotes" placeholder="ملاحظات اختيارية عن حالة المريض..." />
+                        </div>
+                    </div>
+
+                    @if (!string.IsNullOrEmpty(PatientStepError))
+                    {
+                        <div class="alert alert-danger py-2 px-3 mt-3 mb-0">@PatientStepError</div>
+                    }
+                </div>
+                <div class="modal-footer border-top border-secondary d-flex justify-content-between">
+                    <button type="button" class="btn btn-outline-secondary" data-mdb-ripple-init @onclick="CloseModals">
+                        <i class="fas fa-times me-1"></i> إلغاء
+                    </button>
+                    <button type="button" class="btn btn-success fw-bold px-4" data-mdb-ripple-init @onclick="ProceedToStep2TestSelection">
+                        <span>متابعة واختيار التحاليل المطلوبة</span>
+                        <i class="fas fa-arrow-left ms-1"></i>
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+}
+
+<!-- ========================================================================= -->
+<!-- STEP 2 MODAL: Test Selection & Billing Calculation                        -->
+<!-- ========================================================================= -->
+@if (IsStep2TestsModalOpen)
+{
+    <div class="modal fade show d-block" tabindex="-1" style="background: rgba(0,0,0,0.8); backdrop-filter: blur(5px);">
+        <div class="modal-dialog modal-xl modal-dialog-centered">
+            <div class="modal-content card border-0 shadow-5-strong" style="background: var(--bg-card); max-height: 90vh; display: flex; flex-direction: column;">
+                <div class="modal-header border-bottom border-secondary d-flex justify-content-between align-items-center">
+                    <div>
+                        <h5 class="modal-title text-white fw-bold mb-0 d-flex align-items-center gap-2">
+                            <i class="fas fa-flask text-info"></i>
+                            <span>@Prefs.T("الخطوة 2: اختيار الفحوصات والفوترة الطبية", "Step 2: Test Selection & Medical Billing")</span>
+                        </h5>
+                        <small class="text-info">المريض: <strong>@PatientFullName</strong> | الجنس: @(PatientSex == "F" ? "أنثى" : "ذكر") | العمر: @CalculatedAgeText</small>
+                    </div>
+                    <button type="button" class="btn-close btn-close-white" @onclick="CloseModals"></button>
+                </div>
+
+                <div class="modal-body p-4 overflow-auto" style="flex: 1;">
+                    <div class="row g-4">
+                        <!-- Left: Available Tests Catalog (col-md-7) -->
+                        <div class="col-md-7 border-end border-secondary">
+                            <h6 class="fw-bold text-white mb-2 d-flex align-items-center gap-2">
+                                <i class="fas fa-list-check text-info"></i>
+                                <span>@Prefs.T("قائمة الفحوصات المتاحة للاختيار:", "Available Tests Catalog:")</span>
+                            </h6>
+                            <div class="row g-2 mb-3">
+                                <div class="col-md-8">
+                                    <div class="input-group">
+                                        <span class="input-group-text bg-dark border-secondary text-secondary">
+                                            <i class="fas fa-search"></i>
+                                        </span>
+                                        <input type="text" class="form-control" placeholder="@Prefs.T("ابحث باسم التحليل أو الكود (CBC, Lipid, TSH...)", "Search by test name or code (CBC, Lipid...)...")" 
+                                               @bind="TestSearchFilter" @bind:event="oninput" @onkeyup="FilterAvailableTests" />
+                                    </div>
+                                </div>
+                                <div class="col-md-4">
+                                    <select class="form-select" @bind="DepartmentFilter" @bind:after="FilterAvailableTests">
+                                        <option value="">جميع الأقسام</option>
+                                        @if (Departments != null)
+                                        {
+                                            @foreach (var d in Departments)
+                                            {
+                                                <option value="@d.Id">@d.DisplayName</option>
+                                            }
+                                        }
+                                    </select>
+                                </div>
+                            </div>
+
+                            <!-- Tests Catalog Grid -->
+                            <div style="max-height: 380px; overflow-y: auto;" class="border border-secondary rounded p-2 bg-dark">
+                                @if (FilteredCatalogTests == null || !FilteredCatalogTests.Any())
+                                {
+                                    <div class="text-center py-4 text-secondary">لا توجد فحوصات مطابقة للبحث.</div>
+                                }
+                                else
+                                {
+                                    <div class="row g-2">
+                                        @foreach (var test in FilteredCatalogTests)
+                                        {
+                                            bool isSelected = SelectedTestIds.Contains(test.Id);
+                                            <div class="col-md-6">
+                                                <div class="p-2 rounded border cursor-pointer d-flex justify-content-between align-items-center transition-all @(isSelected ? "bg-primary bg-opacity-25 border-info" : "border-secondary")"
+                                                     style="cursor: pointer; @(!isSelected ? "background: var(--bg-hover);" : "")"
+                                                     @onclick="() => ToggleTestSelection(test)">
+                                                    <div>
+                                                        <div class="fw-bold text-white fs-6">@test.TestCode</div>
+                                                        <div class="small text-truncate text-secondary" style="max-width: 170px;">@(test.NameAr ?? test.NameEn)</div>
+                                                        <span class="badge bg-dark border border-secondary text-info small">@test.SpecimenTypeName</span>
+                                                    </div>
+                                                    <div class="text-end">
+                                                        <div class="fw-bold text-success small">@test.FormattedPrice</div>
+                                                        <span class="badge @(isSelected ? "bg-info text-dark" : "bg-secondary") mt-1">
+                                                            @(isSelected ? "محدد ✓" : "+ إضافة")
+                                                        </span>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        }
+                                    </div>
+                                }
+                            </div>
+                        </div>
+
+                        <!-- Right: Selected Tests Cart & Financials (col-md-5) -->
+                        <div class="col-md-5">
+                            <h6 class="fw-bold text-white mb-2 d-flex align-items-center gap-2">
+                                <i class="fas fa-cart-shopping text-info"></i>
+                                <span>@Prefs.T("الفحوصات المحددة للطلب", "Selected Tests") (@SelectedTests.Count):</span>
+                            </h6>
+
+                            <!-- Selected List -->
+                            <div style="max-height: 200px; overflow-y: auto;" class="border border-secondary rounded p-2 mb-3 bg-dark">
+                                @if (!SelectedTests.Any())
+                                {
+                                    <div class="text-center py-4 text-secondary">@Prefs.T("لم يتم اختيار أي فحص بعد. انقر على الفحوصات في اليسار للإضافة.", "No tests selected yet. Click tests on the left to add.")</div>
+                                }
+                                else
+                                {
+                                    <ul class="list-group list-group-flush">
+                                        @foreach (var st in SelectedTests)
+                                        {
+                                            <li class="list-group-item bg-transparent text-white d-flex justify-content-between align-items-center p-2 border-secondary">
+                                                <div>
+                                                    <strong class="text-info">@st.TestCode</strong> - @(st.NameAr ?? st.NameEn)
+                                                    <div class="small text-muted">@st.SpecimenTypeName</div>
+                                                </div>
+                                                <div class="d-flex align-items-center gap-2">
+                                                    <span class="fw-bold text-success small">@st.FormattedPrice</span>
+                                                    <button class="btn btn-sm btn-outline-danger py-0 px-2" data-mdb-ripple-init @onclick="() => RemoveSelectedTest(st.Id)">
+                                                        <i class="fas fa-trash-can"></i>
+                                                    </button>
+                                                </div>
+                                            </li>
+                                        }
+                                    </ul>
+                                }
+                            </div>
+
+                            <!-- Specimen Tubes Auto-Grouping Preview -->
+                            @if (EstimatedTubes.Any())
+                            {
+                                <div class="mb-3 p-2 rounded bg-dark border border-secondary">
+                                    <small class="text-secondary fw-bold d-block mb-1 d-flex align-items-center gap-1">
+                                        <i class="fas fa-vial text-info"></i>
+                                        <span>@Prefs.T("الأنابيب والعينات المطلوبة للسحب:", "Required Specimen Tubes:")</span>
+                                    </small>
+                                    <div class="d-flex flex-wrap gap-2">
+                                        @foreach (var tube in EstimatedTubes)
+                                        {
+                                            <span class="badge bg-secondary p-2">
+                                                @tube.SpecimenTypeName (@tube.TestsCount تحليل)
+                                            </span>
+                                        }
+                                    </div>
+                                </div>
+                            }
+
+                            <!-- Financial Breakdown Box (MDB Card) -->
+                            <div class="card p-3 mb-0 border-0 shadow-2-strong" style="background: rgba(11, 19, 43, 0.9);">
+                                <div class="d-flex justify-content-between mb-2">
+                                    <span class="text-secondary">@Prefs.T("المبلغ الإجمالي (Total):", "Total Amount:")</span>
+                                    <strong class="text-white fs-5">@TotalPrice.ToString("N0") د.ع</strong>
+                                </div>
+
+                                <div class="d-flex justify-content-between align-items-center mb-2">
+                                    <span class="text-secondary">@Prefs.T("الخصم (Discount):", "Discount:")</span>
+                                    <input type="number" class="form-control form-control-sm text-end fw-bold" style="width: 120px;" 
+                                           @bind="DiscountAmount" @bind:after="RecalculateFinancials" min="0" />
+                                </div>
+
+                                <div class="d-flex justify-content-between mb-2 pt-2 border-top border-secondary">
+                                    <span class="text-info fw-bold">@Prefs.T("الصافي المطلوب (Net):", "Net Amount:")</span>
+                                    <strong class="text-info fs-5">@NetAmount.ToString("N0") د.ع</strong>
+                                </div>
+
+                                <div class="d-flex justify-content-between align-items-center mb-2">
+                                    <span class="text-secondary">@Prefs.T("الدفعة الواصلة الآن:", "Paid Amount:")</span>
+                                    <input type="number" class="form-control form-control-sm text-end fw-bold text-success" style="width: 120px;" 
+                                           @bind="PaidAmount" @bind:after="RecalculateFinancials" min="0" />
+                                </div>
+
+                                <div class="d-flex justify-content-between align-items-center mb-3">
+                                    <span class="text-secondary">@Prefs.T("طريقة الدفع:", "Payment Method:")</span>
+                                    <select class="form-select form-select-sm" style="width: 120px;" @bind="PaymentMethod">
+                                        <option value="Cash">@Prefs.T("نقداً (Cash)", "Cash")</option>
+                                        <option value="Card">@Prefs.T("كارت / زين كاش", "Card / E-Payment")</option>
+                                    </select>
+                                </div>
+
+                                <div class="d-flex justify-content-between pt-2 border-top border-secondary">
+                                    <span class="text-secondary">@Prefs.T("المتبقي (Balance):", "Remaining Balance:")</span>
+                                    <strong class="@(RemainingBalance > 0 ? "text-danger" : "text-muted")">
+                                        @RemainingBalance.ToString("N0") د.ع
+                                    </strong>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    @if (!string.IsNullOrEmpty(OrderStepError))
+                    {
+                        <div class="alert alert-danger py-2 px-3 mt-3 mb-0">@OrderStepError</div>
+                    }
+                </div>
+
+                <div class="modal-footer border-top border-secondary d-flex justify-content-between">
+                    <button type="button" class="btn btn-outline-secondary" data-mdb-ripple-init @onclick="BackToStep1">
+                        <i class="fas fa-arrow-right me-1"></i> @Prefs.T("رجوع لبيانات المراجع", "Back to Patient Info")
+                    </button>
+                    <button type="button" class="btn btn-success fw-bold px-4 fs-6" data-mdb-ripple-init @onclick="FinalizeAndSaveOrder" disabled="@(!SelectedTests.Any() || IsSubmittingOrder)">
+                        @if (IsSubmittingOrder)
+                        {
+                            <span class="spinner-border spinner-border-sm me-1"></span>
+                            <span>جاري الحفظ وإصدار الباركود...</span>
+                        }
+                        else
+                        {
+                            <span><i class="fas fa-floppy-disk me-1"></i> @Prefs.T("حفظ الطلب وإصدار الباركود", "Save Order & Barcodes")</span>
+                        }
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+}
+
+<!-- ========================================================================= -->
+<!-- ORDER DETAILS, BILLING & TESTS MANAGEMENT MODAL                            -->
+<!-- ========================================================================= -->
+@if (SelectedOrderDetails != null)
+{
+    <div class="modal fade show d-block" tabindex="-1" style="background: rgba(0,0,0,0.75); backdrop-filter: blur(4px); z-index: 1050;">
+        <div class="modal-dialog modal-xl modal-dialog-centered modal-dialog-scrollable">
+            <div class="modal-content card border-0 shadow-5-strong" style="background: var(--bg-card);">
+                <!-- Modal Header -->
+                <div class="modal-header border-bottom border-secondary d-flex justify-content-between align-items-center bg-dark">
+                    <div>
+                        <h5 class="modal-title text-info fw-bold mb-1 d-flex align-items-center gap-2">
+                            <i class="fas fa-file-invoice"></i>
+                            <span>@Prefs.T("تفاصيل الطلب والحسابات والتحاليل", "Order Details, Billing & Tests") #@SelectedOrderDetails.Order.Id (@Prefs.T("زيارة رقم", "Visit #") @SelectedOrderDetails.Order.VisitNo)</span>
+                        </h5>
+                        <span class="text-secondary small">
+                            المريض: <strong class="text-white">@SelectedOrderDetails.Patient.FullNameAr</strong> | P.ID: <strong class="text-info">@SelectedOrderDetails.Patient.Mrn</strong> | الجنس: @(SelectedOrderDetails.Patient.Sex == "F" ? "أنثى" : "ذكر") | التاريخ: @SelectedOrderDetails.Order.OrderDatetime.ToString("dd/MM/yyyy HH:mm")
+                        </span>
+                    </div>
+                    <div class="d-flex align-items-center gap-2">
+                        <button type="button" class="btn btn-sm btn-info fw-bold d-flex align-items-center gap-1 shadow-sm" data-mdb-ripple-init @onclick="OpenOrderBarcodeLabelsModal" title='@Prefs.T("معاينة وطباعة ملصقات الباركود لجميع أنابيب المراجع (50×25 مم)", "Preview & Print Tube Barcodes")'>
+                            <i class="fas fa-barcode"></i>
+                            <span>@Prefs.T("طباعة باركود الأنابيب", "Print Tube Barcodes")</span>
+                        </button>
+                        <span class="badge-status @GetStatusClass(SelectedOrderDetails.Order.Status) fs-6 px-3 py-2">
+                            @SelectedOrderDetails.Order.Status
+                        </span>
+                        <button type="button" class="btn-close btn-close-white" @onclick="() => SelectedOrderDetails = null"></button>
+                    </div>
+                </div>
+
+                <div class="modal-body p-4">
+                    <!-- Status / Action Message Alert -->
+                    @if (!string.IsNullOrEmpty(DetailsAlertMessage))
+                    {
+                        <div class="alert @DetailsAlertClass py-2 px-3 mb-3 d-flex justify-content-between align-items-center">
+                            <span>@DetailsAlertMessage</span>
+                            <button type="button" class="btn-close btn-close-white small" @onclick="ClearDetailsAlert"></button>
+                        </div>
+                    }
+
+                    <!-- ══ 1. FINANCIAL SUMMARY & PAYMENT ══ -->
+                    <div class="card p-3 mb-3 border-0 shadow-2-strong" style="background: rgba(15, 23, 42, 0.85);">
+                        <div class="row g-3 align-items-center">
+                            <div class="col-md-2 col-6 border-end border-secondary">
+                                <div class="text-secondary small">إجمالي الفاتورة (Total):</div>
+                                <div class="fw-bold text-white fs-5 mt-1">@((SelectedOrderDetails.Invoice?.Total ?? 0).ToString("N0")) د.ع</div>
+                            </div>
+                            <div class="col-md-2 col-6 border-end border-secondary">
+                                <div class="text-secondary small">@Prefs.T("الخصم (Discount):", "Discount:")</div>
+                                <div class="fw-bold text-warning fs-5 mt-1">@((SelectedOrderDetails.Invoice?.Discount ?? 0).ToString("N0")) د.ع</div>
+                            </div>
+                            <div class="col-md-2 col-6 border-end border-secondary">
+                                <div class="text-secondary small">الصافي (Net Total):</div>
+                                <div class="fw-bold text-info fs-5 mt-1">@((SelectedOrderDetails.Invoice?.Net ?? 0).ToString("N0")) د.ع</div>
+                            </div>
+                            <div class="col-md-2 col-6 border-end border-secondary">
+                                <div class="text-secondary small">المسدد (Paid):</div>
+                                <div class="fw-bold text-success fs-5 mt-1">@((SelectedOrderDetails.Invoice?.Paid ?? 0).ToString("N0")) د.ع</div>
+                            </div>
+                            <div class="col-md-2 col-6 border-end border-secondary">
+                                <div class="text-secondary small">المتبقي (Balance Due):</div>
+                                <div class="fw-bold fs-5 mt-1 @((SelectedOrderDetails.Invoice?.Balance ?? 0) > 0 ? "text-danger" : "text-muted")">
+                                    @((SelectedOrderDetails.Invoice?.Balance ?? 0).ToString("N0")) د.ع
+                                </div>
+                            </div>
+                            <div class="col-md-2 col-12 d-flex flex-column gap-2 justify-content-center">
+                                @if (SelectedOrderDetails.Invoice != null && SelectedOrderDetails.Invoice.Balance > 0)
+                                {
+                                    <button class="btn btn-success fw-bold py-2 shadow-sm" data-mdb-ripple-init @onclick="ToggleDetailsPaymentBox">
+                                        <i class="fas fa-credit-card me-1"></i> تسديد دفعة (Pay)
+                                    </button>
+                                }
+                                else
+                                {
+                                    <span class="badge bg-success bg-opacity-25 text-success border border-success py-2 text-center">
+                                        <i class="fas fa-check-circle me-1"></i> مسدد بالكامل
+                                    </span>
+                                }
+                                <button class="btn btn-outline-info btn-sm py-1" data-mdb-ripple-init @onclick="OpenReceiptModal">
+                                    <i class="fas fa-receipt me-1"></i> وصل 80 مم
+                                </button>
+                            </div>
+                        </div>
+
+                        <!-- Collapsible Quick Payment Sub-Form -->
+                        @if (IsDetailsPaymentBoxOpen && SelectedOrderDetails.Invoice != null && SelectedOrderDetails.Invoice.Balance > 0)
+                        {
+                            <div class="mt-3 pt-3 border-top border-secondary p-3 rounded bg-dark border">
+                                <h6 class="fw-bold text-success mb-3 d-flex align-items-center gap-2">
+                                    <i class="fas fa-money-bill-wave"></i>
+                                    <span>تسديد دفعة للطلب الحالي:</span>
+                                </h6>
+                                <div class="row g-2 align-items-center">
+                                    <div class="col-md-4">
+                                        <label class="form-label text-secondary small mb-1">المبلغ المراد تسديده الآن (د.ع):</label>
+                                        <input type="number" class="form-control fw-bold text-success fs-5" @bind="DetailsPaymentAmount" min="1" max="@SelectedOrderDetails.Invoice.Balance" />
+                                    </div>
+                                    <div class="col-md-4">
+                                        <label class="form-label text-secondary small mb-1">@Prefs.T("طريقة الدفع:", "Payment Method:")</label>
+                                        <select class="form-select" @bind="DetailsPaymentMethod">
+                                            <option value="Cash">@Prefs.T("نقداً (Cash)", "Cash")</option>
+                                            <option value="Card">كارت / زين كاش (Card)</option>
+                                        </select>
+                                    </div>
+                                    <div class="col-md-4 d-flex align-items-end gap-2">
+                                        <button class="btn btn-success fw-bold px-4 py-2 mt-auto" data-mdb-ripple-init @onclick="SubmitDetailsPayment" disabled="@IsProcessingPayment">
+                                            @if (IsProcessingPayment)
+                                            {
+                                                <span class="spinner-border spinner-border-sm me-1"></span>
+                                                <span>جاري الحفظ...</span>
+                                            }
+                                            else
+                                            {
+                                                <span><i class="fas fa-check me-1"></i> تأكيد الدفع والاستلام</span>
+                                            }
+                                        </button>
+                                        <button class="btn btn-outline-secondary py-2 mt-auto" data-mdb-ripple-init @onclick="() => IsDetailsPaymentBoxOpen = false">
+                                            إلغاء
+                                        </button>
+                                    </div>
+                                </div>
+                            </div>
+                        }
+                    </div>
+
+                    <!-- ══ 2. ORDERED TESTS MANAGEMENT (ADD / DELETE) ══ -->
+                    <div class="card p-3 mb-3 border-0 shadow-2-strong" style="background: rgba(15, 23, 42, 0.85);">
+                        <div class="d-flex align-items-center justify-content-between mb-3 flex-wrap gap-2">
+                            <div class="d-flex align-items-center gap-2">
+                                <h5 class="fw-bold text-info mb-0 d-flex align-items-center gap-2">
+                                    <i class="fas fa-clipboard-list"></i>
+                                    <span>قائمة التحاليل المطلوبة لهذا الطلب:</span>
+                                </h5>
+                                <span class="badge bg-primary text-white fs-6">
+                                    @(SelectedOrderDetails.Specimens.Sum(s => s.Tests.Count)) فحص
+                                </span>
+                            </div>
+
+                            <!-- Quick Add Test To Order Bar with Live Search -->
+                            <div class="d-flex align-items-center gap-2 flex-grow-1 justify-content-end flex-wrap" style="max-width: 750px;">
+                                <!-- Live Search Input -->
+                                <div class="input-group" style="width: 260px;">
+                                    <span class="input-group-text bg-dark border-secondary text-info">
+                                        <i class="fas fa-search"></i>
+                                    </span>
+                                    <input type="text" class="form-control" 
+                                           placeholder="ابحث باسم الفحص أو الكود..." 
+                                           @bind="AddTestSearchQuery" @bind:event="oninput" @onkeydown="HandleAddTestKeyDown" />
+                                    @if (!string.IsNullOrEmpty(AddTestSearchQuery))
+                                    {
+                                        <button class="btn btn-outline-secondary btn-sm" type="button" @onclick="ClearAddTestSearch" title="مسح">
+                                            <i class="fas fa-times"></i>
+                                        </button>
+                                    }
+                                </div>
+
+                                <!-- Filtered Tests Dropdown -->
+                                <select class="form-select flex-grow-1" style="min-width: 240px;" @bind="SelectedTestToAddId">
+                                    <option value="0">-- اختر فحصاً (@AddTestFilteredCatalog.Count() فحص متاح) --</option>
+                                    @foreach (var t in AddTestFilteredCatalog)
+                                    {
+                                        <option value="@t.Id">[@t.TestCode] @(t.NameAr ?? t.NameEn) - @t.FormattedPrice (@t.SpecimenTypeName)</option>
+                                    }
+                                </select>
+
+                                <!-- Add Button -->
+                                <button class="btn btn-success fw-bold text-nowrap px-3" data-mdb-ripple-init @onclick="AddTestToCurrentOrder" disabled="@(SelectedTestToAddId == 0 || IsAddingTest)">
+                                    @if (IsAddingTest)
+                                    {
+                                        <span class="spinner-border spinner-border-sm me-1"></span>
+                                        <span>جاري الإضافة...</span>
+                                    }
+                                    else
+                                    {
+                                        <span><i class="fas fa-plus me-1"></i> إضافة الفحص</span>
+                                    }
+                                </button>
+                            </div>
+                        </div>
+
+                        <!-- Table of Ordered Tests -->
+                        <div class="table-responsive">
+                            <table class="table table-hover align-middle mb-0" style="color: var(--text-main);">
+                                <thead class="table-dark">
+                                    <tr>
+                                        <th>اسم التحليل (Test Name)</th>
+                                        <th>نوع العينة / الأنبوب (Tube)</th>
+                                        <th>باركود العينة (Accession)</th>
+                                        <th>السعر (Price)</th>
+                                        <th>الحالة (Status)</th>
+                                        <th class="text-center">@Prefs.T("إجراءات", "Actions")</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    @foreach (var spec in SelectedOrderDetails.Specimens)
+                                    {
+                                        var tubeColor = GetTubeColor(spec.SpecimenTypeName);
+                                        @foreach (var test in spec.Tests)
+                                        {
+                                            long orderTestId = test.OrderTestId;
+                                            string testName = test.NameAr ?? test.NameEn;
+                                            <tr>
+                                                <td>
+                                                    <div class="fw-bold text-white fs-6">@testName</div>
+                                                    <div class="small text-secondary" style="font-family: monospace;">@test.TestCode</div>
+                                                </td>
+                                                <td>
+                                                    <div class="d-flex align-items-center gap-2">
+                                                        <span style="width: 12px; height: 12px; border-radius: 50%; background-color: @tubeColor; display: inline-block;"></span>
+                                                        <span class="badge bg-dark border border-secondary text-white">@spec.SpecimenTypeName</span>
+                                                    </div>
+                                                </td>
+                                                <td>
+                                                    <div class="d-flex align-items-center gap-1">
+                                                        <strong class="text-info font-monospace">@spec.Specimen.AccessionNo</strong>
+                                                        <button class="btn btn-sm btn-info py-0 px-2 fw-bold text-dark" data-mdb-ripple-init title='@Prefs.T("معاينة وطباعة ملصق هذا الأنبوب (50×25 مم)", "Preview & Print Tube Label")' @onclick="() => OpenSingleSpecimenLabel(spec)">
+                                                            <i class="fas fa-barcode me-1"></i> @Prefs.T("باركود", "Barcode")
+                                                        </button>
+                                                        <button class="btn btn-sm btn-outline-info py-0 px-2" data-mdb-ripple-init title='@Prefs.T("طباعة صامتة فورية لطابعة الباركود", "Silent Direct Print")' @onclick="() => PrintSilentTubeLabel(spec)">
+                                                            <i class="fas fa-bolt"></i>
+                                                        </button>
+                                                    </div>
+                                                </td>
+                                                <td class="fw-bold text-success">
+                                                    @test.Price.ToString("N0") د.ع
+                                                </td>
+                                                <td>
+                                                    <span class="badge-status @GetStatusClass(test.Status)">
+                                                        @test.Status
+                                                    </span>
+                                                </td>
+                                                <td class="text-center">
+                                                    @if (test.Status == "Ordered" && SelectedOrderDetails.Order.Status != "Cancelled")
+                                                    {
+                                                        <button class="btn btn-sm btn-outline-danger px-2 py-1" data-mdb-ripple-init title="حذف هذا الفحص من الطلب وتعديل الفاتورة" @onclick="() => RemoveTestFromCurrentOrder(orderTestId, testName)">
+                                                            <i class="fas fa-trash-can me-1"></i> حذف
+                                                        </button>
+                                                    }
+                                                    else
+                                                    {
+                                                        <span class="badge bg-secondary opacity-75">مُستلم ✓</span>
+                                                    }
+                                                </td>
+                                            </tr>
+                                        }
+                                    }
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+
+                    <!-- ══ 3. NOTICE BANNER ══ -->
+                    <div class="p-2 px-3 rounded border border-secondary bg-dark d-flex align-items-center gap-2 mb-0">
+                        <i class="fas fa-circle-info text-info"></i>
+                        <span class="text-secondary small">
+                            @Prefs.T("معلومات المراجع والطلب جاهزة. يمكنك طباعة باركود الأنابيب (50×25 مم) مباشرة بالضغط على زر [طباعة باركود الأنابيب] بالأعلى أو بالأسفل، أو بجانب كل أنبوب، بالإضافة لإدارة الفاتورة والوصل.", "Patient & order ready. You can print tube barcodes (50x25mm) directly by clicking [Print Tube Barcodes] at top/bottom, or beside each tube, in addition to cashier receipts and payments.")
+                        </span>
+                    </div>
+                </div>
+
+                <!-- Modal Footer -->
+                <div class="modal-footer border-top border-secondary d-flex justify-content-between align-items-center bg-dark">
+                    <div class="d-flex gap-2">
+                        <button type="button" class="btn btn-info fw-bold" data-mdb-ripple-init @onclick="OpenOrderBarcodeLabelsModal">
+                            <i class="fas fa-barcode me-1"></i> @Prefs.T("طباعة باركود الأنابيب (50×25 مم)", "Print Tube Barcodes (50x25mm)")
+                        </button>
+                        <button type="button" class="btn btn-success fw-bold" data-mdb-ripple-init @onclick="PrintSilentReceipt">
+                            <i class="fas fa-bolt me-1"></i> طباعة وصل صامتة
+                        </button>
+                        <button type="button" class="btn btn-outline-info" data-mdb-ripple-init @onclick="OpenReceiptModal">
+                            <i class="fas fa-receipt me-1"></i> معاينة الوصل 80 مم
+                        </button>
+                        @if (SelectedOrderDetails.Order.Status != "Cancelled")
+                        {
+                            <button type="button" class="btn btn-outline-danger" data-mdb-ripple-init @onclick="CancelCurrentOrder">
+                                <i class="fas fa-ban me-1"></i> إلغاء الطلب بالكامل
+                            </button>
+                        }
+                    </div>
+                    <div class="d-flex gap-2">
+                        <button type="button" class="btn btn-outline-secondary" data-mdb-ripple-init @onclick="() => SelectedOrderDetails = null">إغلاق</button>
+                        <a href="results?orderId=@SelectedOrderDetails.Order.Id" class="btn btn-primary fw-bold" data-mdb-ripple-init>
+                            <i class="fas fa-chart-line me-1"></i> الانتقال المباشر للنتائج والاعتماد ➔
+                        </a>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+}
+
+<!-- ========================================================================= -->
+<!-- MODAL: 80mm Thermal Cashier Receipt Preview & Print                       -->
+<!-- ========================================================================= -->
+@if (IsReceiptModalOpen && SelectedOrderDetails != null)
+{
+    <div class="modal fade show d-block" tabindex="-1" style="background: rgba(0,0,0,0.8); backdrop-filter: blur(4px); z-index: 1060;">
+        <div class="modal-dialog modal-dialog-centered" style="max-width: 420px;">
+            <div class="modal-content card border-0 shadow-5-strong" style="background: var(--bg-card);">
+                <div class="modal-header border-bottom border-secondary d-flex justify-content-between align-items-center py-2">
+                    <h6 class="modal-title text-white fw-bold mb-0 d-flex align-items-center gap-2">
+                        <i class="fas fa-receipt text-info"></i>
+                        <span>وصل كاشير حراري (80 مم)</span>
+                    </h6>
+                    <button type="button" class="btn-close btn-close-white" @onclick="() => IsReceiptModalOpen = false"></button>
+                </div>
+                <div class="modal-body p-3 text-center bg-dark">
+                    <!-- Thermal 80mm Ticket Box -->
+                    <div class="d-inline-block text-start p-3 bg-white text-dark rounded shadow"
+                         style="width: 320px; font-family: 'Segoe UI', Tahoma, sans-serif; border: 1px solid #ccc; line-height: 1.3;">
+                        <!-- Header -->
+                        <div class="text-center mb-2 pb-2 border-bottom border-dark">
+                            <h5 class="fw-bold mb-0" style="font-size: 16px;">@(LabSettings?.LabNameAr ?? "المختبر الطبي التخصصي")</h5>
+                            <div class="text-muted" style="font-size: 11px;">@(LabSettings?.LabNameEn ?? "Specialized Medical Laboratory")</div>
+                            <div style="font-size: 10px; color: #444;" class="mt-1">
+                                @(LabSettings?.Address ?? "") @(string.IsNullOrWhiteSpace(LabSettings?.Phones) ? "" : $"• {LabSettings.Phones}")
+                            </div>
+                        </div>
+
+                        <!-- Invoice & Patient Info -->
+                        <div style="font-size: 11px;" class="mb-2 pb-2 border-bottom border-dark">
+                            <div class="d-flex justify-content-between">
+                                <span>فاتورة رقم: <strong>#@(SelectedOrderDetails.Invoice?.InvoiceNo ?? SelectedOrderDetails.Order.Id)</strong></span>
+                                <span>طلب: <strong>#@SelectedOrderDetails.Order.Id</strong></span>
+                            </div>
+                            <div class="d-flex justify-content-between">
+                                <span>المريض: <strong>@SelectedOrderDetails.Patient.FullNameAr</strong></span>
+                                <span>MRN: <strong>@SelectedOrderDetails.Patient.Mrn</strong></span>
+                            </div>
+                            <div class="d-flex justify-content-between">
+                                <span>التاريخ: @SelectedOrderDetails.Order.OrderDatetime.ToString("dd/MM/yyyy HH:mm")</span>
+                                <span>الدفع: @(DetailsPaymentMethod == "Card" ? "كارت / زين كاش" : "نقداً")</span>
+                            </div>
+                        </div>
+
+                        <!-- Tests Table -->
+                        <table style="width: 100%; font-size: 11px; margin-bottom: 8px;">
+                            <thead>
+                                <tr style="border-bottom: 1px solid #000;">
+                                    <th style="text-align: right; padding: 2px 0;">التحليل</th>
+                                    <th style="text-align: left; padding: 2px 0;">السعر</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                @foreach (var spec in SelectedOrderDetails.Specimens)
+                                {
+                                    @foreach (var t in spec.Tests)
+                                    {
+                                        <tr>
+                                            <td style="text-align: right; padding: 2px 0;">@(t.NameAr ?? t.NameEn)</td>
+                                            <td style="text-align: left; padding: 2px 0; font-weight: bold;">@t.Price.ToString("N0")</td>
+                                        </tr>
+                                    }
+                                }
+                            </tbody>
+                        </table>
+
+                        <!-- Totals -->
+                        <div style="font-size: 11px; border-top: 1px dashed #000; padding-top: 4px;" class="mb-2">
+                            <div class="d-flex justify-content-between">
+                                <span>الإجمالي (Total):</span>
+                                <span>@((SelectedOrderDetails.Invoice?.Total ?? 0).ToString("N0")) د.ع</span>
+                            </div>
+                            @if ((SelectedOrderDetails.Invoice?.Discount ?? 0) > 0)
+                            {
+                                <div class="d-flex justify-content-between">
+                                    <span>@Prefs.T("الخصم (Discount):", "Discount:")</span>
+                                    <span>@((SelectedOrderDetails.Invoice?.Discount ?? 0).ToString("N0")) د.ع</span>
+                                </div>
+                            }
+                            <div class="d-flex justify-content-between fw-bold" style="font-size: 12px;">
+                                <span>الصافي (Net):</span>
+                                <span>@((SelectedOrderDetails.Invoice?.Net ?? 0).ToString("N0")) د.ع</span>
+                            </div>
+                            <div class="d-flex justify-content-between">
+                                <span>المدفوع (Paid):</span>
+                                <span class="fw-bold">@((SelectedOrderDetails.Invoice?.Paid ?? 0).ToString("N0")) د.ع</span>
+                            </div>
+                            <div class="d-flex justify-content-between fw-bold">
+                                <span>@Prefs.T("المتبقي (Balance):", "Remaining Balance:")</span>
+                                <span>@((SelectedOrderDetails.Invoice?.Balance ?? 0).ToString("N0")) د.ع</span>
+                            </div>
+                        </div>
+
+                        <!-- Barcode & Thank You -->
+                        <div class="text-center pt-2 border-top border-dark">
+                            <div style="font-family: monospace; font-size: 14px; font-weight: bold; letter-spacing: 2px;">
+                                *@(SelectedOrderDetails.Specimens.FirstOrDefault()?.Specimen.AccessionNo ?? SelectedOrderDetails.Order.Id.ToString())*
+                            </div>
+                            <div style="font-size: 10px; color: #555; margin-top: 4px;">نتمنى لكم دوام الصحة والعافية</div>
+                        </div>
+                    </div>
+                </div>
+                <div class="modal-footer border-top border-secondary d-flex justify-content-between py-2">
+                    <button type="button" class="btn btn-outline-secondary btn-sm" data-mdb-ripple-init @onclick="() => IsReceiptModalOpen = false">إغلاق</button>
+                    <div class="d-flex gap-2">
+                        <button type="button" class="btn btn-primary fw-bold px-3 btn-sm" data-mdb-ripple-init @onclick="PrintSilentReceipt">
+                            <i class="fas fa-bolt me-1"></i> طباعة صامتة فورية
+                        </button>
+                        <button type="button" class="btn btn-success fw-bold px-3 btn-sm" data-mdb-ripple-init onclick="window.print()">
+                            <i class="fas fa-print me-1"></i> طباعة المتصفح
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+}
+
+<!-- ========================================================================= -->
+<!-- MODAL: Barcode Thermal Label Preview & Print (50×25mm)                    -->
+<!-- ========================================================================= -->
+@if (IsLabelModalOpen && LabelModalOrder != null && LabelModalSelectedSpecimen != null)
+{
+    var patient = LabelModalOrder.Patient;
+    var spec = LabelModalSelectedSpecimen;
+    string accNo = (spec.Specimen.AccessionNo ?? "").ToString();
+    string specType = (spec.SpecimenTypeName ?? "Sample").ToString();
+    var testNamesList = ((IEnumerable<dynamic>)spec.Tests).Select(t => (string)(t.NameAr ?? t.NameEn ?? t.TestCode)).ToList();
+    string testNames = string.Join(", ", testNamesList);
+
+    <div class="modal fade show d-block" tabindex="-1" style="background: rgba(0,0,0,0.8); backdrop-filter: blur(5px); z-index: 1070;">
+        <div class="modal-dialog modal-dialog-centered" style="max-width: 500px;">
+            <div class="modal-content card border-0 shadow-5-strong" style="background: var(--bg-card);">
+                <div class="modal-header border-bottom border-secondary d-flex justify-content-between align-items-center">
+                    <div>
+                        <h5 class="modal-title text-white fw-bold mb-0 d-flex align-items-center gap-2">
+                            <i class="fas fa-barcode text-info"></i>
+                            <span>@Prefs.T("معاينة وطباعة باركود الأنبوب (50×25 مم)", "Tube Barcode Preview & Print (50x25mm)")</span>
+                        </h5>
+                        <small class="text-secondary">@Prefs.T("المراجع:", "Patient:") <strong class="text-white">@patient.FullNameAr</strong> | MRN: <strong class="text-info font-monospace">@patient.Mrn</strong></small>
+                    </div>
+                    <button type="button" class="btn-close btn-close-white" @onclick="() => IsLabelModalOpen = false"></button>
+                </div>
+
+                <div class="modal-body p-4 text-center bg-dark">
+                    @if (!string.IsNullOrEmpty(LabelModalMessage))
+                    {
+                        <div class="alert alert-info py-2 px-3 mb-3 small d-flex justify-content-between align-items-center">
+                            <span>@LabelModalMessage</span>
+                            <button type="button" class="btn-close btn-close-white small" @onclick="() => LabelModalMessage = string.Empty"></button>
+                        </div>
+                    }
+
+                    <!-- Multi-Tube Switcher if order has more than 1 tube -->
+                    @if (LabelModalOrder.Specimens.Count > 1)
+                    {
+                        <div class="d-flex justify-content-center gap-2 mb-3 flex-wrap">
+                            @foreach (var s in LabelModalOrder.Specimens)
+                            {
+                                bool isSelected = s.Specimen.Id == spec.Specimen.Id;
+                                string tubeCol = GetTubeColor(s.SpecimenTypeName);
+                                <button type="button" class="btn btn-sm @(isSelected ? "btn-info fw-bold" : "btn-outline-secondary") d-flex align-items-center gap-1"
+                                        @onclick="() => LabelModalSelectedSpecimen = s">
+                                    <span style="width: 10px; height: 10px; border-radius: 50%; background-color: @tubeCol; display: inline-block;"></span>
+                                    <span>@s.SpecimenTypeName</span>
+                                    <span class="font-monospace small">(@s.Specimen.AccessionNo)</span>
+                                </button>
+                            }
+                        </div>
+                    }
+
+                    <!-- Thermal 50x25mm Label Simulator -->
+                    <div class="d-inline-block text-start p-3 bg-white text-dark rounded shadow-5 text-nowrap overflow-hidden" 
+                         style="width: 340px; height: 170px; font-family: 'Segoe UI', Tahoma, sans-serif; border: 2px dashed #94a3b8; line-height: 1.25; position: relative;">
+                        
+                        <!-- Header Row: Patient Name & MRN -->
+                        <div class="d-flex justify-content-between align-items-center mb-1" style="font-size: 13px;">
+                            <strong class="text-truncate" style="max-width: 210px;">@GetShortPatientName(patient.FullNameAr)</strong>
+                            <span class="font-monospace fw-bold" style="font-size: 11px;">MRN: @patient.Mrn</span>
+                        </div>
+                        
+                        <!-- Simulated Barcode Lines & Accession -->
+                        <div class="text-center my-1 py-1" style="background: rgba(0,0,0,0.03); border-radius: 4px;">
+                            <div style="font-family: monospace; font-size: 26px; font-weight: 900; letter-spacing: 4px; color: black; line-height: 1;">
+                                |||| ||| ||||| || ||||
+                            </div>
+                            <strong style="font-size: 14px; letter-spacing: 3px; font-family: monospace; color: #000;">*@accNo*</strong>
+                        </div>
+
+                        <!-- Details Row: Tube Type & Date -->
+                        <div class="d-flex justify-content-between align-items-center mt-1" style="font-size: 11px;">
+                            <span class="badge bg-secondary text-white fw-bold">@specType</span>
+                            <span class="text-muted font-monospace" style="font-size: 10px;">@DateTime.Now.ToString("dd/MM/yyyy HH:mm")</span>
+                        </div>
+
+                        <!-- Tests List -->
+                        <div class="text-truncate fw-bold mt-1 text-primary" style="font-size: 11px; max-width: 310px;" title="@testNames">
+                            @testNames
+                        </div>
+                    </div>
+
+                    <div class="mt-3 text-secondary small">
+                        <i class="fas fa-info-circle text-info me-1"></i>
+                        <span>@Prefs.T("ملصق حراري قياسي 50×25 مم لطابعات الباركود (HPRT / Zebra / Xprinter)", "Standard 50x25mm thermal label for barcode printers (HPRT / Zebra / Xprinter)")</span>
+                    </div>
+                </div>
+
+                <div class="modal-footer border-top border-secondary d-flex justify-content-between py-2">
+                    <button type="button" class="btn btn-outline-secondary" data-mdb-ripple-init @onclick="() => IsLabelModalOpen = false">
+                        @Prefs.T("إلغاء", "Cancel")
+                    </button>
+                    <div class="d-flex gap-2">
+                        @if (LabelModalOrder.Specimens.Count > 1)
+                        {
+                            <button type="button" class="btn btn-outline-info fw-bold" data-mdb-ripple-init @onclick="PrintAllOrderTubesSilent" title="طباعة ملصقات جميع الأنابيب دفعة واحدة">
+                                <i class="fas fa-layer-group me-1"></i> @Prefs.T("طباعة جميع الأنابيب", "Print All Tubes")
+                            </button>
+                        }
+                        <button type="button" class="btn btn-primary fw-bold px-3" data-mdb-ripple-init @onclick="() => PrintSilentTubeLabel(LabelModalSelectedSpecimen)">
+                            <i class="fas fa-bolt me-1"></i> @Prefs.T("طباعة صامتة فورية", "Silent Print")
+                        </button>
+                        <button type="button" class="btn btn-success fw-bold px-3" data-mdb-ripple-init onclick="window.print()">
+                            <i class="fas fa-print me-1"></i> @Prefs.T("طباعة المتصفح", "Browser Print")
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+}
+
+@code {
+    private List<dynamic>? OrdersList;
+    private string SearchQuery = "";
+    private string SelectedStatus = "";
+    private DateTime? SelectedDate;
+
+    // Step 1: Patient Modal
+    private bool IsStep1PatientModalOpen = false;
+    private string PatientSearchQuery = "";
+    private List<Patient>? PatientSearchResults;
+    private Patient? SelectedExistingPatient;
+    private string PatientFullName = "";
+    private string PatientSex = "M";
+    private DateTime PatientDob = DateTime.Today.AddYears(-25);
+    private string CalculatedAgeText = "25 سنة";
+    private string PatientPhone = "";
+    private string ReferringDoctor = "";
+    private string ClinicalNotes = "";
+    private string PatientStepError = "";
+
+    // Step 2: Tests Modal
+    private bool IsStep2TestsModalOpen = false;
+    private IEnumerable<DepartmentDto>? Departments;
+    private List<TestCatalogDto>? AllCatalogTests;
+    private List<TestCatalogDto>? FilteredCatalogTests;
+    private string TestSearchFilter = "";
+    private string DepartmentFilter = "";
+    private HashSet<long> SelectedTestIds = new();
+    private List<TestCatalogDto> SelectedTests = new();
+    private decimal TotalPrice = 0;
+    private decimal DiscountAmount = 0;
+    private decimal NetAmount = 0;
+    private decimal PaidAmount = 0;
+    private decimal RemainingBalance => Math.Max(0, NetAmount - PaidAmount);
+    private string PaymentMethod = "Cash";
+    private string OrderStepError = "";
+    private bool IsSubmittingOrder = false;
+
+    // Specimen Grouping Info
+    public record TubeGroup(string SpecimenTypeName, int TestsCount);
+    private List<TubeGroup> EstimatedTubes = new();
+
+    // Order Details View & Billing Management State
+    private OrderDetailsDto? SelectedOrderDetails;
+    private bool IsLabelModalOpen = false;
+    private OrderDetailsDto? LabelModalOrder;
+    private dynamic? LabelModalSelectedSpecimen;
+    private string LabelModalMessage = "";
+    private bool IsDetailsPaymentBoxOpen = false;
+    private decimal DetailsPaymentAmount = 0;
+    private string DetailsPaymentMethod = "Cash";
+    private bool IsProcessingPayment = false;
+    private string DetailsAlertMessage = "";
+    private string DetailsAlertClass = "alert-success";
+    private long SelectedTestToAddId = 0;
+    private bool IsAddingTest = false;
+    private string AddTestSearchQuery = "";
+
+    private IEnumerable<TestCatalogDto> AddTestFilteredCatalog
+    {
+        get
+        {
+            if (AllCatalogTests == null) return Enumerable.Empty<TestCatalogDto>();
+            if (string.IsNullOrWhiteSpace(AddTestSearchQuery)) return AllCatalogTests;
+            var q = AddTestSearchQuery.Trim();
+            return AllCatalogTests.Where(t =>
+                (t.TestCode != null && t.TestCode.Contains(q, StringComparison.OrdinalIgnoreCase)) ||
+                (t.NameAr != null && t.NameAr.Contains(q, StringComparison.OrdinalIgnoreCase)) ||
+                (t.NameEn != null && t.NameEn.Contains(q, StringComparison.OrdinalIgnoreCase)) ||
+                (t.SpecimenTypeName != null && t.SpecimenTypeName.Contains(q, StringComparison.OrdinalIgnoreCase)));
+        }
+    }
+
+    private void ClearAddTestSearch()
+    {
+        AddTestSearchQuery = "";
+    }
+
+    private async Task HandleAddTestKeyDown(KeyboardEventArgs e)
+    {
+        if (e.Key == "Enter")
+        {
+            if (SelectedTestToAddId == 0)
+            {
+                var first = AddTestFilteredCatalog.FirstOrDefault();
+                if (first != null)
+                {
+                    SelectedTestToAddId = first.Id;
+                }
+            }
+            if (SelectedTestToAddId > 0)
+            {
+                await AddTestToCurrentOrder();
+            }
+        }
+    }
+    private bool IsReceiptModalOpen = false;
+    private LabSettingsDto? LabSettings;
+
+    protected override async Task OnInitializedAsync()
+    {
+        Prefs.OnChange += OnPrefsChanged;
+        await RefreshOrders();
+        Departments = await CatalogService.GetDepartmentsAsync();
+        AllCatalogTests = (await CatalogService.GetAllTestsAsync()).Where(t => t.Active).ToList();
+        FilteredCatalogTests = AllCatalogTests;
+    }
+
+    private async Task RefreshOrders()
+    {
+        try
+        {
+            var res = await OrderService.GetOrdersListAsync(
+                status: string.IsNullOrWhiteSpace(SelectedStatus) ? null : SelectedStatus,
+                date: SelectedDate,
+                query: string.IsNullOrWhiteSpace(SearchQuery) ? null : SearchQuery.Trim(),
+                limit: 150);
+
+            OrdersList = res.ToList();
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"[Orders Error] {ex.Message}");
+        }
+    }
+
+    private async Task FilterOrders()
+    {
+        await RefreshOrders();
+    }
+
+    private void StartNewOrderFlow()
+    {
+        ResetToNewPatient();
+        IsStep1PatientModalOpen = true;
+    }
+
+    private void CloseModals()
+    {
+        IsStep1PatientModalOpen = false;
+        IsStep2TestsModalOpen = false;
+    }
+
+    private async Task HandlePatientSearch()
+    {
+        if (PatientSearchQuery.Trim().Length < 2)
+        {
+            PatientSearchResults = null;
+            return;
+        }
+
+        try
+        {
+            var results = await PatientService.SearchPatientsAsync(PatientSearchQuery.Trim(), 10);
+            PatientSearchResults = results.ToList();
+        }
+        catch
+        {
+            PatientSearchResults = null;
+        }
+    }
+
+    private void ClearPatientSearch()
+    {
+        PatientSearchQuery = "";
+        PatientSearchResults = null;
+    }
+
+    private void SelectExistingPatient(Patient p)
+    {
+        SelectedExistingPatient = p;
+        PatientFullName = p.FullNameAr;
+        PatientSex = p.Sex ?? "M";
+        PatientDob = p.DateOfBirth;
+        PatientPhone = p.Phone ?? "";
+        UpdateCalculatedAge();
+        ClearPatientSearch();
+    }
+
+    private void ResetToNewPatient()
+    {
+        SelectedExistingPatient = null;
+        PatientFullName = "";
+        PatientSex = "M";
+        PatientDob = DateTime.Today.AddYears(-25);
+        PatientPhone = "";
+        ReferringDoctor = "";
+        ClinicalNotes = "";
+        PatientStepError = "";
+        UpdateCalculatedAge();
+        ClearPatientSearch();
+    }
+
+    private void UpdateCalculatedAge()
+    {
+        var ageInfo = PatientService.CalculateAge(PatientDob);
+        CalculatedAgeText = ageInfo.FormattedText;
+    }
+
+    private void ProceedToStep2TestSelection()
+    {
+        if (string.IsNullOrWhiteSpace(PatientFullName))
+        {
+            PatientStepError = "يرجى إدخال اسم المريض كاملاً بالعربية.";
+            return;
+        }
+
+        PatientStepError = "";
+        IsStep1PatientModalOpen = false;
+        IsStep2TestsModalOpen = true;
+
+        // Reset cart if empty
+        if (!SelectedTests.Any())
+        {
+            SelectedTestIds.Clear();
+            SelectedTests.Clear();
+            TotalPrice = 0;
+            DiscountAmount = 0;
+            NetAmount = 0;
+            PaidAmount = 0;
+        }
+        FilterAvailableTests();
+    }
+
+    private void BackToStep1()
+    {
+        IsStep2TestsModalOpen = false;
+        IsStep1PatientModalOpen = true;
+    }
+
+    private void FilterAvailableTests()
+    {
+        if (AllCatalogTests == null) return;
+        var q = AllCatalogTests.AsEnumerable();
+
+        if (!string.IsNullOrWhiteSpace(TestSearchFilter))
+        {
+            var s = TestSearchFilter.Trim();
+            q = q.Where(t => t.TestCode.Contains(s, StringComparison.OrdinalIgnoreCase) ||
+                             (t.NameAr != null && t.NameAr.Contains(s, StringComparison.OrdinalIgnoreCase)) ||
+                             (t.NameEn != null && t.NameEn.Contains(s, StringComparison.OrdinalIgnoreCase)));
+        }
+
+        if (long.TryParse(DepartmentFilter, out var deptId) && deptId > 0)
+        {
+            q = q.Where(t => t.DepartmentId == deptId);
+        }
+
+        FilteredCatalogTests = q.ToList();
+    }
+
+    private void ToggleTestSelection(TestCatalogDto test)
+    {
+        if (SelectedTestIds.Contains(test.Id))
+        {
+            RemoveSelectedTest(test.Id);
+        }
+        else
+        {
+            SelectedTestIds.Add(test.Id);
+            SelectedTests.Add(test);
+            RecalculateFinancials();
+        }
+    }
+
+    private void RemoveSelectedTest(long testId)
+    {
+        SelectedTestIds.Remove(testId);
+        SelectedTests.RemoveAll(t => t.Id == testId);
+        RecalculateFinancials();
+    }
+
+    private void RecalculateFinancials()
+    {
+        TotalPrice = SelectedTests.Sum(t => t.Price);
+        NetAmount = Math.Max(0, TotalPrice - DiscountAmount);
+        if (PaidAmount == 0 || PaidAmount > NetAmount)
+        {
+            PaidAmount = NetAmount;
+        }
+
+        // Estimate Tubes
+        EstimatedTubes = SelectedTests
+            .GroupBy(t => t.SpecimenTypeName ?? "عينة عامة")
+            .Select(g => new TubeGroup(g.Key, g.Count()))
+            .ToList();
+    }
+
+    private async Task FinalizeAndSaveOrder()
+    {
+        if (!SelectedTests.Any())
+        {
+            OrderStepError = "يرجى اختيار فحص واحد على الأقل للمتابعة.";
+            return;
+        }
+
+        IsSubmittingOrder = true;
+        OrderStepError = "";
+
+        try
+        {
+            // 1. Create or get patient
+            Patient? patient = SelectedExistingPatient;
+            if (patient == null)
+            {
+                patient = new Patient
+                {
+                    FullNameAr = PatientFullName.Trim(),
+                    Sex = PatientSex,
+                    DateOfBirth = PatientDob,
+                    Phone = string.IsNullOrWhiteSpace(PatientPhone) ? null : PatientPhone.Trim()
+                };
+
+                patient = await PatientService.CreatePatientAsync(patient, currentUserId: 1);
+            }
+
+            // 2. Create Order
+            var orderReq = new CreateOrderRequest
+            {
+                PatientId = patient.Id,
+                ReferringDoctor = string.IsNullOrWhiteSpace(ReferringDoctor) ? null : ReferringDoctor.Trim(),
+                ClinicalNotes = string.IsNullOrWhiteSpace(ClinicalNotes) ? null : ClinicalNotes.Trim(),
+                TestIds = SelectedTestIds.ToList(),
+                Discount = DiscountAmount,
+                InitialPayment = PaidAmount,
+                PaymentMethod = PaymentMethod
+            };
+
+            var createdOrder = await OrderService.CreateOrderAsync(orderReq, currentUserId: 1);
+
+            CloseModals();
+            await RefreshOrders();
+
+            // Open Order Details
+            SelectedOrderDetails = createdOrder;
+        }
+        catch (Exception ex)
+        {
+            OrderStepError = $"حدث خطأ أثناء حفظ الطلب: {ex.Message}";
+        }
+        finally
+        {
+            IsSubmittingOrder = false;
+        }
+    }
+
+    private async Task ViewOrderDetails(long orderId)
+    {
+        try
+        {
+            SelectedOrderDetails = await OrderService.GetOrderByIdAsync(orderId);
+            IsDetailsPaymentBoxOpen = false;
+            DetailsAlertMessage = "";
+            SelectedTestToAddId = 0;
+            if (LabSettings == null)
+            {
+                LabSettings = await LabSettingsService.GetSettingsAsync();
+            }
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"[Order Details Error] {ex.Message}");
+        }
+    }
+
+    private void ClearDetailsAlert()
+    {
+        DetailsAlertMessage = "";
+    }
+
+    private void ToggleDetailsPaymentBox()
+    {
+        if (SelectedOrderDetails?.Invoice != null)
+        {
+            DetailsPaymentAmount = SelectedOrderDetails.Invoice.Balance;
+            IsDetailsPaymentBoxOpen = !IsDetailsPaymentBoxOpen;
+            DetailsAlertMessage = "";
+        }
+    }
+
+    private async Task SubmitDetailsPayment()
+    {
+        if (SelectedOrderDetails?.Invoice == null) return;
+        if (DetailsPaymentAmount <= 0 || DetailsPaymentAmount > SelectedOrderDetails.Invoice.Balance)
+        {
+            DetailsAlertMessage = "يرجى إدخال مبلغ صحيح ضمن حدود المبلغ المتبقي.";
+            DetailsAlertClass = "alert-warning";
+            return;
+        }
+
+        IsProcessingPayment = true;
+        DetailsAlertMessage = "";
+
+        try
+        {
+            await BillingService.RecordPaymentAsync(
+                SelectedOrderDetails.Invoice.Id,
+                DetailsPaymentAmount,
+                DetailsPaymentMethod,
+                currentUserId: 1);
+
+            DetailsAlertClass = "alert-success";
+            DetailsAlertMessage = $"✅ تم تسديد مبلغ ({DetailsPaymentAmount:N0} د.ع) بنجاح!";
+            IsDetailsPaymentBoxOpen = false;
+
+            // Reload order details & main list
+            await ViewOrderDetails(SelectedOrderDetails.Order.Id);
+            await RefreshOrders();
+        }
+        catch (Exception ex)
+        {
+            DetailsAlertClass = "alert-danger";
+            DetailsAlertMessage = $"خطأ في تسجيل الدفعة: {ex.Message}";
+        }
+        finally
+        {
+            IsProcessingPayment = false;
+        }
+    }
+
+    private async Task AddTestToCurrentOrder()
+    {
+        if (SelectedOrderDetails == null || SelectedTestToAddId <= 0) return;
+
+        var selectedCatalogTest = AllCatalogTests?.FirstOrDefault(t => t.Id == SelectedTestToAddId);
+        string testName = selectedCatalogTest != null ? (selectedCatalogTest.NameAr ?? selectedCatalogTest.NameEn) : "";
+
+        IsAddingTest = true;
+        DetailsAlertMessage = "";
+
+        try
+        {
+            await OrderService.AddTestToOrderAsync(
+                SelectedOrderDetails.Order.Id,
+                SelectedTestToAddId,
+                existingSpecimenId: null,
+                currentUserId: 1);
+
+            DetailsAlertClass = "alert-success";
+            DetailsAlertMessage = $"✅ تمت إضافة فحص ({testName}) وتحديث الفاتورة والباركودات بنجاح.";
+            SelectedTestToAddId = 0;
+            AddTestSearchQuery = "";
+
+            // Reload order details & main list
+            await ViewOrderDetails(SelectedOrderDetails.Order.Id);
+            await RefreshOrders();
+        }
+        catch (Exception ex)
+        {
+            DetailsAlertClass = "alert-danger";
+            DetailsAlertMessage = $"خطأ أثناء إضافة الفحص: {ex.Message}";
+        }
+        finally
+        {
+            IsAddingTest = false;
+        }
+    }
+
+    private async Task RemoveTestFromCurrentOrder(long orderTestId, string testName)
+    {
+        if (SelectedOrderDetails == null) return;
+
+        DetailsAlertMessage = "";
+        try
+        {
+            await OrderService.RemoveTestFromOrderAsync(
+                SelectedOrderDetails.Order.Id,
+                orderTestId,
+                currentUserId: 1);
+
+            DetailsAlertClass = "alert-success";
+            DetailsAlertMessage = $"✅ تم حذف فحص ({testName}) وتعديل الفاتورة بنجاح.";
+
+            // Reload order details & main list
+            await ViewOrderDetails(SelectedOrderDetails.Order.Id);
+            await RefreshOrders();
+        }
+        catch (Exception ex)
+        {
+            DetailsAlertClass = "alert-danger";
+            DetailsAlertMessage = $"خطأ أثناء حذف الفحص: {ex.Message}";
+        }
+    }
+
+    private async Task CancelCurrentOrder()
+    {
+        if (SelectedOrderDetails == null) return;
+
+        DetailsAlertMessage = "";
+        try
+        {
+            await OrderService.CancelOrderAsync(SelectedOrderDetails.Order.Id, "إلغاء الطلب من قبل المستخدم", 1);
+            DetailsAlertClass = "alert-warning";
+            DetailsAlertMessage = "⚠️ تم إلغاء الطلب بالكامل وتحديث الحالة.";
+
+            // Reload order details & main list
+            await ViewOrderDetails(SelectedOrderDetails.Order.Id);
+            await RefreshOrders();
+        }
+        catch (Exception ex)
+        {
+            DetailsAlertClass = "alert-danger";
+            DetailsAlertMessage = $"خطأ أثناء إلغاء الطلب: {ex.Message}";
+        }
+    }
+
+    private async Task OpenReceiptModal()
+    {
+        if (LabSettings == null)
+        {
+            LabSettings = await LabSettingsService.GetSettingsAsync();
+        }
+        IsReceiptModalOpen = true;
+    }
+
+    private string GetTubeColor(string? tubeName)
+    {
+        if (string.IsNullOrWhiteSpace(tubeName)) return "#6c757d";
+        var t = tubeName.ToLower();
+        if (t.Contains("edta") || t.Contains("purple") || t.Contains("lavender")) return "#9333ea"; // Purple
+        if (t.Contains("serum") || t.Contains("gel") || t.Contains("red") || t.Contains("clot")) return "#ef4444"; // Red
+        if (t.Contains("citrate") || t.Contains("blue") || t.Contains("coag")) return "#3b82f6"; // Light Blue
+        if (t.Contains("heparin") || t.Contains("green")) return "#10b981"; // Green
+        if (t.Contains("glucose") || t.Contains("fluoride") || t.Contains("gray")) return "#6b7280"; // Gray
+        if (t.Contains("urine") || t.Contains("yellow")) return "#eab308"; // Yellow
+        return "#0284c7"; // Cyan
+    }
+
+    private static decimal ToDecimal(object? val)
+    {
+        if (val == null || val is DBNull) return 0m;
+        if (val is decimal d) return d;
+        if (decimal.TryParse(val.ToString(), out var parsed)) return parsed;
+        return 0m;
+    }
+
+    private static string FormatDateTime(object? val, string format = "dd/MM/yyyy HH:mm")
+    {
+        if (val == null || val is DBNull) return "--";
+        if (val is DateTime dt) return dt.ToString(format);
+        if (DateTime.TryParse(val.ToString(), out var parsed)) return parsed.ToString(format);
+        return "--";
+    }
+
+    private async Task PrintSilentReceipt()
+    {
+        if (SelectedOrderDetails == null) return;
+        try
+        {
+            var invoice = SelectedOrderDetails.Invoice;
+            var order = SelectedOrderDetails.Order;
+            var patient = SelectedOrderDetails.Patient;
+            var allTests = SelectedOrderDetails.Specimens.SelectMany(s => s.Tests).ToList();
+
+            var settings = LabSettings ?? await LabSettingsService.GetSettingsAsync();
+
+            var printData = new ReceiptPrintData
+            {
+                LabNameAr = settings.LabNameAr,
+                LabNameEn = settings.LabNameEn,
+                Address = settings.Address,
+                Phones = settings.Phones,
+                InvoiceNo = invoice?.InvoiceNo ?? order.Id,
+                OrderId = order.Id,
+                OrderDate = order.OrderDatetime,
+                PatientNameAr = patient.FullNameAr,
+                Mrn = patient.Mrn,
+                PatientPhone = patient.Phone,
+                Gender = patient.Sex == "F" ? "أنثى" : "ذكر",
+                CashierName = "المحاسب (الكاشير)",
+                PaymentMethod = "Cash",
+                TotalAmount = invoice?.Total ?? allTests.Sum(t => t.Price),
+                Discount = invoice?.Discount ?? 0,
+                NetAmount = invoice?.Net ?? allTests.Sum(t => t.Price),
+                PaidAmount = invoice?.Paid ?? 0,
+                BalanceDue = invoice?.Balance ?? 0,
+                Currency = "IQD",
+                Items = allTests.Select(t => new ReceiptItemData
+                {
+                    Code = t.TestCode,
+                    Name = t.NameAr ?? t.TestCode,
+                    Price = t.Price
+                }).ToList()
+            };
+
+            var res = await PrintService.PrintReceiptDirectAsync(printData);
+            if (res.Success)
+            {
+                DetailsAlertClass = "alert-success";
+                DetailsAlertMessage = res.Message;
+            }
+            else
+            {
+                DetailsAlertClass = "alert-danger";
+                DetailsAlertMessage = res.Message;
+            }
+        }
+        catch (Exception ex)
+        {
+            DetailsAlertClass = "alert-danger";
+            DetailsAlertMessage = $"فشل أمر الطباعة الصامتة للوصل: {ex.Message}";
+        }
+    }
+
+    private async Task OpenBarcodeModalForOrderId(long orderId)
+    {
+        try
+        {
+            var orderDetails = await OrderService.GetOrderByIdAsync(orderId);
+            if (orderDetails != null && orderDetails.Specimens.Any())
+            {
+                LabelModalOrder = orderDetails;
+                LabelModalSelectedSpecimen = orderDetails.Specimens.FirstOrDefault();
+                LabelModalMessage = "";
+                IsLabelModalOpen = true;
+            }
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"[OpenBarcodeModal Error] {ex.Message}");
+        }
+    }
+
+    private void OpenOrderBarcodeLabelsModal()
+    {
+        if (SelectedOrderDetails != null && SelectedOrderDetails.Specimens.Any())
+        {
+            LabelModalOrder = SelectedOrderDetails;
+            LabelModalSelectedSpecimen = SelectedOrderDetails.Specimens.FirstOrDefault();
+            LabelModalMessage = "";
+            IsLabelModalOpen = true;
+        }
+    }
+
+    private void OpenSingleSpecimenLabel(dynamic spec)
+    {
+        if (SelectedOrderDetails != null)
+        {
+            LabelModalOrder = SelectedOrderDetails;
+            LabelModalSelectedSpecimen = spec;
+            LabelModalMessage = "";
+            IsLabelModalOpen = true;
+        }
+    }
+
+    private async Task PrintAllOrderTubesSilent()
+    {
+        if (LabelModalOrder == null) return;
+        int printedCount = 0;
+        foreach (var spec in LabelModalOrder.Specimens)
+        {
+            try
+            {
+                var patient = LabelModalOrder.Patient;
+                var labelData = new SpecimenLabelData
+                {
+                    AccessionNo = (spec.Specimen.AccessionNo ?? "").ToString(),
+                    Mrn = patient.Mrn,
+                    PatientNameAr = patient.FullNameAr,
+                    DateOfBirth = patient.DateOfBirth,
+                    SpecimenTypeName = (spec.SpecimenTypeName ?? "Sample").ToString()
+                };
+                var res = await PrintService.PrintLabelDirectAsync(labelData);
+                if (res.Success) printedCount++;
+            }
+            catch
+            {
+                // continue next
+            }
+        }
+        LabelModalMessage = $"تم إرسال {printedCount} من أصل {LabelModalOrder.Specimens.Count} ملصق إلى طابعة الباركود بنجاح.";
+    }
+
+    private async Task PrintSilentTubeLabel(dynamic spec)
+    {
+        var currentOrder = SelectedOrderDetails ?? LabelModalOrder;
+        if (currentOrder == null || spec == null) return;
+        try
+        {
+            var patient = currentOrder.Patient;
+            var labelData = new SpecimenLabelData
+            {
+                AccessionNo = (spec.Specimen.AccessionNo ?? "").ToString(),
+                Mrn = patient.Mrn,
+                PatientNameAr = patient.FullNameAr,
+                DateOfBirth = patient.DateOfBirth,
+                SpecimenTypeName = (spec.SpecimenTypeName ?? "Sample").ToString()
+            };
+
+            var res = await PrintService.PrintLabelDirectAsync(labelData);
+            if (res.Success)
+            {
+                DetailsAlertClass = "alert-success";
+                DetailsAlertMessage = res.Message;
+                LabelModalMessage = res.Message;
+            }
+            else
+            {
+                DetailsAlertClass = "alert-danger";
+                DetailsAlertMessage = res.Message;
+                LabelModalMessage = res.Message;
+            }
+        }
+        catch (Exception ex)
+        {
+            DetailsAlertClass = "alert-danger";
+            DetailsAlertMessage = $"خطأ في طباعة ملصق الأنبوب: {ex.Message}";
+            LabelModalMessage = $"خطأ في طباعة ملصق الأنبوب: {ex.Message}";
+        }
+    }
+
+    private static string GetShortPatientName(string? fullName)
+    {
+        if (string.IsNullOrWhiteSpace(fullName)) return "--";
+        var parts = fullName.Trim().Split(' ', StringSplitOptions.RemoveEmptyEntries);
+        return parts.Length <= 2 ? fullName : $"{parts[0]} {parts[1]}";
+    }
+
+    private string GetStatusClass(string status) => status?.ToLower() switch
+    {
+        "ordered" => "badge-ordered",
+        "collected" => "badge-collected",
+        "inprogress" => "badge-inprogress",
+        "resultreceived" => "badge-resultreceived",
+        "validated" => "badge-validated",
+        "rejected" => "badge-rejected",
+        _ => "badge-secondary"
+    };
+
+    private static string GetStatusTextColor(string? status) => status?.ToLower() switch
+    {
+        "ordered" => "#3B82F6",          // Royal Blue
+        "collected" => "#8B5CF6",        // Purple
+        "inprogress" => "#F59E0B",       // Orange
+        "resultreceived" => "#06B6D4",   // Cyan / Teal
+        "validated" => "#10B981",        // Emerald Green
+        "rejected" => "#EF4444",         // Red
+        "cancelled" => "#64748B",        // Gray
+        _ => "#94A3B8"
+    };
+
+    private static string GetStatusIcon(string? status) => status?.ToLower() switch
+    {
+        "ordered" => "fas fa-clock",
+        "collected" => "fas fa-inbox",
+        "inprogress" => "fas fa-spinner fa-spin",
+        "resultreceived" => "fas fa-file-medical",
+        "validated" => "fas fa-check-circle",
+        "rejected" => "fas fa-ban",
+        "cancelled" => "fas fa-times-circle",
+        _ => "fas fa-circle"
+    };
+
+    private static string FormatGender(object? sexObj)
+    {
+        var s = sexObj?.ToString()?.Trim().ToUpper();
+        return s switch
+        {
+            "M" or "MALE" or "ذكر" => "M",
+            "F" or "FEMALE" or "أنثى" => "F",
+            _ => "--"
+        };
+    }
+
+    private static string FormatAge(object? dobObj)
+    {
+        if (dobObj == null || dobObj is DBNull) return "--";
+        DateTime dob;
+        if (dobObj is DateTime dt) dob = dt;
+        else if (!DateTime.TryParse(dobObj.ToString(), out dob)) return "--";
+
+        var today = DateTime.Today;
+        int years = today.Year - dob.Year;
+        if (dob.Date > today.AddYears(-years)) years--;
+
+        if (years >= 2) return $"{years}";
+        
+        int months = (today.Year - dob.Year) * 12 + today.Month - dob.Month;
+        if (today.Day < dob.Day) months--;
+        if (months > 0) return $"{months}m";
+
+        int days = (today - dob).Days;
+        return $"{Math.Max(1, days)}d";
+    }
+
+    private void OnPrefsChanged() => InvokeAsync(StateHasChanged);
+
+    public void Dispose()
+    {
+        Prefs.OnChange -= OnPrefsChanged;
+    }
+}

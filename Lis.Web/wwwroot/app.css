@@ -1,0 +1,781 @@
+/* ═══════════════════════════════════════════════════════════════
+   LIS Web - Laboratory Information System Styling (MDBootstrap Admin)
+   Comprehensive Color Harmony & Luxury Dark/Light Theming
+   ═══════════════════════════════════════════════════════════════ */
+
+@font-face {
+    font-family: 'ButrosAsma';
+    src: url('/fonts/boutrosAsma.ttf') format('truetype');
+    font-weight: normal;
+    font-style: normal;
+    font-display: swap;
+}
+
+@font-face {
+    font-family: 'BoutrosAsma';
+    src: url('/fonts/boutrosAsma.ttf') format('truetype');
+    font-weight: normal;
+    font-style: normal;
+    font-display: swap;
+}
+
+@font-face {
+    font-family: 'Boutros Asma';
+    src: url('/fonts/boutrosAsma.ttf') format('truetype');
+    font-weight: normal;
+    font-style: normal;
+    font-display: swap;
+}
+
+.medical-report-container {
+    font-family: 'ButrosAsma', 'BoutrosAsma', 'Boutros Asma', 'Segoe UI', Tahoma, Arial, sans-serif !important;
+    direction: ltr !important;
+    text-align: left !important;
+}
+
+:root, [data-mdb-theme="dark"] {
+    --bg-main: #0F1222;
+    --bg-sidebar: #15182C;
+    --bg-card: #1A1D36;
+    --bg-card-hover: #222646;
+    --bg-input: #14172B;
+    --border-color: rgba(255, 255, 255, 0.08);
+    --border-subtle: rgba(255, 255, 255, 0.05);
+    --text-primary: #F8FAFC;
+    --text-secondary: #94A3B8;
+    --text-muted: #64748B;
+    --accent: #3B82F6;
+    --accent-hover: #2563EB;
+    --success: #10B981;
+    --warning: #F59E0B;
+    --danger: #EF4444;
+    --ribbon-bg: linear-gradient(135deg, #181B34 0%, #262B4E 100%);
+    --card-shadow: 0 10px 25px rgba(0, 0, 0, 0.35);
+    
+    /* Table variable overrides for MDB/Bootstrap - Completely eliminating muddy grey */
+    --bs-table-bg: transparent;
+    --bs-table-color: #F8FAFC;
+    --bs-table-striped-bg: transparent;
+    --bs-table-hover-bg: rgba(59, 130, 246, 0.06);
+    --mdb-table-bg: transparent;
+    --mdb-table-color: #F8FAFC;
+    --mdb-table-hover-bg: rgba(59, 130, 246, 0.06);
+}
+
+/* ═══════════════════════════════════════════════════════════════
+   LIGHT THEME SUPPORT (Matches MDBootstrap White Admin Dashboard)
+   ═══════════════════════════════════════════════════════════════ */
+[data-mdb-theme="light"], .lis-light-theme {
+    --bg-main: #F4F6FB;
+    --bg-sidebar: #FFFFFF;
+    --bg-card: #FFFFFF;
+    --bg-card-hover: #F8FAFC;
+    --bg-input: #FFFFFF;
+    --border-color: #E2E8F0;
+    --border-subtle: #F1F5F9;
+    --text-primary: #0F172A;
+    --text-secondary: #475569;
+    --text-muted: #64748B;
+    --accent: #2563EB;
+    --accent-hover: #1D4ED8;
+    --ribbon-bg: linear-gradient(135deg, #9bbde6 0%, #c4d9f3 100%);
+    --card-shadow: 0 4px 20px rgba(0, 0, 0, 0.04);
+    
+    --bs-table-bg: transparent;
+    --bs-table-color: #0F172A;
+    --bs-table-striped-bg: transparent;
+    --bs-table-hover-bg: #F8FAFC;
+    --mdb-table-bg: transparent;
+    --mdb-table-color: #0F172A;
+    --mdb-table-hover-bg: #F8FAFC;
+}
+
+/* Light Theme Navigation & Topbar */
+[data-mdb-theme="light"] .lis-topbar {
+    background: #FFFFFF !important;
+    border-color: #E2E8F0 !important;
+    box-shadow: 0 2px 10px rgba(0, 0, 0, 0.03);
+}
+
+[data-mdb-theme="light"] .lis-sidebar {
+    background: #FFFFFF !important;
+    border-color: #E2E8F0 !important;
+}
+
+[data-mdb-theme="light"] .nav-link-lis {
+    color: #475569 !important;
+}
+
+[data-mdb-theme="light"] .nav-link-lis:hover {
+    background: #F1F5F9 !important;
+    color: #0F172A !important;
+}
+
+[data-mdb-theme="light"] .nav-link-lis.active {
+    background: #EFF6FF !important;
+    color: #2563EB !important;
+    border-left: 3px solid #2563EB !important;
+    font-weight: 700 !important;
+}
+
+[data-mdb-theme="light"] .nav-category-header {
+    color: #94A3B8 !important;
+}
+
+[data-mdb-theme="light"] .lis-sidenav-search input {
+    background: #F8FAFC !important;
+    border-color: #E2E8F0 !important;
+    color: #0F172A !important;
+}
+
+/* Automatic harmonization for elements with text-white in light mode */
+[data-mdb-theme="light"] .card .text-white,
+[data-mdb-theme="light"] .modal-content .text-white,
+[data-mdb-theme="light"] .table .text-white,
+[data-mdb-theme="light"] h1.text-white,
+[data-mdb-theme="light"] h2.text-white,
+[data-mdb-theme="light"] h3.text-white,
+[data-mdb-theme="light"] h4.text-white,
+[data-mdb-theme="light"] h5.text-white,
+[data-mdb-theme="light"] h6.text-white {
+    color: #0F172A !important;
+}
+
+/* Harmonization for bg-dark & border-secondary in Light Mode */
+[data-mdb-theme="light"] .bg-dark,
+.lis-light-theme .bg-dark {
+    background-color: #F8FAFC !important;
+    color: #0F172A !important;
+}
+
+[data-mdb-theme="light"] .border-secondary,
+.lis-light-theme .border-secondary {
+    border-color: #E2E8F0 !important;
+}
+
+[data-mdb-theme="light"] .card,
+.lis-light-theme .card {
+    background-color: #FFFFFF !important;
+    border-color: #E2E8F0 !important;
+    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.04) !important;
+}
+
+[data-mdb-theme="light"] .modal-content,
+.lis-light-theme .modal-content {
+    background-color: #FFFFFF !important;
+    border-color: #E2E8F0 !important;
+    color: #0F172A !important;
+}
+
+[data-mdb-theme="light"] .modal-header,
+[data-mdb-theme="light"] .modal-footer,
+.lis-light-theme .modal-header,
+.lis-light-theme .modal-footer {
+    border-color: #E2E8F0 !important;
+}
+
+[data-mdb-theme="light"] .btn-close-white,
+.lis-light-theme .btn-close-white {
+    filter: invert(1) grayscale(100%) brightness(20%) !important;
+}
+
+[data-mdb-theme="light"] .form-control,
+[data-mdb-theme="light"] .form-select,
+.lis-light-theme .form-control,
+.lis-light-theme .form-select {
+    background-color: #FFFFFF !important;
+    border-color: #CBD5E1 !important;
+    color: #0F172A !important;
+}
+
+[data-mdb-theme="light"] .form-control:focus,
+[data-mdb-theme="light"] .form-select:focus,
+.lis-light-theme .form-control:focus,
+.lis-light-theme .form-select:focus {
+    background-color: #FFFFFF !important;
+    border-color: #2563EB !important;
+    box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.15) !important;
+    color: #0F172A !important;
+}
+
+[data-mdb-theme="light"] .input-group-text,
+.lis-light-theme .input-group-text {
+    background-color: #F8FAFC !important;
+    border-color: #CBD5E1 !important;
+    color: #64748B !important;
+}
+
+[data-mdb-theme="light"] .list-group-item,
+.lis-light-theme .list-group-item {
+    background-color: #FFFFFF !important;
+    color: #0F172A !important;
+    border-color: #E2E8F0 !important;
+}
+
+[data-mdb-theme="light"] .list-group-item-action:hover,
+.lis-light-theme .list-group-item-action:hover {
+    background-color: #F1F5F9 !important;
+}
+
+/* Harmonization for Dark Mode */
+[data-mdb-theme="dark"] .bg-dark,
+.lis-dark-theme .bg-dark {
+    background-color: #15182C !important;
+    color: #F8FAFC !important;
+}
+
+[data-mdb-theme="dark"] .border-secondary,
+.lis-dark-theme .border-secondary {
+    border-color: rgba(255, 255, 255, 0.08) !important;
+}
+
+/* ═══════════════════════════════════════════════════════════════
+   BUTTONS HARMONIZATION (Both Themes)
+   ═══════════════════════════════════════════════════════════════ */
+.btn {
+    border-radius: 8px;
+    min-height: 35px;
+    font-weight: 600;
+    font-size: 13px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 7px;
+    padding: 6px 14px;
+    transition: all 0.2s ease;
+    cursor: pointer;
+}
+.btn-sm {
+    min-height: 28px;
+    font-size: 11.5px;
+    padding: 3px 9px;
+}
+
+.btn-primary {
+    background-color: #2563EB !important;
+    border-color: #2563EB !important;
+    color: #FFFFFF !important;
+    box-shadow: 0 4px 10px rgba(37, 99, 235, 0.25);
+}
+.btn-primary:hover {
+    background-color: #1D4ED8 !important;
+    border-color: #1D4ED8 !important;
+    color: #FFFFFF !important;
+}
+
+.btn-success {
+    background-color: #10B981 !important;
+    border-color: #10B981 !important;
+    color: #FFFFFF !important;
+    box-shadow: 0 4px 10px rgba(16, 185, 129, 0.2);
+}
+.btn-success:hover {
+    background-color: #059669 !important;
+    border-color: #059669 !important;
+    color: #FFFFFF !important;
+}
+
+.btn-danger {
+    background-color: #EF4444 !important;
+    border-color: #EF4444 !important;
+    color: #FFFFFF !important;
+}
+.btn-danger:hover {
+    background-color: #DC2626 !important;
+    border-color: #DC2626 !important;
+    color: #FFFFFF !important;
+}
+
+.btn-info {
+    background-color: #0284C7 !important;
+    border-color: #0284C7 !important;
+    color: #FFFFFF !important;
+}
+
+.btn-warning {
+    background-color: #F59E0B !important;
+    border-color: #F59E0B !important;
+    color: #1E293B !important;
+}
+
+/* Secondary / Outline Buttons */
+[data-mdb-theme="dark"] .btn-outline-secondary {
+    background-color: rgba(255, 255, 255, 0.05) !important;
+    border: 1px solid rgba(255, 255, 255, 0.15) !important;
+    color: #E2E8F0 !important;
+}
+[data-mdb-theme="dark"] .btn-outline-secondary:hover {
+    background-color: rgba(255, 255, 255, 0.12) !important;
+    border-color: rgba(255, 255, 255, 0.25) !important;
+    color: #FFFFFF !important;
+}
+
+[data-mdb-theme="light"] .btn-outline-secondary {
+    background-color: #FFFFFF !important;
+    border: 1px solid #CBD5E1 !important;
+    color: #334155 !important;
+}
+[data-mdb-theme="light"] .btn-outline-secondary:hover {
+    background-color: #F1F5F9 !important;
+    border-color: #94A3B8 !important;
+    color: #0F172A !important;
+}
+
+[data-mdb-theme="dark"] .btn-outline-primary {
+    border: 1px solid #3B82F6 !important;
+    color: #60A5FA !important;
+    background: transparent !important;
+}
+[data-mdb-theme="dark"] .btn-outline-primary:hover {
+    background: #3B82F6 !important;
+    color: #FFFFFF !important;
+}
+
+[data-mdb-theme="light"] .btn-outline-primary {
+    border: 1px solid #2563EB !important;
+    color: #2563EB !important;
+    background: transparent !important;
+}
+[data-mdb-theme="light"] .btn-outline-primary:hover {
+    background: #2563EB !important;
+    color: #FFFFFF !important;
+}
+
+/* ═══════════════════════════════════════════════════════════════
+   TABLES HARMONIZATION (Zero Grey, Seamless Background)
+   ═══════════════════════════════════════════════════════════════ */
+.table,
+.lis-table,
+.table > :not(caption) > * > *,
+.lis-table > :not(caption) > * > * {
+    --bs-table-bg: transparent !important;
+    --mdb-table-bg: transparent !important;
+    --bs-table-color: inherit !important;
+    --mdb-table-color: inherit !important;
+    background-color: transparent !important;
+    color: inherit !important;
+    box-shadow: none !important;
+}
+
+/* Dark Mode Table */
+[data-mdb-theme="dark"] .table,
+[data-mdb-theme="dark"] .lis-table {
+    color: #F8FAFC !important;
+}
+
+[data-mdb-theme="dark"] .table thead th,
+[data-mdb-theme="dark"] .lis-table thead th {
+    background-color: rgba(255, 255, 255, 0.025) !important;
+    color: #94A3B8 !important;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.08) !important;
+    font-size: 11.5px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    padding: 9px 12px;
+    white-space: nowrap;
+}
+
+[data-mdb-theme="dark"] .table tbody td,
+[data-mdb-theme="dark"] .lis-table tbody td {
+    background-color: transparent !important;
+    color: #E2E8F0 !important;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.05) !important;
+    font-size: 13px;
+    padding: 9px 12px;
+    vertical-align: middle;
+}
+
+[data-mdb-theme="dark"] .table-hover > tbody > tr:hover > *,
+[data-mdb-theme="dark"] .table tbody tr:hover,
+[data-mdb-theme="dark"] .lis-table tbody tr:hover {
+    --bs-table-hover-bg: rgba(59, 130, 246, 0.06) !important;
+    --mdb-table-hover-bg: rgba(59, 130, 246, 0.06) !important;
+    background-color: rgba(59, 130, 246, 0.06) !important;
+}
+
+/* Light Mode Table */
+[data-mdb-theme="light"] .table,
+[data-mdb-theme="light"] .lis-table {
+    color: #0F172A !important;
+}
+
+[data-mdb-theme="light"] .table thead th,
+[data-mdb-theme="light"] .lis-table thead th {
+    background-color: #F8FAFC !important;
+    color: #475569 !important;
+    border-bottom: 2px solid #E2E8F0 !important;
+    font-size: 11.5px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    padding: 9px 12px;
+    white-space: nowrap;
+}
+
+[data-mdb-theme="light"] .table tbody td,
+[data-mdb-theme="light"] .lis-table tbody td {
+    background-color: transparent !important;
+    color: #0F172A !important;
+    border-bottom: 1px solid #EDF2F7 !important;
+    font-size: 13px;
+    padding: 9px 12px;
+    vertical-align: middle;
+}
+
+[data-mdb-theme="light"] .table-hover > tbody > tr:hover > *,
+[data-mdb-theme="light"] .table tbody tr:hover,
+[data-mdb-theme="light"] .lis-table tbody tr:hover {
+    --bs-table-hover-bg: #F8FAFC !important;
+    --mdb-table-hover-bg: #F8FAFC !important;
+    background-color: #F8FAFC !important;
+}
+
+/* ═══════════════════════════════════════════════════════════════
+   FORM CONTROLS (Inputs & Selects)
+   ═══════════════════════════════════════════════════════════════ */
+.form-control, .form-select {
+    background-color: var(--bg-input) !important;
+    border: 1px solid var(--border-color) !important;
+    color: var(--text-primary) !important;
+    border-radius: 8px;
+    min-height: 36px;
+    font-size: 13px;
+    font-family: inherit;
+    padding: 6px 12px;
+}
+
+.form-control-sm, .form-select-sm {
+    min-height: 30px;
+    font-size: 11.5px;
+    padding: 3px 8px;
+}
+
+.form-control:focus, .form-select:focus {
+    border-color: #3B82F6 !important;
+    box-shadow: 0 0 0 0.2rem rgba(59, 130, 246, 0.25) !important;
+}
+
+.form-control::placeholder {
+    color: var(--text-muted);
+}
+
+/* ═══════════════════════════════════════════════════════════════
+   MDB ADMIN DASHBOARD SPECIFIC COMPONENTS
+   ═══════════════════════════════════════════════════════════════ */
+
+/* Ribbon Hero Banner */
+.mdb-hero-ribbon {
+    height: 120px;
+    background: var(--ribbon-bg);
+    border-radius: 0 0 16px 16px;
+    margin: -1.5rem -1.5rem 0 -1.5rem;
+    padding: 1.5rem;
+    position: relative;
+    transition: all 0.3s ease;
+}
+
+/* Floating Dashboard Header Card */
+.mdb-dashboard-header-card {
+    background: var(--bg-card);
+    border: 1px solid var(--border-color);
+    border-radius: 16px;
+    box-shadow: var(--card-shadow);
+    padding: 24px 28px;
+    margin-top: -65px;
+    margin-bottom: 24px;
+    position: relative;
+    z-index: 5;
+    transition: all 0.3s ease;
+}
+
+/* MDB Analytics Card */
+.mdb-analytics-card {
+    background: var(--bg-card);
+    border: 1px solid var(--border-color);
+    border-radius: 16px;
+    box-shadow: var(--card-shadow);
+    padding: 24px;
+    margin-bottom: 24px;
+    transition: all 0.3s ease;
+}
+
+/* MDB Gradient Logo */
+.mdb-logo-text {
+    font-weight: 900;
+    font-size: 26px;
+    letter-spacing: -1px;
+    background: linear-gradient(135deg, #2563EB 0%, #7C3AED 100%);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+}
+
+/* Sidenav Category Header */
+.nav-category-header {
+    font-size: 10.5px;
+    font-weight: 800;
+    text-transform: uppercase;
+    letter-spacing: 0.8px;
+    color: var(--text-muted);
+    padding: 14px 16px 6px 16px;
+    display: block;
+}
+
+/* Metric Pill Trend */
+.trend-pill {
+    font-size: 11px;
+    font-weight: 700;
+    padding: 2px 6px;
+    border-radius: 6px;
+    display: inline-flex;
+    align-items: center;
+    gap: 3px;
+}
+.trend-up {
+    color: #10B981;
+    background: rgba(16, 185, 129, 0.12);
+}
+.trend-down {
+    color: #EF4444;
+    background: rgba(239, 68, 68, 0.12);
+}
+
+/* Wave Charts Responsive Container */
+.svg-chart-container {
+    width: 100%;
+    overflow: hidden;
+    position: relative;
+}
+.svg-chart-container svg {
+    width: 100%;
+    height: auto;
+    display: block;
+}
+
+/* ═══════════════════════════════════════════════════════════════
+   COMPACT DENSITY MODE (For Laptop & Ultra-Dense Views)
+   ═══════════════════════════════════════════════════════════════ */
+[data-lis-density="compact"] .table td,
+[data-lis-density="compact"] .table th,
+[data-lis-density="compact"] .lis-table td,
+[data-lis-density="compact"] .lis-table th {
+    padding: 6px 8px !important;
+    font-size: 12px !important;
+}
+
+[data-lis-density="compact"] .card,
+[data-lis-density="compact"] .lis-card,
+[data-lis-density="compact"] .mdb-analytics-card {
+    padding: 12px 16px !important;
+    margin-bottom: 12px !important;
+}
+
+[data-lis-density="compact"] .form-control,
+[data-lis-density="compact"] .form-select,
+[data-lis-density="compact"] .btn {
+    min-height: 32px !important;
+    font-size: 12.5px !important;
+    padding: 4px 10px !important;
+}
+
+* {
+    box-sizing: border-box;
+}
+
+html, body {
+    font-family: 'Cairo', 'BoutrosAsma', 'Segoe UI', Tahoma, Arial, sans-serif;
+    font-size: 13px;
+    line-height: 1.5;
+    direction: ltr;
+    text-align: left;
+    background-color: var(--bg-main);
+    color: var(--text-primary);
+    margin: 0;
+    padding: 0;
+    min-height: 100vh;
+}
+
+h1, .h1 { font-size: 1.5rem; }
+h2, .h2 { font-size: 1.35rem; }
+h3, .h3 { font-size: 1.2rem; }
+h4, .h4 { font-size: 1.1rem; }
+h5, .h5 { font-size: 1rem; }
+h6, .h6 { font-size: 0.9rem; }
+
+/* Scrollbars */
+::-webkit-scrollbar {
+    width: 6px;
+    height: 6px;
+}
+::-webkit-scrollbar-track {
+    background: var(--bg-sidebar);
+}
+::-webkit-scrollbar-thumb {
+    background: rgba(255, 255, 255, 0.15);
+    border-radius: 4px;
+}
+::-webkit-scrollbar-thumb:hover {
+    background: var(--accent);
+}
+
+/* Modern Card - Extending MDBootstrap Card */
+.card, .lis-card {
+    background: var(--bg-card);
+    border: 1px solid var(--border-color);
+    border-radius: 12px;
+    padding: 18px;
+    margin-bottom: 20px;
+    box-shadow: var(--card-shadow);
+}
+
+/* Badges */
+.badge-status {
+    padding: 5px 10px;
+    border-radius: 6px;
+    font-size: 11.5px;
+    font-weight: 700;
+    display: inline-block;
+}
+.badge-ordered { background: #3B82F6; color: #FFF; }
+.badge-collected { background: #8B5CF6; color: #FFF; }
+.badge-inprogress { background: #F59E0B; color: #000; }
+.badge-resultreceived { background: #06B6D4; color: #000; }
+.badge-validated { background: #10B981; color: #FFF; }
+.badge-rejected { background: #EF4444; color: #FFF; }
+
+/* Quick Action Buttons in Table */
+.btn-action-icon {
+    min-height: 30px;
+    width: 30px;
+    padding: 0;
+    font-size: 12.5px;
+    border-radius: 6px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+}
+
+/* Layout Wrappers */
+.lis-app-wrapper {
+    display: flex;
+    min-height: 100vh;
+    background-color: var(--bg-main);
+}
+
+.lis-sidebar {
+    width: 260px;
+    min-width: 260px;
+    background-color: var(--bg-sidebar);
+    border-right: 1px solid var(--border-color);
+    display: flex;
+    flex-direction: column;
+    position: fixed;
+    top: 0;
+    bottom: 0;
+    left: 0;
+    z-index: 1020;
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.lis-main-content {
+    flex: 1;
+    margin-left: 260px;
+    display: flex;
+    flex-direction: column;
+    min-height: 100vh;
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    background-color: var(--bg-main);
+}
+
+.lis-topbar {
+    background-color: var(--bg-sidebar);
+    border-bottom: 1px solid var(--border-color);
+    position: sticky;
+    top: 0;
+    z-index: 1010;
+    height: 60px;
+    transition: all 0.3s ease;
+}
+
+.lis-body-container {
+    flex: 1;
+    padding: 1.5rem;
+}
+
+/* Modals */
+.modal-content {
+    background: var(--bg-card);
+    border: 1px solid var(--border-color);
+    box-shadow: 0 10px 40px rgba(0, 0, 0, 0.5);
+    border-radius: 14px;
+}
+.modal-header {
+    border-bottom: 1px solid var(--border-color);
+}
+.modal-footer {
+    border-top: 1px solid var(--border-color);
+}
+
+/* ═══════════════════════════════════════════════════════════════
+   PRINT MEDIA RULES (Silent & Clean Browser Printing)
+   ═══════════════════════════════════════════════════════════════ */
+@media print {
+    .sidebar,
+    .nav-menu,
+    .navbar,
+    .modal-backdrop,
+    .btn,
+    .btn-close,
+    .no-print,
+    header,
+    footer,
+    button {
+        display: none !important;
+    }
+
+    html, body {
+        background-color: #FFFFFF !important;
+        color: #000000 !important;
+        margin: 0 !important;
+        padding: 0 !important;
+        height: auto !important;
+        min-height: auto !important;
+    }
+
+    .modal {
+        position: static !important;
+        display: block !important;
+        background: none !important;
+        backdrop-filter: none !important;
+        padding: 0 !important;
+        margin: 0 !important;
+    }
+
+    .modal-dialog {
+        max-width: 100% !important;
+        width: 100% !important;
+        margin: 0 !important;
+        padding: 0 !important;
+    }
+
+    .modal-content {
+        border: none !important;
+        box-shadow: none !important;
+        background: #FFFFFF !important;
+    }
+
+    .modal-header,
+    .modal-footer {
+        display: none !important;
+    }
+
+    .modal-body {
+        padding: 0 !important;
+        margin: 0 !important;
+        overflow: visible !important;
+    }
+
+    @page {
+        margin: 0mm;
+    }
+}

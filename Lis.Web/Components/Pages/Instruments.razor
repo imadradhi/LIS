@@ -1,0 +1,766 @@
+@page "/instruments"
+@inject IDbConnectionFactory ConnectionFactory
+@inject IAuthService AuthService
+@inject NavigationManager NavManager
+@inject UserPreferencesService Prefs
+@implements IDisposable
+
+<PageTitle>@Prefs.T("أجهزة التحليل الطبي - LIS Web", "Instruments & Analyzers - LIS Web")</PageTitle>
+
+<!-- Top Title Bar -->
+<div class="d-flex align-items-center justify-content-between mb-4 flex-wrap gap-2">
+    <div>
+        <h3 class="fw-bold text-white mb-1 d-flex align-items-center gap-2">
+            <i class="fas fa-network-wired text-info"></i>
+            <span>@Prefs.T("أجهزة التحليل الطبي (Instruments & Analyzers)", "Laboratory Instruments & Analyzers")</span>
+        </h3>
+        <p class="text-secondary mb-0 small">
+            @Prefs.T("إدارة أجهزة التحليل المتصلة بالمختبر، وضبط إعدادات منافذ الشبكة (TCP/IP) والاتصال التسلسلي (RS-232)", "Manage connected analyzers, configure TCP/IP network ports and RS-232 serial interfaces.")
+        </p>
+    </div>
+    <div class="d-flex gap-2">
+        <button class="btn btn-success fw-bold px-3" data-mdb-ripple-init @onclick="NewInstrumentForm">
+            <i class="fas fa-plus me-1"></i> @Prefs.T("جهاز جديد", "New Instrument")
+        </button>
+    </div>
+</div>
+
+<!-- Global Alert Message -->
+@if (!string.IsNullOrEmpty(AlertMessage))
+{
+    <div class="alert @AlertClass py-2 px-3 mb-4 d-flex justify-content-between align-items-center shadow">
+        <span>@AlertMessage</span>
+        <button type="button" class="btn-close btn-close-white small" @onclick="ClearAlert"></button>
+    </div>
+}
+
+<div class="row g-4">
+    <!-- Left Column: Instruments List (col-xxl-7 / col-xl-7 / col-12) -->
+    <div class="col-xxl-7 col-xl-7 col-12">
+        <div class="card p-0 border-0 shadow-2-strong overflow-hidden" style="background: var(--bg-card);">
+            <div class="p-3 border-bottom border-secondary d-flex justify-content-between align-items-center bg-dark">
+                <div class="d-flex align-items-center gap-2">
+                    <i class="fas fa-microscope text-info fs-5"></i>
+                    <h6 class="fw-bold text-white mb-0">@Prefs.T("الأجهزة المعرفة بالمختبر", "Configured Instruments")</h6>
+                </div>
+                <span class="badge bg-info text-dark fw-bold">@(InstrumentsList?.Count ?? 0) @Prefs.T("جهاز", "Analyzers")</span>
+            </div>
+
+            @if (InstrumentsList == null)
+            {
+                <div class="text-center py-5 text-secondary">
+                    <div class="spinner-border spinner-border-sm text-info mb-2"></div>
+                    <div>@Prefs.T("جاري تحميل قائمة الأجهزة...", "Loading instruments list...")</div>
+                </div>
+            }
+            else if (!InstrumentsList.Any())
+            {
+                <div class="text-center py-5 text-secondary">
+                    <i class="fas fa-satellite-dish fa-3x mb-3 text-secondary"></i>
+                    <div>@Prefs.T("لا توجد أجهزة معرفة حتى الآن. انقر على \"جهاز جديد\" لإضافة أول جهاز تحليل.", "No instruments configured yet. Click \"New Instrument\" to add your first analyzer.")</div>
+                </div>
+            }
+            else
+            {
+                <div class="table-responsive" style="max-height: 72vh; overflow-y: auto;">
+                    <table class="table table-hover align-middle mb-0" style="color: var(--text-main);">
+                        <thead class="table-dark">
+                            <tr>
+                                <th>@Prefs.T("كود الجهاز", "Instrument Code")</th>
+                                <th>@Prefs.T("اسم الجهاز", "Instrument Name")</th>
+                                <th>@Prefs.T("البروتوكول", "Protocol")</th>
+                                <th>@Prefs.T("نوع الاتصال", "Connection")</th>
+                                <th>@Prefs.T("المنفذ / العنوان", "Port / Address")</th>
+                                <th>@Prefs.T("الحالة", "Status")</th>
+                                <th class="text-center">@Prefs.T("إجراءات", "Actions")</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            @foreach (var inst in InstrumentsList)
+                            {
+                                bool isSelected = SelectedInstrument?.Id == inst.Id;
+                                <tr class="@(isSelected ? "table-primary" : "")" style="cursor: pointer;" @onclick="() => SelectInstrument(inst)">
+                                    <td class="fw-bold text-info" style="font-family: monospace;">@inst.Code</td>
+                                    <td>
+                                        <div class="fw-bold text-white">@inst.Name</div>
+                                        <div class="small text-secondary">@inst.OperatingMode</div>
+                                    </td>
+                                    <td>
+                                        <span class="badge bg-dark border border-secondary text-white">@inst.Protocol</span>
+                                    </td>
+                                    <td>
+                                        <span class="badge @(inst.ConnectionType == "TCP" ? "bg-primary" : "bg-warning text-dark")">
+                                            @(inst.ConnectionType == "TCP" ? "TCP/IP" : "RS-232")
+                                        </span>
+                                    </td>
+                                    <td style="font-family: monospace;" class="text-info">
+                                        @inst.PortDisplay
+                                    </td>
+                                    <td>
+                                        @if (inst.Active)
+                                        {
+                                            <span class="badge bg-success bg-opacity-25 text-success border border-success">
+                                                <i class="fas fa-check-circle me-1"></i> @Prefs.T("مفعل", "Active")
+                                            </span>
+                                        }
+                                        else
+                                        {
+                                            <span class="badge bg-danger bg-opacity-25 text-danger border border-danger">
+                                                <i class="fas fa-ban me-1"></i> @Prefs.T("معطل", "Disabled")
+                                            </span>
+                                        }
+                                    </td>
+                                    <td class="text-center">
+                                        <div class="d-flex align-items-center justify-content-center gap-1">
+                                            <button class="btn btn-sm btn-outline-info py-0 px-2" data-mdb-ripple-init title="@Prefs.T("تعديل الإعدادات", "Edit Settings")" @onclick:stopPropagation="true" @onclick="() => SelectInstrument(inst)">
+                                                <i class="fas fa-pen-to-square"></i>
+                                            </button>
+                                            <button class="btn btn-sm btn-outline-danger py-0 px-2" data-mdb-ripple-init title="@Prefs.T("حذف الجهاز نهائياً", "Delete Instrument")" @onclick:stopPropagation="true" @onclick="() => DeleteInstrument(inst.Id, inst.Name)">
+                                                <i class="fas fa-trash-can"></i>
+                                            </button>
+                                        </div>
+                                    </td>
+                                </tr>
+                            }
+                        </tbody>
+                    </table>
+                </div>
+            }
+        </div>
+    </div>
+
+    <!-- Right Column: Instrument Configuration Form (col-xxl-5 / col-xl-5 / col-12) -->
+    <div class="col-xxl-5 col-xl-5 col-12">
+        <div class="card p-4 border-0 shadow-2-strong" style="background: var(--bg-card);">
+            <div class="d-flex justify-content-between align-items-center mb-3 pb-2 border-bottom border-secondary">
+                <h5 class="fw-bold text-info mb-0 d-flex align-items-center gap-2">
+                    <i class="fas fa-sliders text-info"></i>
+                    <span>@(CurrentEditingModel.Id > 0 ? (Prefs.T("تعديل الجهاز #", "Edit Instrument #") + CurrentEditingModel.Code) : Prefs.T("تعريف جهاز تحليل جديد", "Configure New Analyzer"))</span>
+                </h5>
+                @if (CurrentEditingModel.Id > 0)
+                {
+                    <button class="btn btn-sm btn-outline-secondary py-1 px-2" data-mdb-ripple-init @onclick="NewInstrumentForm">
+                        @Prefs.T("+ جهاز جديد", "+ New Instrument")
+                    </button>
+                }
+            </div>
+
+            <!-- Code & Name -->
+            <div class="row g-2 mb-3">
+                <div class="col-md-5">
+                    <label class="form-label text-secondary small fw-semibold">@Prefs.T("كود الجهاز (Code):", "Instrument Code:")</label>
+                    <input type="text" class="form-control text-uppercase fw-bold" placeholder="ADVIA360" @bind="CurrentEditingModel.Code" />
+                </div>
+                <div class="col-md-7">
+                    <label class="form-label text-secondary small fw-semibold">@Prefs.T("اسم الجهاز (Name):", "Instrument Name:")</label>
+                    <input type="text" class="form-control fw-semibold" placeholder="Advia 360 CBC Analyzer" @bind="CurrentEditingModel.Name" />
+                </div>
+            </div>
+
+            <!-- Protocol & Operating Mode -->
+            <div class="row g-2 mb-3">
+                <div class="col-md-6">
+                    <label class="form-label text-secondary small fw-semibold">@Prefs.T("البروتوكول (Protocol):", "Protocol:")</label>
+                    <select class="form-select" @bind="CurrentEditingModel.Protocol">
+                        <option value="ASTM">ASTM (1381 / 1394)</option>
+                        <option value="HL7">HL7 (v2.x Standard)</option>
+                    </select>
+                </div>
+                <div class="col-md-6">
+                    <label class="form-label text-secondary small fw-semibold">@Prefs.T("نمط التشغيل (Operating Mode):", "Operating Mode:")</label>
+                    <select class="form-select" @bind="CurrentEditingModel.OperatingMode">
+                        <option value="Bidirectional">@Prefs.T("ثنائي الاتجاه (Bidirectional)", "Bidirectional")</option>
+                        <option value="ResultsOnly">@Prefs.T("استلام نتائج فقط (ResultsOnly)", "Results Only")</option>
+                    </select>
+                </div>
+            </div>
+
+            <!-- Connection Type -->
+            <div class="mb-3">
+                <label class="form-label text-secondary small fw-semibold d-block">@Prefs.T("نوع الاتصال الفعلي (Connection Type):", "Connection Type:")</label>
+                <div class="d-flex gap-3 p-2 rounded bg-dark border border-secondary">
+                    <div class="form-check">
+                        <input class="form-check-input" type="radio" name="connType" id="rbTcp" value="TCP" 
+                               checked="@(CurrentEditingModel.ConnectionType == "TCP")" 
+                               @onchange="@(() => CurrentEditingModel.ConnectionType = "TCP")" />
+                        <label class="form-check-label text-white fw-bold cursor-pointer" for="rbTcp">
+                            <i class="fas fa-network-wired text-primary me-1"></i> @Prefs.T("شبكة TCP/IP", "TCP/IP Network")
+                        </label>
+                    </div>
+                    <div class="form-check">
+                        <input class="form-check-input" type="radio" name="connType" id="rbSerial" value="RS232" 
+                               checked="@(CurrentEditingModel.ConnectionType == "RS232")" 
+                               @onchange="@(() => CurrentEditingModel.ConnectionType = "RS232")" />
+                        <label class="form-check-label text-white fw-bold cursor-pointer" for="rbSerial">
+                            <i class="fas fa-plug text-warning me-1"></i> @Prefs.T("منفذ تسلسلي RS-232", "RS-232 Serial Port")
+                        </label>
+                    </div>
+                </div>
+            </div>
+
+            <!-- PANEL A: TCP/IP Settings -->
+            @if (CurrentEditingModel.ConnectionType == "TCP")
+            {
+                <div class="p-3 mb-3 rounded bg-dark border border-primary border-opacity-50">
+                    <h6 class="fw-bold text-info mb-2 d-flex align-items-center gap-2">
+                        <i class="fas fa-globe text-primary"></i>
+                        <span>@Prefs.T("معلمات شبكة TCP/IP", "TCP/IP Network Parameters")</span>
+                    </h6>
+                    <div class="row g-2 mb-2">
+                        <div class="col-md-6">
+                            <label class="form-label text-secondary small mb-1">@Prefs.T("وضع الاتصال (TCP Mode):", "TCP Mode:")</label>
+                            <select class="form-select" @bind="CurrentEditingModel.TcpMode">
+                                <option value="Server">@Prefs.T("سيرفر يستمع (Server Mode)", "Server Mode (Listen)")</option>
+                                <option value="Client">@Prefs.T("عميل يتصل بالجهاز (Client Mode)", "Client Mode (Connect)")</option>
+                            </select>
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label text-secondary small mb-1">@Prefs.T("المنفذ (Port):", "Port:")</label>
+                            <input type="number" class="form-control fw-bold text-info" @bind="CurrentEditingModel.Port" placeholder="5100" />
+                        </div>
+                    </div>
+                    <div class="mb-0">
+                        <label class="form-label text-secondary small mb-1">@Prefs.T("عنوان IP (Host IP Address):", "Host IP Address:")</label>
+                        <input type="text" class="form-control" @bind="CurrentEditingModel.Host" placeholder="0.0.0.0" />
+                        <small class="text-muted" style="font-size: 11px;">@Prefs.T("في وضع السيرفر ضع 0.0.0.0 للاستماع على كافة كروت الشبكة.", "In server mode, use 0.0.0.0 to listen on all network interfaces.")</small>
+                    </div>
+                </div>
+            }
+            else
+            {
+                <!-- PANEL B: RS-232 Serial Settings -->
+                <div class="p-3 mb-3 rounded bg-dark border border-warning border-opacity-50">
+                    <h6 class="fw-bold text-warning mb-2 d-flex align-items-center gap-2">
+                        <i class="fas fa-plug text-warning"></i>
+                        <span>@Prefs.T("معلمات المنفذ التسلسلي RS-232", "RS-232 Serial Parameters")</span>
+                    </h6>
+                    <div class="row g-2 mb-2">
+                        <div class="col-md-6">
+                            <label class="form-label text-secondary small mb-1">@Prefs.T("اسم المنفذ (COM Port):", "COM Port:")</label>
+                            <input type="text" class="form-control fw-bold" @bind="CurrentEditingModel.ComPort" placeholder="COM1" />
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label text-secondary small mb-1">@Prefs.T("معدل النقل (Baud Rate):", "Baud Rate:")</label>
+                            <select class="form-select" @bind="CurrentEditingModel.BaudRate">
+                                <option value="9600">9600</option>
+                                <option value="19200">19200</option>
+                                <option value="38400">38400</option>
+                                <option value="115200">115200</option>
+                            </select>
+                        </div>
+                    </div>
+                    <div class="row g-2 mb-2">
+                        <div class="col-md-4">
+                            <label class="form-label text-secondary small mb-1">Data Bits:</label>
+                            <select class="form-select" @bind="CurrentEditingModel.DataBits">
+                                <option value="8">8</option>
+                                <option value="7">7</option>
+                            </select>
+                        </div>
+                        <div class="col-md-4">
+                            <label class="form-label text-secondary small mb-1">Parity:</label>
+                            <select class="form-select" @bind="CurrentEditingModel.Parity">
+                                <option value="None">None</option>
+                                <option value="Even">Even</option>
+                                <option value="Odd">Odd</option>
+                            </select>
+                        </div>
+                        <div class="col-md-4">
+                            <label class="form-label text-secondary small mb-1">Stop Bits:</label>
+                            <select class="form-select" @bind="CurrentEditingModel.StopBits">
+                                <option value="One">One (1)</option>
+                                <option value="Two">Two (2)</option>
+                            </select>
+                        </div>
+                    </div>
+                    <div>
+                        <label class="form-label text-secondary small mb-1">Flow Control:</label>
+                        <select class="form-select" @bind="CurrentEditingModel.FlowControl">
+                            <option value="None">None</option>
+                            <option value="RequestToSend">RTS/CTS (Hardware)</option>
+                            <option value="XOnXOff">XON/XOFF (Software)</option>
+                        </select>
+                    </div>
+                </div>
+            }
+
+            <!-- Active Switch -->
+            <div class="form-check form-switch mb-3">
+                <input class="form-check-input" type="checkbox" id="chkActive" @bind="CurrentEditingModel.Active" />
+                <label class="form-check-label text-white fw-bold cursor-pointer" for="chkActive">
+                    @Prefs.T("الجهاز مفعل ويعمل في المختبر (Active)", "Instrument is Active & Online")
+                </label>
+            </div>
+
+            <!-- Test Connection Result Badge -->
+            @if (!string.IsNullOrEmpty(TestResultText))
+            {
+                <div class="alert @TestResultClass py-2 px-3 mb-3 small d-flex align-items-center gap-2">
+                    <span>@TestResultIcon</span>
+                    <span>@TestResultText</span>
+                </div>
+            }
+
+            <!-- Action Buttons -->
+            <div class="d-flex gap-2 pt-2 border-top border-secondary">
+                <button type="button" class="btn btn-outline-info flex-grow-1" data-mdb-ripple-init @onclick="TestConnection" disabled="@IsTestingConnection">
+                    @if (IsTestingConnection)
+                    {
+                        <span class="spinner-border spinner-border-sm me-1"></span>
+                        <span>@Prefs.T("جاري الاختبار...", "Testing...")</span>
+                    }
+                    else
+                    {
+                        <span><i class="fas fa-plug me-1"></i> @Prefs.T("اختبار المنفذ", "Test Port")</span>
+                    }
+                </button>
+                <button type="button" class="btn btn-success fw-bold flex-grow-1" data-mdb-ripple-init @onclick="SaveInstrument" disabled="@IsSaving">
+                    @if (IsSaving)
+                    {
+                        <span class="spinner-border spinner-border-sm me-1"></span>
+                        <span>@Prefs.T("جاري الحفظ...", "Saving...")</span>
+                    }
+                    else
+                    {
+                        <span><i class="fas fa-floppy-disk me-1"></i> @Prefs.T("حفظ الجهاز", "Save Instrument")</span>
+                    }
+                </button>
+                @if (CurrentEditingModel.Id > 0)
+                {
+                    <button type="button" class="btn btn-danger px-3" data-mdb-ripple-init title="@Prefs.T("حذف هذا الجهاز نهائياً", "Delete this Instrument")" @onclick="() => DeleteInstrument(CurrentEditingModel.Id, CurrentEditingModel.Name)">
+                        <i class="fas fa-trash-can"></i>
+                    </button>
+                }
+            </div>
+        </div>
+    </div>
+</div>
+
+@code {
+    public class InstrumentItem
+    {
+        public long Id { get; set; }
+        public string Code { get; set; } = "";
+        public string Name { get; set; } = "";
+        public string Protocol { get; set; } = "ASTM";
+        public string ConnectionType { get; set; } = "TCP";
+        public string OperatingMode { get; set; } = "Bidirectional";
+        public string TcpMode { get; set; } = "Server";
+        public string Host { get; set; } = "0.0.0.0";
+        public int? Port { get; set; } = 5100;
+        public string ComPort { get; set; } = "COM1";
+        public int? BaudRate { get; set; } = 9600;
+        public int? DataBits { get; set; } = 8;
+        public string Parity { get; set; } = "None";
+        public string StopBits { get; set; } = "One";
+        public string FlowControl { get; set; } = "None";
+        public bool Active { get; set; } = true;
+
+        public string PortDisplay => ConnectionType == "RS232" ? (ComPort ?? "COM1") : $"{Host}:{Port}";
+    }
+
+    private List<InstrumentItem>? InstrumentsList;
+    private InstrumentItem? SelectedInstrument;
+    private InstrumentItem CurrentEditingModel = new();
+
+    private string AlertMessage = "";
+    private string AlertClass = "alert-success";
+
+    private bool IsTestingConnection = false;
+    private string TestResultText = "";
+    private string TestResultClass = "alert-info";
+    private string TestResultIcon = "ℹ️";
+
+    private bool IsSaving = false;
+
+    private void ClearAlert() => AlertMessage = "";
+
+    protected override async Task OnInitializedAsync()
+    {
+        Prefs.OnChange += OnPrefsChanged;
+        await LoadInstrumentsAsync();
+    }
+
+    private void OnPrefsChanged() => InvokeAsync(StateHasChanged);
+
+    public void Dispose()
+    {
+        Prefs.OnChange -= OnPrefsChanged;
+    }
+
+    private async Task LoadInstrumentsAsync()
+    {
+        try
+        {
+            using var conn = ConnectionFactory.CreateConnection();
+            const string sql = @"
+                SELECT 
+                    id, code, name, protocol, connection_type AS ConnectionType, 
+                    operating_mode AS OperatingMode, tcp_mode AS TcpMode,
+                    host, port, com_port AS ComPort, baud_rate AS BaudRate, 
+                    data_bits AS DataBits, parity, stop_bits AS StopBits, 
+                    flow_control AS FlowControl, active
+                FROM instruments
+                ORDER BY id ASC;
+            ";
+
+            var rows = await conn.QueryAsync<InstrumentItem>(sql);
+            InstrumentsList = rows.ToList();
+        }
+        catch (Exception ex)
+        {
+            AlertClass = "alert-danger";
+            AlertMessage = $"خطأ في استرجاع أجهزة التحليل: {ex.Message}";
+        }
+    }
+
+    private void SelectInstrument(InstrumentItem inst)
+    {
+        SelectedInstrument = inst;
+        CurrentEditingModel = new InstrumentItem
+        {
+            Id = inst.Id,
+            Code = inst.Code,
+            Name = inst.Name,
+            Protocol = inst.Protocol ?? "ASTM",
+            ConnectionType = inst.ConnectionType ?? "TCP",
+            OperatingMode = inst.OperatingMode ?? "Bidirectional",
+            TcpMode = inst.TcpMode ?? "Server",
+            Host = inst.Host ?? "0.0.0.0",
+            Port = inst.Port ?? 5100,
+            ComPort = inst.ComPort ?? "COM1",
+            BaudRate = inst.BaudRate ?? 9600,
+            DataBits = inst.DataBits ?? 8,
+            Parity = inst.Parity ?? "None",
+            StopBits = inst.StopBits ?? "One",
+            FlowControl = inst.FlowControl ?? "None",
+            Active = inst.Active
+        };
+        TestResultText = "";
+    }
+
+    private void NewInstrumentForm()
+    {
+        SelectedInstrument = null;
+        CurrentEditingModel = new InstrumentItem
+        {
+            Id = 0,
+            Code = "",
+            Name = "",
+            Protocol = "ASTM",
+            ConnectionType = "TCP",
+            OperatingMode = "Bidirectional",
+            TcpMode = "Server",
+            Host = "0.0.0.0",
+            Port = 5100,
+            ComPort = "COM1",
+            BaudRate = 9600,
+            DataBits = 8,
+            Parity = "None",
+            StopBits = "One",
+            FlowControl = "None",
+            Active = true
+        };
+        TestResultText = "";
+    }
+
+    private async Task TestConnection()
+    {
+        IsTestingConnection = true;
+        TestResultText = "";
+
+        try
+        {
+            if (CurrentEditingModel.ConnectionType == "TCP")
+            {
+                int port = CurrentEditingModel.Port ?? 0;
+                if (port <= 0 || port > 65535)
+                {
+                    TestResultClass = "alert-danger";
+                    TestResultIcon = "❌";
+                    TestResultText = "رقم المنفذ (Port) غير صالح.";
+                    return;
+                }
+
+                if (CurrentEditingModel.TcpMode == "Server")
+                {
+                    // Check if port can be bound or is currently bound by middleware daemon
+                    try
+                    {
+                        var listener = new System.Net.Sockets.TcpListener(System.Net.IPAddress.Any, port);
+                        listener.Start();
+                        listener.Stop();
+                        TestResultClass = "alert-success";
+                        TestResultIcon = "✅";
+                        TestResultText = $"منفذ الاستماع TCP {port} متاح وجاهز لاستقبال اتصالات الجهاز.";
+                    }
+                    catch
+                    {
+                        // Port already bound — probe if Lis.Middleware is actively listening on it
+                        bool canConnect = false;
+                        try
+                        {
+                            using var client = new System.Net.Sockets.TcpClient();
+                            var connectTask = client.ConnectAsync("127.0.0.1", port);
+                            if (await Task.WhenAny(connectTask, Task.Delay(1000)) == connectTask && client.Connected)
+                            {
+                                canConnect = true;
+                            }
+                        }
+                        catch { }
+
+                        if (canConnect)
+                        {
+                            TestResultClass = "alert-success";
+                            TestResultIcon = "✅";
+                            TestResultText = $"المنفذ {port} قيد الاستماع النشط حالياً وجاهز لاستقبال الأجهزة (بواسطة الميدلوير).";
+                        }
+                        else
+                        {
+                            TestResultClass = "alert-warning";
+                            TestResultIcon = "⚠️";
+                            TestResultText = $"المنفذ {port} محجوز أو قيد الاستخدام بواسطة تطبيق آخر.";
+                        }
+                    }
+                }
+                else
+                {
+                    // Client mode: probe connection to target analyzer host
+                    string host = string.IsNullOrWhiteSpace(CurrentEditingModel.Host) ? "127.0.0.1" : CurrentEditingModel.Host.Trim();
+                    try
+                    {
+                        using var client = new System.Net.Sockets.TcpClient();
+                        var connectTask = client.ConnectAsync(host, port);
+                        if (await Task.WhenAny(connectTask, Task.Delay(2000)) == connectTask && client.Connected)
+                        {
+                            TestResultClass = "alert-success";
+                            TestResultIcon = "✅";
+                            TestResultText = $"تم الاتصال بالجهاز بنجاح عبر {host}:{port}!";
+                        }
+                        else
+                        {
+                            TestResultClass = "alert-warning";
+                            TestResultIcon = "⚠️";
+                            TestResultText = $"تعذر الاتصال بـ {host}:{port}. تأكد من تشغيل الجهاز وتوصيل كيبل الشبكة.";
+                        }
+                    }
+                    catch (Exception ex)
+                    {
+                        TestResultClass = "alert-danger";
+                        TestResultIcon = "❌";
+                        TestResultText = $"فشل الاتصال بـ {host}:{port}: {ex.Message}";
+                    }
+                }
+            }
+            else
+            {
+                // Serial Port Check
+                string com = CurrentEditingModel.ComPort?.Trim() ?? "COM1";
+                var availablePorts = System.IO.Ports.SerialPort.GetPortNames();
+                if (availablePorts.Contains(com, StringComparer.OrdinalIgnoreCase))
+                {
+                    TestResultClass = "alert-success";
+                    TestResultIcon = "✅";
+                    TestResultText = $"المنفذ التسلسلي {com} متوفر في النظام وجاهز للاستخدام.";
+                }
+                else
+                {
+                    TestResultClass = "alert-warning";
+                    TestResultIcon = "⚠️";
+                    TestResultText = $"المنفذ {com} غير موجود في الجهاز حالياً. المنافذ المتاحة: {(availablePorts.Any() ? string.Join(", ", availablePorts) : "لا توجد منافذ COM")}.";
+                }
+            }
+        }
+        catch (Exception ex)
+        {
+            TestResultClass = "alert-danger";
+            TestResultIcon = "❌";
+            TestResultText = $"خطأ أثناء فحص المنفذ: {ex.Message}";
+        }
+        finally
+        {
+            IsTestingConnection = false;
+        }
+    }
+
+    private async Task SaveInstrument()
+    {
+        if (string.IsNullOrWhiteSpace(CurrentEditingModel.Code))
+        {
+            AlertClass = "alert-warning";
+            AlertMessage = "يرجى كتابة كود الجهاز (Code) أولاً.";
+            return;
+        }
+
+        if (string.IsNullOrWhiteSpace(CurrentEditingModel.Name))
+        {
+            AlertClass = "alert-warning";
+            AlertMessage = "يرجى كتابة اسم الجهاز (Name).";
+            return;
+        }
+
+        IsSaving = true;
+        AlertMessage = "";
+
+        try
+        {
+            using var conn = ConnectionFactory.CreateConnection();
+            var targetCode = CurrentEditingModel.Code.Trim().ToUpper();
+
+            // Check if modifying an existing instrument
+            if (CurrentEditingModel.Id > 0)
+            {
+                // Ensure code is not taken by another instrument
+                var duplicateCount = await conn.ExecuteScalarAsync<int>(
+                    "SELECT COUNT(*) FROM instruments WHERE UPPER(code) = @Code AND id != @Id;",
+                    new { Code = targetCode, Id = CurrentEditingModel.Id });
+
+                if (duplicateCount > 0)
+                {
+                    AlertClass = "alert-warning";
+                    AlertMessage = $"كود الجهاز [{targetCode}] مستخدم بالفعل مع جهاز آخر. يرجى اختيار كود فريد.";
+                    IsSaving = false;
+                    return;
+                }
+
+                const string updateSql = @"
+                    UPDATE instruments 
+                    SET code = @Code,
+                        name = @Name,
+                        protocol = @Protocol,
+                        connection_type = @ConnectionType,
+                        operating_mode = @OperatingMode,
+                        tcp_mode = @TcpMode,
+                        host = @Host,
+                        port = @Port,
+                        com_port = @ComPort,
+                        baud_rate = @BaudRate,
+                        data_bits = @DataBits,
+                        parity = @Parity,
+                        stop_bits = @StopBits,
+                        flow_control = @FlowControl,
+                        active = @Active,
+                        updated_at = clock_timestamp()
+                    WHERE id = @Id;
+                ";
+
+                await conn.ExecuteAsync(updateSql, new
+                {
+                    Id = CurrentEditingModel.Id,
+                    Code = targetCode,
+                    Name = CurrentEditingModel.Name.Trim(),
+                    Protocol = CurrentEditingModel.Protocol,
+                    ConnectionType = CurrentEditingModel.ConnectionType,
+                    OperatingMode = CurrentEditingModel.OperatingMode,
+                    TcpMode = CurrentEditingModel.TcpMode,
+                    Host = CurrentEditingModel.Host?.Trim() ?? "0.0.0.0",
+                    Port = CurrentEditingModel.Port,
+                    ComPort = CurrentEditingModel.ComPort?.Trim() ?? "COM1",
+                    BaudRate = CurrentEditingModel.BaudRate,
+                    DataBits = CurrentEditingModel.DataBits,
+                    Parity = CurrentEditingModel.Parity,
+                    StopBits = CurrentEditingModel.StopBits,
+                    FlowControl = CurrentEditingModel.FlowControl,
+                    Active = CurrentEditingModel.Active
+                });
+
+                AlertClass = "alert-success";
+                AlertMessage = $"✅ تم تحديث بيانات الجهاز [{CurrentEditingModel.Name}] بنجاح!";
+            }
+            else
+            {
+                // New instrument: Ensure code is unique
+                var duplicateCount = await conn.ExecuteScalarAsync<int>(
+                    "SELECT COUNT(*) FROM instruments WHERE UPPER(code) = @Code;",
+                    new { Code = targetCode });
+
+                if (duplicateCount > 0)
+                {
+                    AlertClass = "alert-warning";
+                    AlertMessage = $"كود الجهاز [{targetCode}] مسجل مسبقاً في النظام. يرجى اختيار كود آخر.";
+                    IsSaving = false;
+                    return;
+                }
+
+                const string insertSql = @"
+                    INSERT INTO instruments (code, name, protocol, connection_type, operating_mode, tcp_mode,
+                                            host, port, com_port, baud_rate, data_bits, parity, stop_bits, flow_control,
+                                            active, updated_at)
+                    VALUES (@Code, @Name, @Protocol, @ConnectionType, @OperatingMode, @TcpMode,
+                            @Host, @Port, @ComPort, @BaudRate, @DataBits, @Parity, @StopBits, @FlowControl,
+                            @Active, clock_timestamp())
+                    RETURNING id;
+                ";
+
+                var newId = await conn.ExecuteScalarAsync<long>(insertSql, new
+                {
+                    Code = targetCode,
+                    Name = CurrentEditingModel.Name.Trim(),
+                    Protocol = CurrentEditingModel.Protocol,
+                    ConnectionType = CurrentEditingModel.ConnectionType,
+                    OperatingMode = CurrentEditingModel.OperatingMode,
+                    TcpMode = CurrentEditingModel.TcpMode,
+                    Host = CurrentEditingModel.Host?.Trim() ?? "0.0.0.0",
+                    Port = CurrentEditingModel.Port,
+                    ComPort = CurrentEditingModel.ComPort?.Trim() ?? "COM1",
+                    BaudRate = CurrentEditingModel.BaudRate,
+                    DataBits = CurrentEditingModel.DataBits,
+                    Parity = CurrentEditingModel.Parity,
+                    StopBits = CurrentEditingModel.StopBits,
+                    FlowControl = CurrentEditingModel.FlowControl,
+                    Active = CurrentEditingModel.Active
+                });
+
+                CurrentEditingModel.Id = newId;
+                AlertClass = "alert-success";
+                AlertMessage = $"✅ تم إضافة الجهاز الجديد [{CurrentEditingModel.Name}] بنجاح!";
+            }
+
+            // Notify real-time channel
+            try
+            {
+                await conn.ExecuteAsync("SELECT pg_notify('lis_instruments_channel', 'RELOAD');");
+            }
+            catch { }
+
+            await LoadInstrumentsAsync();
+            var saved = InstrumentsList?.FirstOrDefault(i => i.Id == CurrentEditingModel.Id);
+            if (saved != null) SelectInstrument(saved);
+        }
+        catch (Exception ex)
+        {
+            AlertClass = "alert-danger";
+            AlertMessage = $"خطأ أثناء حفظ الجهاز: {ex.Message}";
+        }
+        finally
+        {
+            IsSaving = false;
+        }
+    }
+
+    private async Task DeleteInstrument(long id, string name)
+    {
+        try
+        {
+            using var conn = ConnectionFactory.CreateConnection();
+            await conn.ExecuteAsync("DELETE FROM instruments WHERE id = @Id;", new { Id = id });
+
+            try
+            {
+                await conn.ExecuteAsync("SELECT pg_notify('lis_instruments_channel', 'RELOAD');");
+            }
+            catch { }
+
+            AlertClass = "alert-success";
+            AlertMessage = $"🗑️ تم حذف الجهاز [{name}] بنجاح من النظام.";
+
+            NewInstrumentForm();
+            await LoadInstrumentsAsync();
+        }
+        catch (Exception ex)
+        {
+            AlertClass = "alert-danger";
+            AlertMessage = $"خطأ أثناء حذف الجهاز: {ex.Message}";
+        }
+    }
+}

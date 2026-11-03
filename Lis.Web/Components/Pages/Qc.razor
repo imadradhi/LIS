@@ -1,0 +1,1182 @@
+@page "/qc"
+@using Lis.Core.Services
+@using Lis.Core.Data
+@inject IQcService QcService
+@inject ITestCatalogService CatalogService
+@inject UserPreferencesService Prefs
+@implements IDisposable
+@rendermode InteractiveServer
+
+<PageTitle>@Prefs.T("ضبط الجودة الطبي ومخطط ليفي-جينينغز - LIS QC", "Quality Control & Levey-Jennings - LIS QC")</PageTitle>
+
+<div class="container-fluid py-3 px-3">
+    <!-- Top Header Bar -->
+    <div class="card p-3 mb-3 border-0 shadow-2-strong" style="background: var(--bg-card);">
+        <div class="d-flex flex-wrap justify-content-between align-items-center gap-2">
+            <div>
+                <h4 class="mb-1 text-white fw-bold d-flex align-items-center gap-2">
+                    <i class="fas fa-shield-halved text-info"></i>
+                    <span>@Prefs.T("ضبط الجودة الطبي ومخطط ليفي-جينينغز (Quality Control & Levey-Jennings)", "Quality Control & Levey-Jennings Chart")</span>
+                </h4>
+                <p class="text-secondary small mb-0">
+                    @Prefs.T("تقييم تحاليل العينات القياسية، تقييم قواعد وستغارد (Westgard Rules)، ورسم بياني إحصائي متقدم", "Standard control analysis, Westgard rules evaluation, and advanced statistical charting.")
+                </p>
+            </div>
+
+            <div class="d-flex align-items-center gap-2">
+                <button type="button" class="btn btn-primary btn-sm fw-bold px-3 btn-action-animated" data-mdb-ripple-init @onclick="OpenAddRunModal">
+                    <i class="fas fa-plus me-1"></i> @Prefs.T("تسجيل قراءة ضبط جودة", "New QC Run")
+                </button>
+                <button type="button" class="btn btn-outline-secondary btn-sm px-3" data-mdb-ripple-init @onclick="LoadAllData">
+                    <i class="fas fa-sync-alt me-1"></i> @Prefs.T("تحديث البيانات", "Refresh Data")
+                </button>
+            </div>
+        </div>
+    </div>
+
+    @if (!string.IsNullOrEmpty(AlertMessage))
+    {
+        <div class="alert @AlertClass alert-dismissible fade show py-2 px-3 mb-3 small d-flex justify-content-between align-items-center" role="alert">
+            <span>@AlertMessage</span>
+            <button type="button" class="btn-close btn-close-white small p-2" @onclick="() => AlertMessage = null"></button>
+        </div>
+    }
+
+    <!-- Main Navigation Tabs (MDBootstrap Nav Tabs) -->
+    <ul class="nav nav-tabs mb-3 border-secondary" id="qcTabs" role="tablist">
+        <li class="nav-item" role="presentation">
+            <button class="nav-link @(ActiveTab == "chart" ? "active fw-bold text-info border-info" : "text-secondary")" 
+                    data-mdb-ripple-init
+                    @onclick='() => SetActiveTab("chart")' type="button">
+                <i class="fas fa-chart-line me-1"></i> @Prefs.T("مخطط ليفي-جينينغز والنتائج (Levey-Jennings & Runs)", "Levey-Jennings Chart & Runs")
+            </button>
+        </li>
+        <li class="nav-item" role="presentation">
+            <button class="nav-link @(ActiveTab == "materials" ? "active fw-bold text-info border-info" : "text-secondary")" 
+                    data-mdb-ripple-init
+                    @onclick='() => SetActiveTab("materials")' type="button">
+                <i class="fas fa-flask-vial me-1"></i> @Prefs.T("مواد ومحاليل الضبط (QC Materials & Lots)", "QC Materials & Lots") [@(MaterialsList?.Count ?? 0)]
+            </button>
+        </li>
+        <li class="nav-item" role="presentation">
+            <button class="nav-link @(ActiveTab == "targets" ? "active fw-bold text-info border-info" : "text-secondary")" 
+                    data-mdb-ripple-init
+                    @onclick='() => SetActiveTab("targets")' type="button">
+                <i class="fas fa-bullseye me-1"></i> @Prefs.T("القيم المستهدفة والانحراف المعياري (Targets & SD)", "Targets & SD") [@(TargetsList?.Count ?? 0)]
+            </button>
+        </li>
+        <li class="nav-item" role="presentation">
+            <button class="nav-link @(ActiveTab == "report" ? "active fw-bold text-info border-info" : "text-secondary")" 
+                    data-mdb-ripple-init
+                    @onclick='() => SetActiveTab("report")' type="button">
+                <i class="fas fa-print me-1"></i> @Prefs.T("تقرير الجودة للطباعة (Printable QC Report)", "Printable QC Report")
+            </button>
+        </li>
+    </ul>
+
+    <!-- TAB 1: LEVEY-JENNINGS CHART & RUNS -->
+    @if (ActiveTab == "chart")
+    {
+        <!-- Filter Toolbar -->
+        <div class="card p-3 mb-3 border-0" style="background: rgba(15, 23, 42, 0.9);">
+            <div class="row g-2 align-items-end">
+                <div class="col-md-3">
+                    <label class="form-label text-secondary small mb-1 fw-semibold">@Prefs.T("📡 جهاز التحليل (Instrument):", "📡 Analyzer / Instrument:")</label>
+                    <select class="form-select form-select-sm" @bind="SelectedInstrumentId" @bind:after="OnFilterChanged">
+                        <option value="0">@Prefs.T("-- اختر جهاز تحليل --", "-- Select Instrument --")</option>
+                        @if (InstrumentsList != null)
+                        {
+                            @foreach (var inst in InstrumentsList)
+                            {
+                                <option value="@inst.Id">@inst.DisplayName</option>
+                            }
+                        }
+                    </select>
+                </div>
+
+                <div class="col-md-3">
+                    <label class="form-label text-secondary small mb-1 fw-semibold">@Prefs.T("🔬 الفحص / البارامتر (Component):", "🔬 Test / Parameter:")</label>
+                    <select class="form-select form-select-sm" @bind="SelectedComponentId" @bind:after="OnFilterChanged">
+                        <option value="0">@Prefs.T("-- اختر فحصاً --", "-- Select Parameter --")</option>
+                        @if (ComponentsList != null)
+                        {
+                            @foreach (var comp in ComponentsList)
+                            {
+                                <option value="@comp.Id">@comp.DisplaySummary</option>
+                            }
+                        }
+                    </select>
+                </div>
+
+                <div class="col-md-2">
+                    <label class="form-label text-secondary small mb-1 fw-semibold">@Prefs.T("🧪 محلول الضبط (Material):", "🧪 QC Material:")</label>
+                    <select class="form-select form-select-sm" @bind="SelectedMaterialId" @bind:after="OnFilterChanged">
+                        <option value="0">@Prefs.T("جميع المحاليل (All)", "All Materials")</option>
+                        @if (MaterialsList != null)
+                        {
+                            @foreach (var mat in MaterialsList)
+                            {
+                                <option value="@mat.Id">@mat.Name (L@(mat.Level))</option>
+                            }
+                        }
+                    </select>
+                </div>
+
+                <div class="col-md-2">
+                    <label class="form-label text-secondary small mb-1 fw-semibold">@Prefs.T("من تاريخ:", "From Date:")</label>
+                    <input type="date" class="form-control form-control-sm" @bind="FilterFromDate" @bind:after="OnFilterChanged" />
+                </div>
+
+                <div class="col-md-2">
+                    <label class="form-label text-secondary small mb-1 fw-semibold">@Prefs.T("إلى تاريخ:", "To Date:")</label>
+                    <input type="date" class="form-control form-control-sm" @bind="FilterToDate" @bind:after="OnFilterChanged" />
+                </div>
+            </div>
+        </div>
+
+        @if (SelectedInstrumentId <= 0 || SelectedComponentId <= 0)
+        {
+            <div class="card p-5 text-center text-secondary border-0" style="background: rgba(17, 28, 58, 0.6);">
+                <span class="fs-1 mb-2">📊</span>
+                <h5>@Prefs.T("يرجى اختيار جهاز التحليل والفحص لعرض مخطط ليفي-جينينغز (Levey-Jennings)", "Please select an instrument and test parameter to view the Levey-Jennings chart.")</h5>
+                <p class="small text-muted mb-0">@Prefs.T("حدد الجهاز والبارامتر من شريط الفلترة أعلاه لعرض النتائج الإحصائية ومخالفات وستغارد.", "Select analyzer and parameter from the filter toolbar above to view statistical results and Westgard violations.")</p>
+            </div>
+        }
+        else
+        {
+            <!-- STATS SUMMARY CARDS -->
+            <div class="row g-2 mb-3">
+                <div class="col-md-2">
+                    <div class="card p-2 text-center border-secondary bg-dark card-hover-lift">
+                        <small class="text-secondary" style="font-size: 11px;">@Prefs.T("الهدف (Target Mean)", "Target Mean")</small>
+                        <strong class="text-info fs-5 font-monospace">@(CurrentTarget?.Mean.ToString("F2") ?? "--")</strong>
+                        <small class="text-muted font-monospace" style="font-size: 11px;">@(CurrentTarget?.Unit ?? "")</small>
+                    </div>
+                </div>
+                <div class="col-md-2">
+                    <div class="card p-2 text-center border-secondary bg-dark card-hover-lift">
+                        <small class="text-secondary" style="font-size: 11px;">@Prefs.T("الانحراف (Target SD)", "Target SD")</small>
+                        <strong class="text-info fs-5 font-monospace">@(CurrentTarget?.Sd.ToString("F2") ?? "--")</strong>
+                        <small class="text-muted font-monospace" style="font-size: 11px;">CV%: @(CurrentTarget?.CvPercent.ToString("F1") ?? "--")%</small>
+                    </div>
+                </div>
+                <div class="col-md-2">
+                    <div class="card p-2 text-center border-secondary bg-dark card-hover-lift">
+                        <small class="text-secondary" style="font-size: 11px;">@Prefs.T("متوسط القراءات (Obs. Mean)", "Observed Mean")</small>
+                        <strong class="text-white fs-5 font-monospace">@(ObservedMean?.ToString("F2") ?? "--")</strong>
+                        <small class="text-muted" style="font-size: 11px;">@Prefs.T("لـ", "For") @(QcResultsList?.Count ?? 0) @Prefs.T("قراءة", "runs")</small>
+                    </div>
+                </div>
+                <div class="col-md-2">
+                    <div class="card p-2 text-center border-secondary bg-dark card-hover-lift">
+                        <small class="text-secondary" style="font-size: 11px;">@Prefs.T("الانحراف المحسوب (Obs. SD)", "Observed SD")</small>
+                        <strong class="text-white fs-5 font-monospace">@(ObservedSd?.ToString("F2") ?? "--")</strong>
+                        <small class="text-muted font-monospace" style="font-size: 11px;">CV%: @(ObservedCv?.ToString("F1") ?? "--")%</small>
+                    </div>
+                </div>
+                <div class="col-md-2">
+                    <div class="card p-2 text-center border-secondary bg-dark card-hover-lift">
+                        <small class="text-secondary" style="font-size: 11px;">@Prefs.T("الحالة اليوم (Today QC)", "Today's QC Status")</small>
+                        @if (TodayStatus != null)
+                        {
+                            @if (TodayStatus.Status == "Passed")
+                            {
+                                <span class="badge bg-success fs-6 mt-1">@Prefs.T("✅ معتمد (Passed)", "✅ Passed")</span>
+                            }
+                            else if (TodayStatus.Status == "Warning")
+                            {
+                                <span class="badge bg-warning text-dark fs-6 mt-1">@Prefs.T("⚠️ تحذير (1-2s)", "⚠️ Warning (1-2s)")</span>
+                            }
+                            else if (TodayStatus.Status == "Failed")
+                            {
+                                <span class="badge bg-danger fs-6 mt-1">@Prefs.T("❌ مرفوض (Failed)", "❌ Failed")</span>
+                            }
+                            else
+                            {
+                                <span class="badge bg-secondary fs-6 mt-1">@Prefs.T("⚪ لم يجرَ اليوم", "⚪ Not Run Today")</span>
+                            }
+                        }
+                    </div>
+                </div>
+                <div class="col-md-2">
+                    <div class="card p-2 text-center border-secondary bg-dark card-hover-lift">
+                        <small class="text-secondary" style="font-size: 11px;">@Prefs.T("المخالفات المرفوضة", "Rejection Violations")</small>
+                        <strong class="text-danger fs-5 font-monospace">@(QcResultsList?.Count(r => r.IsCriticalViolation) ?? 0)</strong>
+                        <small class="text-muted" style="font-size: 11px;">@Prefs.T("مخالفات وستغارد", "Westgard Violations")</small>
+                    </div>
+                </div>
+            </div>
+
+            <!-- LEVEY-JENNINGS CHART (SVG RENDERED) -->
+            <div class="card p-3 mb-3 border-secondary" style="background: rgba(11, 19, 43, 0.95);">
+                <div class="d-flex justify-content-between align-items-center mb-2 flex-wrap gap-2">
+                    <div>
+                        <strong class="text-info">@Prefs.T("📈 مخطط ليفي-جينينغز (Levey-Jennings Chart):", "📈 Levey-Jennings Chart:")</strong>
+                        <span class="text-muted small ms-2">
+                            @Prefs.T("[+3s إلى -3s] مع خطوط الانحراف المعياري وقواعد وستغارد", "[+3s to -3s] with SD boundaries & Westgard rules")
+                        </span>
+                    </div>
+                    <div class="d-flex align-items-center gap-2 small">
+                        <span class="badge bg-success">@Prefs.T("🟢 قراءة طبيعية", "🟢 In-Control")</span>
+                        <span class="badge bg-warning text-dark">@Prefs.T("🟡 تحذير (1-2s)", "🟡 Warning (1-2s)")</span>
+                        <span class="badge bg-danger">@Prefs.T("🔴 رفض قطعي (Westgard)", "🔴 Reject (Westgard)")</span>
+                    </div>
+                </div>
+
+                @if (CurrentTarget == null)
+                {
+                    <div class="alert alert-warning py-2 mb-0 small">
+                        @Prefs.T("⚠️ لم يتم تحديد القيمة المستهدفة (Target Mean & SD) لهذا الجهاز والفحص بعد. يرجى إضافتها من تبويب \"القيم المستهدفة\".", "⚠️ Target Mean & SD not defined for this analyzer and test. Please add them from the Targets tab.")
+                    </div>
+                }
+                else if (QcResultsList == null || !QcResultsList.Any())
+                {
+                    <div class="text-center py-5 text-secondary">
+                        @Prefs.T("لا توجد نتائج ضبط جودة مسجلة في هذه الفترة الزمنية. اضغط \"➕ تسجيل قراءة ضبط جودة\" لإضافة أول قراءة.", "No QC runs recorded in this time range. Click 'New QC Run' to record the first run.")
+                    </div>
+                }
+                else
+                {
+                    <!-- SVG Interactive Chart -->
+                    <div class="table-responsive" style="background: #080D1A; border: 1px solid #1F305E; border-radius: 8px; padding: 10px;">
+                        @{
+                            decimal targetMean = CurrentTarget.Mean;
+                            decimal targetSd = CurrentTarget.Sd > 0 ? CurrentTarget.Sd : 1;
+                            decimal yTop = targetMean + (3.5m * targetSd);
+                            decimal yBottom = targetMean - (3.5m * targetSd);
+                            decimal yRange = yTop - yBottom;
+                            if (yRange <= 0) yRange = 1;
+
+                            int svgWidth = Math.Max(750, (QcResultsList.Count * 45) + 120);
+                            int svgHeight = 280;
+                            int paddingLeft = 90;
+                            int paddingRight = 40;
+                            int paddingTop = 25;
+                            int paddingBottom = 35;
+                            int plotWidth = svgWidth - paddingLeft - paddingRight;
+                            int plotHeight = svgHeight - paddingTop - paddingBottom;
+
+                            // Helper func to convert Value to Y coord
+                            Func<decimal, double> getY = (v) => {
+                                double normalized = (double)((yTop - v) / yRange);
+                                return paddingTop + (normalized * plotHeight);
+                            };
+
+                            // Points coords
+                            var pointCoords = new List<(double X, double Y, QcResultDto Run)>();
+                            for (int i = 0; i < QcResultsList.Count; i++)
+                            {
+                                double x = paddingLeft + (QcResultsList.Count == 1 ? plotWidth / 2 : (i * (double)plotWidth / (QcResultsList.Count - 1)));
+                                double y = getY(QcResultsList[i].Value);
+                                pointCoords.Add((x, y, QcResultsList[i]));
+                            }
+                        }
+
+                        <svg width="100%" height="280" viewBox="0 0 @svgWidth @svgHeight" style="overflow: visible; font-family: monospace;">
+                            <!-- Grid background -->
+                            <rect x="@paddingLeft" y="@paddingTop" width="@plotWidth" height="@plotHeight" fill="#060A16" stroke="#1F305E" stroke-width="1" />
+
+                            <!-- Reference Lines: +3s, +2s, +1s, Mean, -1s, -2s, -3s -->
+                            @{
+                                var lines = new[] {
+                                    (Val: targetMean + (3 * targetSd), Label: "+3 SD", Color: "#EF4444", Dash: "5,3", Stroke: "1.2"),
+                                    (Val: targetMean + (2 * targetSd), Label: "+2 SD", Color: "#F59E0B", Dash: "4,4", Stroke: "1"),
+                                    (Val: targetMean + (1 * targetSd), Label: "+1 SD", Color: "#06B6D4", Dash: "2,2", Stroke: "0.8"),
+                                    (Val: targetMean,                  Label: "Mean",  Color: "#00E5FF", Dash: "0",   Stroke: "2"),
+                                    (Val: targetMean - (1 * targetSd), Label: "-1 SD", Color: "#06B6D4", Dash: "2,2", Stroke: "0.8"),
+                                    (Val: targetMean - (2 * targetSd), Label: "-2 SD", Color: "#F59E0B", Dash: "4,4", Stroke: "1"),
+                                    (Val: targetMean - (3 * targetSd), Label: "-3 SD", Color: "#EF4444", Dash: "5,3", Stroke: "1.2")
+                                };
+                            }
+
+                            @foreach (var l in lines)
+                            {
+                                double yLine = getY(l.Val);
+                                <line x1="@paddingLeft" y1="@yLine" x2="@(paddingLeft + plotWidth)" y2="@yLine" 
+                                      stroke="@l.Color" stroke-width="@l.Stroke" stroke-dasharray="@l.Dash" opacity="0.85" />
+                                @((MarkupString)$"<text x='{paddingLeft - 8}' y='{yLine + 4:F1}' fill='{l.Color}' font-size='10' text-anchor='end' font-weight='bold'>{l.Label} ({l.Val:F1})</text>")
+                            }
+
+                            <!-- Connecting Polyline between runs -->
+                            @if (pointCoords.Count > 1)
+                            {
+                                string pointsStr = string.Join(" ", pointCoords.Select(p => $"{p.X:F1},{p.Y:F1}"));
+                                <polyline points="@pointsStr" fill="none" stroke="#38BDF8" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" opacity="0.9" />
+                            }
+
+                            <!-- Data Points Circles & Tooltips -->
+                            @foreach (var pt in pointCoords)
+                            {
+                                string circleColor = pt.Run.IsCriticalViolation ? "#EF4444" : (pt.Run.HasViolation ? "#F59E0B" : "#10B981");
+                                double radius = pt.Run.HasViolation ? 6.5 : 5.0;
+
+                                <circle cx="@pt.X" cy="@pt.Y" r="@radius" fill="@circleColor" stroke="#FFFFFF" stroke-width="1.5" style="cursor: pointer;">
+                                    <title>@($"{pt.Run.ReceivedAt:yyyy-MM-dd HH:mm}\n{Prefs.T("القيمة:", "Value:")} {pt.Run.Value}\nZ-Score: {pt.Run.ZScore:+0.00;-0.00;0.00}\n{Prefs.T("المخالفة:", "Violation:")} {pt.Run.RuleViolation ?? Prefs.T("لا توجد", "None")}\n{Prefs.T("الحالة:", "Status:")} {(pt.Run.Accepted ? Prefs.T("معتمد", "Accepted") : Prefs.T("مرفوض", "Rejected"))}")</title>
+                                </circle>
+
+                                <!-- X Axis Date Label -->
+                                @((MarkupString)$"<text x='{pt.X:F1}' y='{paddingTop + plotHeight + 16}' fill='#94A3B8' font-size='9.5' text-anchor='middle'>{pt.Run.ReceivedAt:dd/MM}</text>")
+                            }
+                        </svg>
+                    </div>
+                }
+            </div>
+
+            <!-- QC RUNS TABLE -->
+            <div class="card p-0 mb-3 border-secondary overflow-hidden">
+                <div class="p-2 border-bottom border-secondary bg-dark d-flex justify-content-between align-items-center">
+                    <strong class="text-white small">@Prefs.T("📋 جدول قراءات ونتائج ضبط الجودة:", "📋 QC Runs & Results Table:")</strong>
+                    <span class="badge bg-secondary font-monospace">@(QcResultsList?.Count ?? 0) @Prefs.T("قراءة", "Runs")</span>
+                </div>
+
+                <div class="table-responsive">
+                    <table class="table table-hover align-middle mb-0 table-stagger">
+                        <thead>
+                            <tr>
+                                <th>#</th>
+                                <th>@Prefs.T("تاريخ ووقت الفحص", "Run Date & Time")</th>
+                                <th>@Prefs.T("محلول الضبط", "QC Material")</th>
+                                <th>@Prefs.T("المستوى", "Level")</th>
+                                <th>@Prefs.T("القيمة (Result)", "Result Value")</th>
+                                <th>@Prefs.T("الوحدة", "Unit")</th>
+                                <th>Z-Score</th>
+                                <th>@Prefs.T("قاعدة وستغارد (Westgard)", "Westgard Rule")</th>
+                                <th>@Prefs.T("الحالة", "Status")</th>
+                                <th>@Prefs.T("الإجراء التصحيحي", "Corrective Action")</th>
+                                <th class="text-center">@Prefs.T("إجراء", "Action")</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            @if (QcResultsList != null && QcResultsList.Any())
+                            {
+                                @foreach (var run in QcResultsList)
+                                {
+                                    <tr>
+                                        <td class="font-monospace">@run.Id</td>
+                                        <td class="small font-monospace">@run.ReceivedAt.ToString("yyyy-MM-dd HH:mm")</td>
+                                        <td class="small fw-semibold text-white">@(run.MaterialName ?? "--")</td>
+                                        <td>
+                                            @if (run.Level == 1)
+                                            {
+                                                <span class="badge bg-success">L1 (@Prefs.T("طبيعي", "Normal"))</span>
+                                            }
+                                            else if (run.Level == 2)
+                                            {
+                                                <span class="badge bg-danger">L2 (@Prefs.T("مرتفع", "High"))</span>
+                                            }
+                                            else if (run.Level == 3)
+                                            {
+                                                <span class="badge bg-info text-dark">L3 (@Prefs.T("منخفض", "Low"))</span>
+                                            }
+                                            else
+                                            {
+                                                <span class="badge bg-secondary">--</span>
+                                            }
+                                        </td>
+                                        <td class="fw-bold font-monospace fs-6 text-info">@run.Value.ToString("F2")</td>
+                                        <td class="small text-secondary font-monospace">@(CurrentTarget?.Unit ?? "--")</td>
+                                        <td class="font-monospace small @(Math.Abs(run.ZScore ?? 0) > 2 ? "text-danger fw-bold" : "text-white")">
+                                            @(run.ZScore.HasValue ? run.ZScore.Value.ToString("+0.00;-0.00;0.00") : "--")
+                                        </td>
+                                        <td>
+                                            @if (string.IsNullOrEmpty(run.RuleViolation))
+                                            {
+                                                <span class="badge bg-success small">@Prefs.T("طبيعي (In-Control)", "In-Control")</span>
+                                            }
+                                            else if (run.RuleViolation == "1-2s")
+                                            {
+                                                <span class="badge bg-warning text-dark small" title='@Prefs.T("تحذير عشوائي", "Warning")'>⚠️ 1-2s (Warning)</span>
+                                            }
+                                            else
+                                            {
+                                                <span class="badge bg-danger small" title='@Prefs.T("مخالفة قطعية", "Rejection")'>❌ @run.RuleViolation (Rejection)</span>
+                                            }
+                                        </td>
+                                        <td>
+                                            @if (run.Accepted)
+                                            {
+                                                <span class="text-success small fw-bold">@Prefs.T("✅ معتمد", "✅ Accepted")</span>
+                                            }
+                                            else
+                                            {
+                                                <span class="text-danger small fw-bold">@Prefs.T("⛔ مرفوض", "⛔ Rejected")</span>
+                                            }
+                                        </td>
+                                        <td class="small text-muted">
+                                            @(string.IsNullOrEmpty(run.CorrectiveAction) ? "--" : run.CorrectiveAction)
+                                        </td>
+                                        <td class="text-center">
+                                            <button type="button" class="btn btn-sm btn-outline-info py-0 px-2 btn-action-animated" @onclick="() => OpenActionModal(run)">
+                                                ✏️ @Prefs.T("تعديل / إجراء", "Action")
+                                            </button>
+                                        </td>
+                                    </tr>
+                                }
+                            }
+                            else
+                            {
+                                <tr>
+                                    <td colspan="11" class="text-center py-4 text-secondary">@Prefs.T("لا توجد قراءات مسجلة", "No runs recorded")</td>
+                                </tr>
+                            }
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        }
+    }
+    @* TAB 2: QC MATERIALS & LOTS *@
+    else if (ActiveTab == "materials")
+    {
+        <div class="row g-3">
+            <div class="col-md-7">
+                <div class="card p-0 border-secondary overflow-hidden">
+                    <div class="p-2 border-bottom border-secondary bg-dark d-flex justify-content-between align-items-center">
+                        <strong class="text-white small">@Prefs.T("🧪 قائمة محاليل ومواد ضبط الجودة (QC Materials):", "🧪 QC Materials & Control Lots:")</strong>
+                        <span class="badge bg-info text-dark font-monospace">@(MaterialsList?.Count ?? 0) @Prefs.T("مادة", "Materials")</span>
+                    </div>
+
+                    <div class="table-responsive">
+                        <table class="table table-hover align-middle mb-0 table-stagger">
+                            <thead>
+                                <tr>
+                                    <th>#</th>
+                                    <th>@Prefs.T("اسم المادة (Name)", "Material Name")</th>
+                                    <th>@Prefs.T("رقم التشغيلة (Lot #)", "Lot Number")</th>
+                                    <th>@Prefs.T("المستوى (Level)", "Level")</th>
+                                    <th>@Prefs.T("تاريخ الصلاحية", "Expiry Date")</th>
+                                    <th>@Prefs.T("الحالة", "Status")</th>
+                                    <th class="text-center">@Prefs.T("إجراء", "Action")</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                @if (MaterialsList != null && MaterialsList.Any())
+                                {
+                                    @foreach (var mat in MaterialsList)
+                                    {
+                                        <tr>
+                                            <td class="font-monospace">@mat.Id</td>
+                                            <td class="fw-bold text-white">@mat.Name</td>
+                                            <td class="font-monospace text-info">@mat.LotNo</td>
+                                            <td><span class="badge bg-secondary font-monospace">@(Prefs.Language == "en" ? $"Level {mat.Level} ({(mat.Level == 1 ? "Normal" : mat.Level == 2 ? "High" : "Low")})" : mat.LevelDisplay)</span></td>
+                                            <td class="small font-monospace @(mat.ExpiryDate < DateTime.UtcNow ? "text-danger fw-bold" : "text-secondary")">
+                                                @mat.ExpiryDate.ToString("yyyy-MM-dd")
+                                            </td>
+                                            <td>
+                                                @if (mat.Active)
+                                                {
+                                                    <span class="badge bg-success">@Prefs.T("نشط", "Active")</span>
+                                                }
+                                                else
+                                                {
+                                                    <span class="badge bg-secondary">@Prefs.T("معطل", "Inactive")</span>
+                                                }
+                                            </td>
+                                            <td class="text-center">
+                                                <button class="btn btn-sm btn-outline-info py-0 px-2 me-1 btn-action-animated" @onclick="() => EditMaterial(mat)">✏️</button>
+                                                <button class="btn btn-sm btn-outline-danger py-0 px-2 btn-action-animated" @onclick="() => DeleteMaterial(mat.Id)">🗑️</button>
+                                            </td>
+                                        </tr>
+                                    }
+                                }
+                                else
+                                {
+                                    <tr>
+                                        <td colspan="7" class="text-center py-4 text-secondary">@Prefs.T("لا توجد مواد مسجلة", "No materials registered")</td>
+                                    </tr>
+                                }
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Material Form -->
+            <div class="col-md-5">
+                <div class="card p-3 border-secondary" style="background: rgba(15, 23, 42, 0.9);">
+                    <h6 class="text-info fw-bold mb-3">
+                        @(EditingMaterial.Id > 0 ? Prefs.T("✏️ تعديل مادة ضبط الجودة", "✏️ Edit QC Material") : Prefs.T("➕ إضافة مادة ضبط جودة جديدة", "➕ Add New QC Material"))
+                    </h6>
+
+                    <div class="mb-2">
+                        <label class="form-label text-secondary small mb-1">@Prefs.T("اسم مادة المحلول القياسي (Material Name)*:", "Material Name*:")</label>
+                        <input type="text" class="form-control form-control-sm" placeholder="e.g. Bio-Rad Liquid Assayed Multiqual" @bind="EditingMaterial.Name" />
+                    </div>
+
+                    <div class="row g-2 mb-2">
+                        <div class="col-6">
+                            <label class="form-label text-secondary small mb-1">@Prefs.T("رقم التشغيلة (Lot Number)*:", "Lot Number*:")</label>
+                            <input type="text" class="form-control form-control-sm font-monospace fw-bold" placeholder="e.g. LOT45820" @bind="EditingMaterial.LotNo" />
+                        </div>
+                        <div class="col-6">
+                            <label class="form-label text-secondary small mb-1">@Prefs.T("المستوى (Level):", "Control Level:")</label>
+                            <select class="form-select form-select-sm" @bind="EditingMaterial.Level">
+                                <option value="1">@Prefs.T("Level 1 (طبيعي / Normal)", "Level 1 (Normal)")</option>
+                                <option value="2">@Prefs.T("Level 2 (مرتفع / High)", "Level 2 (High)")</option>
+                                <option value="3">@Prefs.T("Level 3 (منخفض / Low)", "Level 3 (Low)")</option>
+                            </select>
+                        </div>
+                    </div>
+
+                    <div class="row g-2 mb-3">
+                        <div class="col-7">
+                            <label class="form-label text-secondary small mb-1">@Prefs.T("تاريخ انتهاء الصلاحية (Expiry Date):", "Expiry Date:")</label>
+                            <input type="date" class="form-control form-control-sm" @bind="EditingMaterial.ExpiryDate" />
+                        </div>
+                        <div class="col-5 d-flex align-items-end">
+                            <div class="form-check mb-1">
+                                <input class="form-check-input" type="checkbox" id="chkMatActive" @bind="EditingMaterial.Active" />
+                                <label class="form-check-label text-white small" for="chkMatActive">@Prefs.T("المادة نشطة حالياً", "Material is Active")</label>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="d-flex gap-2">
+                        <button type="button" class="btn btn-success btn-sm fw-bold flex-grow-1 btn-action-animated" @onclick="SaveMaterial">
+                            💾 @Prefs.T("حفظ المادة (Save Material)", "Save Material")
+                        </button>
+                        <button type="button" class="btn btn-outline-secondary btn-sm" @onclick="ResetMaterialForm">
+                            @Prefs.T("إلغاء", "Cancel")
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    }
+    @* TAB 3: TARGET VALUES & SD *@
+    else if (ActiveTab == "targets")
+    {
+        <div class="row g-3">
+            <div class="col-md-7">
+                <div class="card p-0 border-secondary overflow-hidden">
+                    <div class="p-2 border-bottom border-secondary bg-dark d-flex justify-content-between align-items-center">
+                        <strong class="text-white small">@Prefs.T("🎯 القيم المستهدفة والانحراف المعياري (Targets & SD):", "🎯 Target Values & Standard Deviation:")</strong>
+                        <span class="badge bg-info text-dark font-monospace">@(TargetsList?.Count ?? 0) @Prefs.T("هدف", "Targets")</span>
+                    </div>
+
+                    <div class="table-responsive">
+                        <table class="table table-hover align-middle mb-0 table-stagger">
+                            <thead>
+                                <tr>
+                                    <th>@Prefs.T("الجهاز", "Instrument")</th>
+                                    <th>@Prefs.T("الفحص", "Component")</th>
+                                    <th>@Prefs.T("محلول الضبط", "QC Material")</th>
+                                    <th>@Prefs.T("المتوسط (Mean)", "Target Mean")</th>
+                                    <th>@Prefs.T("الانحراف (SD)", "Target SD")</th>
+                                    <th>CV%</th>
+                                    <th>@Prefs.T("النطاق (±2SD)", "Range (±2SD)")</th>
+                                    <th class="text-center">@Prefs.T("حذف", "Delete")</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                @if (TargetsList != null && TargetsList.Any())
+                                {
+                                    @foreach (var tgt in TargetsList)
+                                    {
+                                        <tr>
+                                            <td class="small fw-semibold text-white">@tgt.InstrumentName</td>
+                                            <td class="fw-bold text-info font-monospace">@tgt.ComponentCode</td>
+                                            <td class="small text-secondary">@tgt.MaterialName (L@tgt.Level)</td>
+                                            <td class="fw-bold font-monospace fs-6 text-white">@tgt.Mean.ToString("F2")</td>
+                                            <td class="font-monospace text-info">@tgt.Sd.ToString("F2")</td>
+                                            <td class="small text-muted font-monospace">@tgt.CvPercent.ToString("F1")%</td>
+                                            <td class="small font-monospace text-success">
+                                                @tgt.Minus2Sd.ToString("F1") - @tgt.Plus2Sd.ToString("F1")
+                                            </td>
+                                            <td class="text-center">
+                                                <button class="btn btn-sm btn-outline-danger py-0 px-2 btn-action-animated" @onclick="() => DeleteTarget(tgt.Id)">🗑️</button>
+                                            </td>
+                                        </tr>
+                                    }
+                                }
+                                else
+                                {
+                                    <tr>
+                                        <td colspan="8" class="text-center py-4 text-secondary">@Prefs.T("لا توجد أهداف محددة", "No targets defined")</td>
+                                    </tr>
+                                }
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Target Form -->
+            <div class="col-md-5">
+                <div class="card p-3 border-secondary" style="background: rgba(15, 23, 42, 0.9);">
+                    <h6 class="text-info fw-bold mb-3">@Prefs.T("➕ تحديد قيمة مستهدفة وانحراف معياري جديد", "➕ Define Target Value & Standard Deviation")</h6>
+
+                    <div class="mb-2">
+                        <label class="form-label text-secondary small mb-1">@Prefs.T("جهاز التحليل (Instrument)*:", "Analyzer / Instrument*:")</label>
+                        <select class="form-select form-select-sm" @bind="EditingTarget.InstrumentId">
+                            <option value="0">@Prefs.T("-- اختر جهاز تحليل --", "-- Select Instrument --")</option>
+                            @if (InstrumentsList != null)
+                            {
+                                @foreach (var inst in InstrumentsList)
+                                {
+                                    <option value="@inst.Id">@inst.DisplayName</option>
+                                }
+                            }
+                        </select>
+                    </div>
+
+                    <div class="mb-2">
+                        <label class="form-label text-secondary small mb-1">@Prefs.T("الفحص / البارامتر (Component)*:", "Test / Parameter*:")</label>
+                        <select class="form-select form-select-sm" @bind="EditingTarget.ComponentId">
+                            <option value="0">@Prefs.T("-- اختر فحصاً --", "-- Select Parameter --")</option>
+                            @if (ComponentsList != null)
+                            {
+                                @foreach (var comp in ComponentsList)
+                                {
+                                    <option value="@comp.Id">@comp.DisplaySummary</option>
+                                }
+                            }
+                        </select>
+                    </div>
+
+                    <div class="mb-2">
+                        <label class="form-label text-secondary small mb-1">@Prefs.T("محلول الضبط (QC Material)*:", "QC Material*:")</label>
+                        <select class="form-select form-select-sm" @bind="EditingTarget.QcMaterialId">
+                            <option value="0">@Prefs.T("-- اختر محلول ضبط الجودة --", "-- Select QC Material --")</option>
+                            @if (MaterialsList != null)
+                            {
+                                @foreach (var mat in MaterialsList)
+                                {
+                                    <option value="@mat.Id">@mat.DisplayName</option>
+                                }
+                            }
+                        </select>
+                    </div>
+
+                    <div class="row g-2 mb-2">
+                        <div class="col-6">
+                            <label class="form-label text-success small mb-1 fw-bold">@Prefs.T("المتوسط الهدف (Mean)*:", "Target Mean*:"):</label>
+                            <input type="number" step="0.01" class="form-control form-control-sm text-success fw-bold font-monospace" placeholder="e.g. 100.0" @bind="EditingTarget.Mean" />
+                        </div>
+                        <div class="col-6">
+                            <label class="form-label text-info small mb-1 fw-bold">@Prefs.T("الانحراف المعياري (SD)*:", "Target SD*:"):</label>
+                            <input type="number" step="0.01" class="form-control form-control-sm text-info fw-bold font-monospace" placeholder="e.g. 5.0" @bind="EditingTarget.Sd" />
+                        </div>
+                    </div>
+
+                    <div class="mb-3">
+                        <label class="form-label text-secondary small mb-1">@Prefs.T("الوحدة (Unit):", "Unit:"):</label>
+                        <input type="text" class="form-control form-control-sm font-monospace" placeholder="mg/dL, g/dL, 10^9/L" @bind="EditingTarget.Unit" />
+                    </div>
+
+                    <button type="button" class="btn btn-primary btn-sm fw-bold w-100 py-2 btn-action-animated" @onclick="SaveTarget">
+                        💾 @Prefs.T("حفظ القيمة الهدف (Save Target)", "Save Target Value")
+                    </button>
+                </div>
+            </div>
+        </div>
+    }
+    @* TAB 4: PRINTABLE REPORT *@
+    else if (ActiveTab == "report")
+    {
+        <div class="card p-4 border-secondary bg-dark mb-3 text-white">
+            <div class="d-flex justify-content-between align-items-center mb-4 border-bottom border-secondary pb-3 flex-wrap gap-2">
+                <div>
+                    <h5 class="fw-bold mb-1">@Prefs.T("📋 تقرير الجودة الشامل (Comprehensive QC Summary Report)", "Comprehensive Quality Control Summary Report")</h5>
+                    <small class="text-secondary">@Prefs.T("تقرير اعتماد وضبط جودة الفحوصات الطبية لمراجعة الاعتماد والتدقيق", "Clinical laboratory quality control validation and audit report.")</small>
+                </div>
+                <button type="button" class="btn btn-success btn-sm px-4 fw-bold btn-action-animated" onclick="window.print()">
+                    🖨️ @Prefs.T("طباعة التقرير (Print)", "Print Report")
+                </button>
+            </div>
+
+            <div class="row g-3 mb-4">
+                <div class="col-4">
+                    <span class="text-secondary small d-block">@Prefs.T("الجهاز:", "Instrument:")</span>
+                    <strong class="text-info fs-6">@(InstrumentsList?.FirstOrDefault(i => i.Id == SelectedInstrumentId)?.DisplayName ?? Prefs.T("جميع الأجهزة", "All Analyzers"))</strong>
+                </div>
+                <div class="col-4">
+                    <span class="text-secondary small d-block">@Prefs.T("الفحص الطبي:", "Test / Parameter:")</span>
+                    <strong class="text-info fs-6">@(ComponentsList?.FirstOrDefault(c => c.Id == SelectedComponentId)?.DisplaySummary ?? Prefs.T("جميع الفحوصات", "All Parameters"))</strong>
+                </div>
+                <div class="col-4">
+                    <span class="text-secondary small d-block">@Prefs.T("الفترة الزمنية:", "Time Range:")</span>
+                    <strong class="text-white fs-6 font-monospace">@(FilterFromDate?.ToString("yyyy-MM-dd") ?? Prefs.T("البداية", "Start")) @Prefs.T("إلى", "to") @(FilterToDate?.ToString("yyyy-MM-dd") ?? Prefs.T("اليوم", "Today"))</strong>
+                </div>
+            </div>
+
+            <div class="table-responsive">
+                <table class="table table-bordered text-white small">
+                    <thead class="table-dark">
+                        <tr>
+                            <th>@Prefs.T("التاريخ", "Date & Time")</th>
+                            <th>@Prefs.T("المحلول / التشغيلة", "Material / Lot")</th>
+                            <th>@Prefs.T("المستوى", "Level")</th>
+                            <th>@Prefs.T("النتيجة", "Result")</th>
+                            <th>@Prefs.T("الهدف (Mean)", "Target Mean")</th>
+                            <th>@Prefs.T("الانحراف (SD)", "Target SD")</th>
+                            <th>Z-Score</th>
+                            <th>@Prefs.T("قاعدة وستغارد", "Westgard Rule")</th>
+                            <th>@Prefs.T("القرار", "Decision")</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @if (QcResultsList != null && QcResultsList.Any())
+                        {
+                            @foreach (var r in QcResultsList)
+                            {
+                                <tr>
+                                    <td class="font-monospace">@r.ReceivedAt.ToString("yyyy-MM-dd HH:mm")</td>
+                                    <td>@r.MaterialName</td>
+                                    <td class="font-monospace">Level @r.Level</td>
+                                    <td class="fw-bold font-monospace">@r.Value.ToString("F2")</td>
+                                    <td class="font-monospace">@(r.Mean?.ToString("F2") ?? "--")</td>
+                                    <td class="font-monospace">@(r.Sd?.ToString("F2") ?? "--")</td>
+                                    <td class="font-monospace">@(r.ZScore?.ToString("+0.00;-0.00;0.00") ?? "--")</td>
+                                    <td>@(r.RuleViolation ?? "Normal (1-2s Passed)")</td>
+                                    <td>@(r.Accepted ? Prefs.T("✅ معتمد", "✅ Accepted") : Prefs.T("❌ مرفوض", "❌ Rejected"))</td>
+                                </tr>
+                            }
+                        }
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    }
+</div>
+
+<!-- ========================================== -->
+<!-- MODAL: ADD QC RUN RECORD -->
+<!-- ========================================== -->
+@if (IsAddRunModalOpen)
+{
+    <div class="modal fade show d-block" tabindex="-1" style="background: rgba(0,0,0,0.8); backdrop-filter: blur(4px); z-index: 1060;">
+        <div class="modal-dialog modal-dialog-centered">
+            <div class="modal-content card border-info" style="background: rgba(15, 23, 42, 0.98);">
+                <div class="modal-header border-bottom border-secondary py-2 px-3">
+                    <h5 class="modal-title text-info fw-bold mb-0">@Prefs.T("➕ تسجيل قراءة ضبط جودة جديدة", "➕ Record New QC Run")</h5>
+                    <button type="button" class="btn-close btn-close-white" @onclick="() => IsAddRunModalOpen = false"></button>
+                </div>
+                <div class="modal-body p-3">
+                    <div class="mb-2">
+                        <label class="form-label text-secondary small mb-1">@Prefs.T("الجهاز (Instrument)*:", "Analyzer / Instrument*:")</label>
+                        <select class="form-select form-select-sm" @bind="NewRunModel.InstrumentId">
+                            <option value="0">@Prefs.T("-- اختر جهاز تحليل --", "-- Select Instrument --")</option>
+                            @if (InstrumentsList != null)
+                            {
+                                @foreach (var inst in InstrumentsList)
+                                {
+                                    <option value="@inst.Id">@inst.DisplayName</option>
+                                }
+                            }
+                        </select>
+                    </div>
+
+                    <div class="mb-2">
+                        <label class="form-label text-secondary small mb-1">@Prefs.T("الفحص (Component)*:", "Test / Parameter*:")</label>
+                        <select class="form-select form-select-sm" @bind="NewRunModel.ComponentId">
+                            <option value="0">@Prefs.T("-- اختر فحصاً --", "-- Select Parameter --")</option>
+                            @if (ComponentsList != null)
+                            {
+                                @foreach (var comp in ComponentsList)
+                                {
+                                    <option value="@comp.Id">@comp.DisplaySummary</option>
+                                }
+                            }
+                        </select>
+                    </div>
+
+                    <div class="mb-2">
+                        <label class="form-label text-secondary small mb-1">@Prefs.T("محلول الضبط (QC Material)*:", "QC Material*:")</label>
+                        <select class="form-select form-select-sm" @bind="NewRunModel.QcMaterialId">
+                            <option value="0">@Prefs.T("-- اختر محلول ضبط الجودة --", "-- Select QC Material --")</option>
+                            @if (MaterialsList != null)
+                            {
+                                @foreach (var mat in MaterialsList)
+                                {
+                                    <option value="@mat.Id">@mat.DisplayName</option>
+                                }
+                            }
+                        </select>
+                    </div>
+
+                    <div class="row g-2 mb-3">
+                        <div class="col-6">
+                            <label class="form-label text-info small mb-1 fw-bold">@Prefs.T("القيمة الناتجة (Result Value)*:", "Result Value*:")</label>
+                            <input type="number" step="0.01" class="form-control form-control-sm text-info fw-bold fs-6 font-monospace" @bind="NewRunModel.Value" placeholder="e.g. 98.5" />
+                        </div>
+                        <div class="col-6">
+                            <label class="form-label text-secondary small mb-1">@Prefs.T("تاريخ ووقت القراءة:", "Run Date & Time:")</label>
+                            <input type="datetime-local" class="form-control form-control-sm" @bind="NewRunModel.ReceivedAt" />
+                        </div>
+                    </div>
+
+                    <div class="mb-3">
+                        <label class="form-label text-secondary small mb-1">@Prefs.T("ملاحظات سريرية أو إجراء تصحيحي:", "Clinical Notes / Action:")</label>
+                        <input type="text" class="form-control form-control-sm" placeholder='@Prefs.T("ملاحظة أو سبب الإعادة...", "Notes or rerun reason...")' @bind="NewRunModel.CorrectiveAction" />
+                    </div>
+
+                    <button type="button" class="btn btn-primary btn-sm fw-bold w-100 py-2 btn-action-animated" @onclick="SaveRunRecord">
+                        💾 @Prefs.T("حفظ القراءة وتقييم وستغارد (Save & Evaluate)", "Save & Evaluate Westgard")
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+}
+
+<!-- ========================================== -->
+<!-- MODAL: CORRECTIVE ACTION & ACCEPTANCE -->
+<!-- ========================================== -->
+@if (IsActionModalOpen && SelectedRunForAction != null)
+{
+    <div class="modal fade show d-block" tabindex="-1" style="background: rgba(0,0,0,0.8); backdrop-filter: blur(4px); z-index: 1060;">
+        <div class="modal-dialog modal-dialog-centered">
+            <div class="modal-content card border-warning" style="background: rgba(15, 23, 42, 0.98);">
+                <div class="modal-header border-bottom border-secondary py-2 px-3">
+                    <h5 class="modal-title text-warning fw-bold mb-0">@Prefs.T("✏️ اتخاذ إجراء تصحيحي لقراءة ضبط الجودة #", "✏️ Corrective Action for QC Run #")@SelectedRunForAction.Id</h5>
+                    <button type="button" class="btn-close btn-close-white" @onclick="() => IsActionModalOpen = false"></button>
+                </div>
+                <div class="modal-body p-3">
+                    <div class="p-2 mb-3 bg-dark border border-secondary rounded">
+                        <div class="row g-2 small">
+                            <div class="col-6">@Prefs.T("القيمة:", "Value:") <strong class="text-info font-monospace">@SelectedRunForAction.Value</strong></div>
+                            <div class="col-6">Z-Score: <strong class="text-white font-monospace">@(SelectedRunForAction.ZScore?.ToString("+0.00;-0.00;0.00") ?? "--")</strong></div>
+                            <div class="col-12">@Prefs.T("المخالفة:", "Violation:") <span class="badge bg-danger">@(SelectedRunForAction.RuleViolation ?? Prefs.T("لا توجد مخالفة", "No Violation"))</span></div>
+                        </div>
+                    </div>
+
+                    <div class="mb-3">
+                        <label class="form-label text-secondary small mb-1">@Prefs.T("قرار الاعتماد:", "Acceptance Decision:")</label>
+                        <select class="form-select form-select-sm" @bind="ActionAccepted">
+                            <option value="true">@Prefs.T("✅ معتمد (Accepted) - السماح بإخراج النتائج", "✅ Accepted - Allow results release")</option>
+                            <option value="false">@Prefs.T("❌ مرفوض (Rejected) - إيقاف الفحص حتى حل السبب", "❌ Rejected - Hold testing until resolved")</option>
+                        </select>
+                    </div>
+
+                    <div class="mb-3">
+                        <label class="form-label text-secondary small mb-1">@Prefs.T("الإجراء التصحيحي المتخذ (Corrective Action):", "Corrective Action Taken:")</label>
+                        <textarea class="form-control form-control-sm" rows="3" placeholder='@Prefs.T("مثال: تم فتح عبوة محلول جديدة وإعادة المعايرة (Calibration) والتأكد من استقرار درجة الحرارة...", "e.g. Opened new reagent lot, recalibrated instrument, confirmed temperature stability...")' @bind="ActionText"></textarea>
+                    </div>
+
+                    <button type="button" class="btn btn-warning btn-sm fw-bold w-100 py-2 text-dark btn-action-animated" @onclick="SaveActionRecord">
+                        💾 @Prefs.T("حفظ القرار والإجراء التصحيحي", "Save Action & Decision")
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+}
+
+@code {
+    private string ActiveTab = "chart";
+    private string? AlertMessage;
+    private string AlertClass = "alert-success";
+
+    private List<InstrumentSimpleDto>? InstrumentsList;
+    private List<ComponentDto>? ComponentsList;
+    private List<QcMaterialDto>? MaterialsList;
+    private List<QcTargetDto>? TargetsList;
+    private List<QcResultDto>? QcResultsList;
+    private QcTargetDto? CurrentTarget;
+    private TodayQcStatusDto? TodayStatus;
+
+    // Filters
+    private long SelectedInstrumentId = 0;
+    private long SelectedComponentId = 0;
+    private long SelectedMaterialId = 0;
+    private DateTime? FilterFromDate = DateTime.UtcNow.AddDays(-30);
+    private DateTime? FilterToDate = DateTime.UtcNow;
+
+    // Stats
+    private decimal? ObservedMean;
+    private decimal? ObservedSd;
+    private decimal? ObservedCv;
+
+    // Forms Models
+    private QcMaterialDto EditingMaterial = new();
+    private QcTargetDto EditingTarget = new();
+    private QcResultDto NewRunModel = new();
+    private bool IsAddRunModalOpen = false;
+
+    // Action Modal
+    private QcResultDto? SelectedRunForAction;
+    private bool IsActionModalOpen = false;
+    private bool ActionAccepted = true;
+    private string ActionText = "";
+
+    protected override async Task OnInitializedAsync()
+    {
+        Prefs.OnChange += OnPrefsChanged;
+        await LoadAllData();
+    }
+
+    private void OnPrefsChanged() => InvokeAsync(StateHasChanged);
+
+    public void Dispose()
+    {
+        Prefs.OnChange -= OnPrefsChanged;
+    }
+
+    private async Task LoadAllData()
+    {
+        try
+        {
+            InstrumentsList = (await CatalogService.GetInstrumentsAsync()).ToList();
+            MaterialsList = (await QcService.GetMaterialsAsync()).ToList();
+            TargetsList = (await QcService.GetTargetsAsync()).ToList();
+
+            // Load all components
+            var allTests = await CatalogService.GetAllTestsAsync();
+            var compList = new List<ComponentDto>();
+            foreach (var t in allTests)
+            {
+                var comps = await CatalogService.GetComponentsForTestAsync(t.Id);
+                compList.AddRange(comps);
+            }
+            ComponentsList = compList.DistinctBy(c => c.Id).OrderBy(c => c.DisplayCode).ToList();
+
+            // Set default selections if available
+            if (SelectedInstrumentId == 0 && InstrumentsList.Any())
+            {
+                SelectedInstrumentId = InstrumentsList.First().Id;
+            }
+            if (SelectedComponentId == 0 && ComponentsList.Any())
+            {
+                SelectedComponentId = ComponentsList.First().Id;
+            }
+
+            await LoadQcResults();
+        }
+        catch (Exception ex)
+        {
+            AlertClass = "alert-danger";
+            AlertMessage = Prefs.T($"خطأ في تحميل بيانات ضبط الجودة: {ex.Message}", $"Error loading QC data: {ex.Message}");
+        }
+    }
+
+    private async Task OnFilterChanged()
+    {
+        await LoadQcResults();
+    }
+
+    private async Task LoadQcResults()
+    {
+        if (SelectedInstrumentId <= 0 || SelectedComponentId <= 0) return;
+
+        try
+        {
+            // Load target
+            var targets = await QcService.GetTargetsAsync(
+                materialId: SelectedMaterialId > 0 ? SelectedMaterialId : null,
+                instrumentId: SelectedInstrumentId,
+                componentId: SelectedComponentId);
+            CurrentTarget = targets.FirstOrDefault();
+
+            // Load results
+            QcResultsList = (await QcService.GetResultsAsync(
+                instrumentId: SelectedInstrumentId,
+                componentId: SelectedComponentId,
+                materialId: SelectedMaterialId > 0 ? SelectedMaterialId : null,
+                fromDate: FilterFromDate,
+                toDate: FilterToDate?.Date.AddDays(1).AddSeconds(-1)
+            )).ToList();
+
+            // Calculate Observed stats
+            if (QcResultsList.Any())
+            {
+                ObservedMean = Math.Round(QcResultsList.Average(r => r.Value), 2);
+                if (QcResultsList.Count > 1)
+                {
+                    double sumSquares = QcResultsList.Sum(r => Math.Pow((double)(r.Value - ObservedMean.Value), 2));
+                    ObservedSd = (decimal)Math.Round(Math.Sqrt(sumSquares / (QcResultsList.Count - 1)), 2);
+                    ObservedCv = ObservedMean > 0 ? Math.Round((ObservedSd.Value / ObservedMean.Value) * 100m, 2) : 0;
+                }
+                else
+                {
+                    ObservedSd = 0;
+                    ObservedCv = 0;
+                }
+            }
+            else
+            {
+                ObservedMean = null;
+                ObservedSd = null;
+                ObservedCv = null;
+            }
+
+            // Load Today Status
+            TodayStatus = await QcService.GetTodayQcStatusAsync(SelectedInstrumentId, SelectedComponentId);
+        }
+        catch (Exception ex)
+        {
+            AlertClass = "alert-danger";
+            AlertMessage = Prefs.T($"خطأ في جلب نتائج الـ QC: {ex.Message}", $"Error fetching QC results: {ex.Message}");
+        }
+    }
+
+    private void SetActiveTab(string tab) => ActiveTab = tab;
+
+    // Materials Management
+    private void EditMaterial(QcMaterialDto mat)
+    {
+        EditingMaterial = new QcMaterialDto
+        {
+            Id = mat.Id,
+            Name = mat.Name,
+            LotNo = mat.LotNo,
+            Level = mat.Level,
+            ExpiryDate = mat.ExpiryDate,
+            Active = mat.Active
+        };
+    }
+
+    private void ResetMaterialForm()
+    {
+        EditingMaterial = new QcMaterialDto();
+    }
+
+    private async Task SaveMaterial()
+    {
+        if (string.IsNullOrWhiteSpace(EditingMaterial.Name) || string.IsNullOrWhiteSpace(EditingMaterial.LotNo))
+        {
+            AlertClass = "alert-warning";
+            AlertMessage = Prefs.T("يرجى إدخال اسم مادة الضبط ورقم التشغيلة (Lot #).", "Please enter material name and lot number.");
+            return;
+        }
+
+        try
+        {
+            await QcService.SaveMaterialAsync(EditingMaterial, userId: 1);
+            AlertClass = "alert-success";
+            AlertMessage = Prefs.T("✅ تم حفظ مادة ضبط الجودة بنجاح!", "✅ QC material saved successfully!");
+            ResetMaterialForm();
+            MaterialsList = (await QcService.GetMaterialsAsync()).ToList();
+        }
+        catch (Exception ex)
+        {
+            AlertClass = "alert-danger";
+            AlertMessage = Prefs.T($"خطأ أثناء حفظ المادة: {ex.Message}", $"Error saving material: {ex.Message}");
+        }
+    }
+
+    private async Task DeleteMaterial(long id)
+    {
+        try
+        {
+            await QcService.DeleteMaterialAsync(id, 1);
+            AlertClass = "alert-warning";
+            AlertMessage = Prefs.T("تم حذف مادة ضبط الجودة بنجاح.", "QC material deleted successfully.");
+            MaterialsList = (await QcService.GetMaterialsAsync()).ToList();
+        }
+        catch (Exception ex)
+        {
+            AlertClass = "alert-danger";
+            AlertMessage = Prefs.T($"خطأ في حذف المادة: {ex.Message}", $"Error deleting material: {ex.Message}");
+        }
+    }
+
+    // Targets Management
+    private async Task SaveTarget()
+    {
+        if (EditingTarget.InstrumentId <= 0 || EditingTarget.ComponentId <= 0 || EditingTarget.QcMaterialId <= 0 || EditingTarget.Mean <= 0 || EditingTarget.Sd <= 0)
+        {
+            AlertClass = "alert-warning";
+            AlertMessage = Prefs.T("يرجى تعبئة كافة الحقول (الجهاز، الفحص، المادة، والمتوسط والانحراف المعياري أكبر من صفر).", "Please complete all fields (Analyzer, Test, Material, Mean and SD > 0).");
+            return;
+        }
+
+        try
+        {
+            await QcService.SaveTargetAsync(EditingTarget, userId: 1);
+            AlertClass = "alert-success";
+            AlertMessage = Prefs.T("✅ تم حفظ القيمة الهدف والانحراف بنجاح!", "✅ Target value and SD saved successfully!");
+            EditingTarget = new QcTargetDto();
+            TargetsList = (await QcService.GetTargetsAsync()).ToList();
+            await LoadQcResults();
+        }
+        catch (Exception ex)
+        {
+            AlertClass = "alert-danger";
+            AlertMessage = Prefs.T($"خطأ أثناء حفظ القيمة الهدف: {ex.Message}", $"Error saving target: {ex.Message}");
+        }
+    }
+
+    private async Task DeleteTarget(long id)
+    {
+        try
+        {
+            await QcService.DeleteTargetAsync(id, 1);
+            AlertClass = "alert-warning";
+            AlertMessage = Prefs.T("تم حذف القيمة المستهدفة بنجاح.", "Target value deleted successfully.");
+            TargetsList = (await QcService.GetTargetsAsync()).ToList();
+            await LoadQcResults();
+        }
+        catch (Exception ex)
+        {
+            AlertClass = "alert-danger";
+            AlertMessage = Prefs.T($"خطأ في حذف القيمة: {ex.Message}", $"Error deleting target: {ex.Message}");
+        }
+    }
+
+    // Run Record Modal
+    private void OpenAddRunModal()
+    {
+        NewRunModel = new QcResultDto
+        {
+            InstrumentId = SelectedInstrumentId,
+            ComponentId = SelectedComponentId,
+            QcMaterialId = SelectedMaterialId > 0 ? SelectedMaterialId : MaterialsList?.FirstOrDefault()?.Id,
+            Value = CurrentTarget?.Mean ?? 0,
+            ReceivedAt = DateTime.Now
+        };
+        IsAddRunModalOpen = true;
+    }
+
+    private async Task SaveRunRecord()
+    {
+        if (NewRunModel.InstrumentId <= 0 || NewRunModel.ComponentId <= 0 || NewRunModel.Value <= 0)
+        {
+            AlertClass = "alert-warning";
+            AlertMessage = Prefs.T("يرجى ملء بيانات الفحص والجهاز والقيمة المقاسة.", "Please fill in analyzer, parameter, and measured value.");
+            return;
+        }
+
+        try
+        {
+            await QcService.RecordResultAsync(NewRunModel, userId: 1);
+            IsAddRunModalOpen = false;
+            AlertClass = "alert-success";
+            AlertMessage = Prefs.T("✅ تم تسجيل قراءة ضبط الجودة وتقييم وستغارد بنجاح!", "✅ QC run recorded and Westgard rules evaluated successfully!");
+            await LoadQcResults();
+        }
+        catch (Exception ex)
+        {
+            AlertClass = "alert-danger";
+            AlertMessage = Prefs.T($"خطأ أثناء تسجيل القراءة: {ex.Message}", $"Error recording run: {ex.Message}");
+        }
+    }
+
+    // Action Modal
+    private void OpenActionModal(QcResultDto run)
+    {
+        SelectedRunForAction = run;
+        ActionAccepted = run.Accepted;
+        ActionText = run.CorrectiveAction ?? "";
+        IsActionModalOpen = true;
+    }
+
+    private async Task SaveActionRecord()
+    {
+        if (SelectedRunForAction == null) return;
+
+        try
+        {
+            await QcService.UpdateResultActionAsync(SelectedRunForAction.Id, ActionAccepted, ActionText, userId: 1);
+            IsActionModalOpen = false;
+            AlertClass = "alert-success";
+            AlertMessage = Prefs.T("✅ تم تحديث الإجراء التصحيحي وحالة الاعتماد بنجاح!", "✅ Corrective action and acceptance decision updated successfully!");
+            await LoadQcResults();
+        }
+        catch (Exception ex)
+        {
+            AlertClass = "alert-danger";
+            AlertMessage = Prefs.T($"خطأ أثناء تحديث الإجراء: {ex.Message}", $"Error updating action: {ex.Message}");
+        }
+    }
+}

@@ -23,7 +23,7 @@ namespace Lis.App.Services
 
         public static FrameworkElement CreateReportVisual(OrderResultsDto order, LabSettingsDto settings)
         {
-            var fontFamily = new FontFamily("Segoe UI, Tahoma, Arial");
+            var fontFamily = new FontFamily("pack://application:,,,/Assets/Fonts/#BoutrosAsma, ButrosAsma, Boutros Asma, BoutrosAsma, Segoe UI, Tahoma, Arial");
 
             var page = new Border
             {
@@ -167,11 +167,12 @@ namespace Lis.App.Services
             headerGrid.Children.Add(rightStack);
             rootStack.Children.Add(headerGrid);
 
-            // Separator Bar
+            // Separator Bar (Clean header without dark/blue background)
             var titleBanner = new Border
             {
-                Background = new SolidColorBrush(Color.FromRgb(15, 23, 42)), // Slate 900
-                CornerRadius = new CornerRadius(4),
+                Background = new SolidColorBrush(Color.FromRgb(248, 250, 252)),
+                BorderBrush = new SolidColorBrush(Color.FromRgb(203, 213, 225)),
+                BorderThickness = new Thickness(0, 0, 0, 1.5),
                 Padding = new Thickness(10, 6, 10, 6),
                 Margin = new Thickness(0, 4, 0, 12)
             };
@@ -181,31 +182,27 @@ namespace Lis.App.Services
 
             var titleTxt = new TextBlock
             {
-                Text = "تقرير الفحوصات الطبية والمخبرية  |  MEDICAL LABORATORY REPORT",
-                FontSize = 12.5,
+                Text = "MEDICAL LABORATORY REPORT",
+                FontSize = 13,
                 FontWeight = FontWeights.Bold,
-                Foreground = Brushes.White,
+                Foreground = new SolidColorBrush(Color.FromRgb(15, 23, 42)),
                 FontFamily = fontFamily,
                 VerticalAlignment = VerticalAlignment.Center
             };
             Grid.SetColumn(titleTxt, 0);
             titleGrid.Children.Add(titleTxt);
 
-            var statusBadge = new Border
+            var idTxt = new TextBlock
             {
-                Background = order.IsAllValidated ? new SolidColorBrush(Color.FromRgb(16, 185, 129)) : new SolidColorBrush(Color.FromRgb(56, 189, 248)),
-                CornerRadius = new CornerRadius(3),
-                Padding = new Thickness(8, 2, 8, 2),
-                Child = new TextBlock
-                {
-                    Text = order.IsAllValidated ? "معتمد (Validated ✓)" : "تقرير أولي (Preliminary)",
-                    FontSize = 10.5,
-                    FontWeight = FontWeights.Bold,
-                    Foreground = Brushes.White
-                }
+                Text = $"Patient ID: {order.Mrn}   |   Sample No: #{order.OrderId}",
+                FontSize = 11,
+                FontWeight = FontWeights.SemiBold,
+                Foreground = new SolidColorBrush(Color.FromRgb(71, 85, 105)),
+                FontFamily = fontFamily,
+                VerticalAlignment = VerticalAlignment.Center
             };
-            Grid.SetColumn(statusBadge, 1);
-            titleGrid.Children.Add(statusBadge);
+            Grid.SetColumn(idTxt, 1);
+            titleGrid.Children.Add(idTxt);
             titleBanner.Child = titleGrid;
             rootStack.Children.Add(titleBanner);
 
@@ -241,139 +238,203 @@ namespace Lis.App.Services
             rootStack.Children.Add(patientBox);
 
             // ═══ 3. RESULTS TABLE ═════════════════════════════════════════════
-            // Group results by Test Name
-            var groups = order.Results.GroupBy(r => new { r.TestId, r.DisplayTestName }).ToList();
+            // Group results by Department first, then by Test Name
+            var deptGroups = order.Results.GroupBy(r => r.DisplayDepartmentName).ToList();
 
-            foreach (var grp in groups)
+            foreach (var deptGrp in deptGroups)
             {
-                // Test Header Banner
-                var testHeader = new Border
+                // Department Header Banner (Matching clean report style with left cyan accent)
+                var deptBanner = new Border
                 {
                     Background = new SolidColorBrush(Color.FromRgb(241, 245, 249)),
                     BorderBrush = new SolidColorBrush(Color.FromRgb(203, 213, 225)),
-                    BorderThickness = new Thickness(1, 1, 1, 0),
-                    CornerRadius = new CornerRadius(4, 4, 0, 0),
-                    Padding = new Thickness(10, 6, 10, 6),
-                    Margin = new Thickness(0, 6, 0, 0)
+                    BorderThickness = new Thickness(1),
+                    Padding = new Thickness(10, 5, 10, 5),
+                    Margin = new Thickness(0, 10, 0, 4),
+                    CornerRadius = new CornerRadius(3)
                 };
-                var thGrid = new Grid();
-                thGrid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
-                thGrid.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
+                var deptGrid = new Grid();
+                deptGrid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
+                deptGrid.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
 
-                var thText = new TextBlock
+                var deptTitle = new TextBlock
                 {
-                    Text = $"🔬 {grp.Key.DisplayTestName}",
+                    Text = $"🔬  {deptGrp.Key.ToUpperInvariant()}",
                     FontSize = 13,
                     FontWeight = FontWeights.Bold,
                     Foreground = new SolidColorBrush(Color.FromRgb(15, 23, 42)),
                     FontFamily = fontFamily
                 };
-                Grid.SetColumn(thText, 0);
-                thGrid.Children.Add(thText);
+                Grid.SetColumn(deptTitle, 0);
+                deptGrid.Children.Add(deptTitle);
 
-                var sampleSpec = grp.First();
-                var tubeText = new TextBlock
+                var deptBadge = new TextBlock
                 {
-                    Text = $"العينة: {sampleSpec.SpecimenTypeName} (باركود: {sampleSpec.AccessionNo})",
-                    FontSize = 11,
+                    Text = $"{deptGrp.Count()} {(deptGrp.Count() == 1 ? "Test" : "Tests")}",
+                    FontSize = 10.5,
                     Foreground = new SolidColorBrush(Color.FromRgb(100, 116, 139)),
-                    FontFamily = fontFamily
+                    FontFamily = fontFamily,
+                    VerticalAlignment = VerticalAlignment.Center
                 };
-                Grid.SetColumn(tubeText, 1);
-                thGrid.Children.Add(tubeText);
+                Grid.SetColumn(deptBadge, 1);
+                deptGrid.Children.Add(deptBadge);
 
-                testHeader.Child = thGrid;
-                rootStack.Children.Add(testHeader);
+                deptBanner.Child = deptGrid;
+                rootStack.Children.Add(deptBanner);
 
-                // Table Grid
-                var tableBorder = new Border
+                var groups = deptGrp.GroupBy(r => new { r.TestId, r.DisplayTestName }).ToList();
+
+                foreach (var grp in groups)
                 {
-                    BorderBrush = new SolidColorBrush(Color.FromRgb(203, 213, 225)),
-                    BorderThickness = new Thickness(1),
-                    Margin = new Thickness(0, 0, 0, 10)
-                };
-
-                var tableGrid = new Grid();
-                tableGrid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(2.4, GridUnitType.Star) }); // Investigation
-                tableGrid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1.3, GridUnitType.Star) }); // Result
-                tableGrid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(0.9, GridUnitType.Star) }); // Flag
-                tableGrid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1.1, GridUnitType.Star) }); // Unit
-                tableGrid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1.8, GridUnitType.Star) }); // Ref Range
-
-                // Columns Header Row
-                tableGrid.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
-                var colHeaders = new[] { "المكون (Component)", "النتيجة (Result)", "التنبيه (Flag)", "الوحدة (Unit)", "المعدل الطبيعي (Reference)" };
-                for (int c = 0; c < colHeaders.Length; c++)
-                {
-                    var chBorder = new Border
+                    // Test Header Banner
+                    var testHeader = new Border
                     {
-                        Background = new SolidColorBrush(Color.FromRgb(248, 250, 252)),
-                        BorderBrush = new SolidColorBrush(Color.FromRgb(226, 232, 240)),
-                        BorderThickness = new Thickness(0, 0, (c < 4 ? 1 : 0), 1),
-                        Padding = new Thickness(8, 6, 8, 6)
+                        Background = new SolidColorBrush(Color.FromRgb(241, 245, 249)),
+                        BorderBrush = new SolidColorBrush(Color.FromRgb(203, 213, 225)),
+                        BorderThickness = new Thickness(1, 1, 1, 0),
+                        CornerRadius = new CornerRadius(4, 4, 0, 0),
+                        Padding = new Thickness(10, 6, 10, 6),
+                        Margin = new Thickness(0, 6, 0, 0)
                     };
-                    var chText = new TextBlock
+                    var thGrid = new Grid();
+                    thGrid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
+                    thGrid.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
+
+                    var thText = new TextBlock
                     {
-                        Text = colHeaders[c],
-                        FontWeight = FontWeights.SemiBold,
-                        FontSize = 11,
-                        Foreground = new SolidColorBrush(Color.FromRgb(71, 85, 105)),
+                        Text = $"🔬 {grp.Key.DisplayTestName}",
+                        FontSize = 13,
+                        FontWeight = FontWeights.Bold,
+                        Foreground = new SolidColorBrush(Color.FromRgb(15, 23, 42)),
                         FontFamily = fontFamily
                     };
-                    chBorder.Child = chText;
-                    Grid.SetRow(chBorder, 0);
-                    Grid.SetColumn(chBorder, c);
-                    tableGrid.Children.Add(chBorder);
-                }
+                    Grid.SetColumn(thText, 0);
+                    thGrid.Children.Add(thText);
 
-                // Data Rows
-                int rowIndex = 1;
-                foreach (var item in grp)
-                {
+                    var sampleSpec = grp.First();
+                    var tubeText = new TextBlock
+                    {
+                        Text = $"العينة: {sampleSpec.SpecimenTypeName} (باركود: {sampleSpec.AccessionNo})",
+                        FontSize = 11,
+                        Foreground = new SolidColorBrush(Color.FromRgb(100, 116, 139)),
+                        FontFamily = fontFamily
+                    };
+                    Grid.SetColumn(tubeText, 1);
+                    thGrid.Children.Add(tubeText);
+
+                    testHeader.Child = thGrid;
+                    rootStack.Children.Add(testHeader);
+
+                    // Table Grid
+                    var tableBorder = new Border
+                    {
+                        BorderBrush = new SolidColorBrush(Color.FromRgb(203, 213, 225)),
+                        BorderThickness = new Thickness(1),
+                        Margin = new Thickness(0, 0, 0, 10)
+                    };
+
+                    var tableGrid = new Grid();
+                    tableGrid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(2.4, GridUnitType.Star) }); // Investigation
+                    tableGrid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1.3, GridUnitType.Star) }); // Result
+                    tableGrid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(0.9, GridUnitType.Star) }); // Flag
+                    tableGrid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1.1, GridUnitType.Star) }); // Unit
+                    tableGrid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1.8, GridUnitType.Star) }); // Ref Range
+
+                    // Columns Header Row
                     tableGrid.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
-
-                    bool isEven = rowIndex % 2 == 0;
-                    var rowBg = isEven ? new SolidColorBrush(Color.FromRgb(250, 250, 250)) : Brushes.White;
-
-                    // Highlight result color
-                    Brush resultBrush = Brushes.Black;
-                    FontWeight resultWeight = FontWeights.Normal;
-                    if (item.Flag == "H" || item.Flag == "HH")
+                    var colHeaders = new[] { "المكون (Component)", "النتيجة (Result)", "التنبيه (Flag)", "الوحدة (Unit)", "المعدل الطبيعي (Reference)" };
+                    for (int c = 0; c < colHeaders.Length; c++)
                     {
-                        resultBrush = new SolidColorBrush(Color.FromRgb(220, 38, 38)); // Red
-                        resultWeight = FontWeights.Bold;
+                        var chBorder = new Border
+                        {
+                            Background = new SolidColorBrush(Color.FromRgb(248, 250, 252)),
+                            BorderBrush = new SolidColorBrush(Color.FromRgb(226, 232, 240)),
+                            BorderThickness = new Thickness(0, 0, (c < 4 ? 1 : 0), 1),
+                            Padding = new Thickness(8, 6, 8, 6)
+                        };
+                        var chText = new TextBlock
+                        {
+                            Text = colHeaders[c],
+                            FontWeight = FontWeights.SemiBold,
+                            FontSize = 11,
+                            Foreground = new SolidColorBrush(Color.FromRgb(71, 85, 105)),
+                            FontFamily = fontFamily
+                        };
+                        chBorder.Child = chText;
+                        Grid.SetRow(chBorder, 0);
+                        Grid.SetColumn(chBorder, c);
+                        tableGrid.Children.Add(chBorder);
                     }
-                    else if (item.Flag == "L" || item.Flag == "LL")
+
+                    // Data Rows
+                    int rowIndex = 1;
+                    foreach (var item in grp)
                     {
-                        resultBrush = new SolidColorBrush(Color.FromRgb(37, 99, 235)); // Blue
-                        resultWeight = FontWeights.Bold;
+                        tableGrid.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
+
+                        bool isEven = rowIndex % 2 == 0;
+                        var rowBg = isEven ? new SolidColorBrush(Color.FromRgb(250, 250, 250)) : Brushes.White;
+
+                        // Highlight result color & Flag text
+                        Brush resultBrush = Brushes.Black;
+                        Brush flagBrush = new SolidColorBrush(Color.FromRgb(16, 185, 129)); // Green for Normal
+                        FontWeight resultWeight = FontWeights.Normal;
+                        string flagText = "N";
+
+                        if (item.Flag == "H" || item.Flag == "HH")
+                        {
+                            resultBrush = new SolidColorBrush(Color.FromRgb(220, 38, 38)); // Red
+                            flagBrush = resultBrush;
+                            resultWeight = FontWeights.Bold;
+                            flagText = item.Flag == "HH" ? "HH ↑↑" : "H ↑";
+                        }
+                        else if (item.Flag == "L" || item.Flag == "LL")
+                        {
+                            resultBrush = new SolidColorBrush(Color.FromRgb(37, 99, 235)); // Blue
+                            flagBrush = resultBrush;
+                            resultWeight = FontWeights.Bold;
+                            flagText = item.Flag == "LL" ? "LL ↓↓" : "L ↓";
+                        }
+                        else if (item.Flag == "N" || !string.IsNullOrWhiteSpace(item.ValueText))
+                        {
+                            flagText = "N";
+                            flagBrush = new SolidColorBrush(Color.FromRgb(16, 185, 129)); // Green
+                        }
+                        else
+                        {
+                            flagText = "—";
+                            flagBrush = new SolidColorBrush(Color.FromRgb(148, 163, 184));
+                        }
+
+                        if (!string.IsNullOrWhiteSpace(item.ValueText))
+                        {
+                            resultWeight = FontWeights.Bold;
+                        }
+
+                        // Col 0: Component Name with Code
+                        string compTitle = (!string.IsNullOrWhiteSpace(item.DisplayCode) && !string.Equals(item.DisplayCode, item.DisplayComponentName, StringComparison.OrdinalIgnoreCase))
+                            ? $"{item.DisplayComponentName} ({item.DisplayCode})"
+                            : item.DisplayComponentName;
+                        tableGrid.Children.Add(CreateTableCell(compTitle, 0, rowIndex, rowBg, fontFamily, FontWeights.Normal, Brushes.Black));
+
+                        // Col 1: Result Value
+                        tableGrid.Children.Add(CreateTableCell(string.IsNullOrWhiteSpace(item.ValueText) ? "—" : item.ValueText, 1, rowIndex, rowBg, fontFamily, resultWeight, resultBrush));
+
+                        // Col 2: Flag
+                        tableGrid.Children.Add(CreateTableCell(flagText, 2, rowIndex, rowBg, fontFamily, FontWeights.Bold, flagBrush));
+
+                        // Col 3: Unit
+                        tableGrid.Children.Add(CreateTableCell(item.Unit ?? "—", 3, rowIndex, rowBg, fontFamily, FontWeights.Normal, new SolidColorBrush(Color.FromRgb(100, 116, 139))));
+
+                        // Col 4: Reference Range
+                        tableGrid.Children.Add(CreateTableCell(item.ReferenceRangeText, 4, rowIndex, rowBg, fontFamily, FontWeights.Normal, new SolidColorBrush(Color.FromRgb(71, 85, 105)), true));
+
+                        rowIndex++;
                     }
-                    else if (!string.IsNullOrWhiteSpace(item.ValueText))
-                    {
-                        resultWeight = FontWeights.Bold;
-                    }
 
-                    // Col 0: Component Name
-                    tableGrid.Children.Add(CreateTableCell(item.DisplayComponentName, 0, rowIndex, rowBg, fontFamily, FontWeights.Normal, Brushes.Black));
-
-                    // Col 1: Result Value
-                    tableGrid.Children.Add(CreateTableCell(string.IsNullOrWhiteSpace(item.ValueText) ? "—" : item.ValueText, 1, rowIndex, rowBg, fontFamily, resultWeight, resultBrush));
-
-                    // Col 2: Flag
-                    string flagText = string.IsNullOrWhiteSpace(item.Flag) ? "" : item.Flag;
-                    tableGrid.Children.Add(CreateTableCell(flagText, 2, rowIndex, rowBg, fontFamily, FontWeights.Bold, resultBrush));
-
-                    // Col 3: Unit
-                    tableGrid.Children.Add(CreateTableCell(item.Unit ?? "—", 3, rowIndex, rowBg, fontFamily, FontWeights.Normal, new SolidColorBrush(Color.FromRgb(100, 116, 139))));
-
-                    // Col 4: Reference Range
-                    tableGrid.Children.Add(CreateTableCell(item.ReferenceRangeText, 4, rowIndex, rowBg, fontFamily, FontWeights.Normal, new SolidColorBrush(Color.FromRgb(71, 85, 105)), true));
-
-                    rowIndex++;
+                    tableBorder.Child = tableGrid;
+                    rootStack.Children.Add(tableBorder);
                 }
-
-                tableBorder.Child = tableGrid;
-                rootStack.Children.Add(tableBorder);
             }
 
             // ═══ 4. FOOTER & SIGNATURE ═════════════════════════════════════════

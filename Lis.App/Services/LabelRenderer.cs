@@ -1,5 +1,7 @@
 using System;
+using System.Collections.Generic;
 using System.IO;
+using System.Linq;
 using System.Printing;
 using System.Windows;
 using System.Windows.Controls;
@@ -203,71 +205,81 @@ namespace Lis.App.Services
             return bitmap;
         }
 
-        public static void PrintLabel(SpecimenLabelData data, string? printerName = null)
+        public static PrintQueue? ResolveLabelPrintQueue(string? printerName)
+        {
+            try
+            {
+                using var printServer = new LocalPrintServer();
+                var queues = printServer.GetPrintQueues().Cast<PrintQueue>().ToList();
+
+                string? target = !string.IsNullOrWhiteSpace(printerName) ? printerName.Trim() : DefaultLabelPrinter?.Trim();
+
+                if (!string.IsNullOrWhiteSpace(target))
+                {
+                    // 1. EXACT match first (Name or FullName)
+                    var exact = queues.FirstOrDefault(q =>
+                        string.Equals(q.Name, target, StringComparison.OrdinalIgnoreCase) ||
+                        string.Equals(q.FullName, target, StringComparison.OrdinalIgnoreCase));
+                    if (exact != null) return exact;
+
+                    // 2. StartsWith match (e.g. target is "HPRT SL32BT" -> matches "HPRT SL32BT (Copy 1)")
+                    var startsWith = queues.FirstOrDefault(q =>
+                        q.Name.StartsWith(target, StringComparison.OrdinalIgnoreCase) ||
+                        target.StartsWith(q.Name, StringComparison.OrdinalIgnoreCase));
+                    if (startsWith != null) return startsWith;
+
+                    // 3. Contains match
+                    var contains = queues.FirstOrDefault(q =>
+                        q.Name.IndexOf(target, StringComparison.OrdinalIgnoreCase) >= 0 ||
+                        target.IndexOf(q.Name, StringComparison.OrdinalIgnoreCase) >= 0);
+                    if (contains != null) return contains;
+
+                    // 4. If target mentions "SL32" or "HPRT", prefer active (Copy 1) copy
+                    if (target.IndexOf("SL32", StringComparison.OrdinalIgnoreCase) >= 0 ||
+                        target.IndexOf("HPRT", StringComparison.OrdinalIgnoreCase) >= 0)
+                    {
+                        var sl32Copy = queues.FirstOrDefault(q => q.Name.IndexOf("SL32", StringComparison.OrdinalIgnoreCase) >= 0 && q.Name.IndexOf("Copy", StringComparison.OrdinalIgnoreCase) >= 0)
+                                    ?? queues.FirstOrDefault(q => q.Name.IndexOf("SL32", StringComparison.OrdinalIgnoreCase) >= 0)
+                                    ?? queues.FirstOrDefault(q => q.Name.IndexOf("HPRT", StringComparison.OrdinalIgnoreCase) >= 0);
+                        if (sl32Copy != null) return sl32Copy;
+                    }
+                }
+
+                // Fallback: auto-detect any HPRT or SL32 or Barcode printer in installed queues
+                var autoDetected = queues.FirstOrDefault(q => q.Name.IndexOf("SL32", StringComparison.OrdinalIgnoreCase) >= 0 && q.Name.IndexOf("Copy", StringComparison.OrdinalIgnoreCase) >= 0)
+                                ?? queues.FirstOrDefault(q => q.Name.IndexOf("SL32", StringComparison.OrdinalIgnoreCase) >= 0)
+                                ?? queues.FirstOrDefault(q => q.Name.IndexOf("HPRT", StringComparison.OrdinalIgnoreCase) >= 0)
+                                ?? queues.FirstOrDefault(q => q.Name.IndexOf("Barcode", StringComparison.OrdinalIgnoreCase) >= 0)
+                                ?? queues.FirstOrDefault(q => q.Name.IndexOf("Label", StringComparison.OrdinalIgnoreCase) >= 0);
+                if (autoDetected != null) return autoDetected;
+
+                return printServer.DefaultPrintQueue;
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"[LabelRenderer] Error resolving label print queue: {ex.Message}");
+                return null;
+            }
+        }
+
+        public static string PrintLabel(SpecimenLabelData data, string? printerName = null)
         {
             var printDialog = new PrintDialog();
+            var queue = ResolveLabelPrintQueue(printerName);
 
-            string? targetPrinter = !string.IsNullOrWhiteSpace(printerName) ? printerName : DefaultLabelPrinter;
-            if (string.Equals(targetPrinter, "HPRT SL32", StringComparison.OrdinalIgnoreCase))
+            if (queue != null)
             {
-                targetPrinter = "HPRT SL32BT";
+                printDialog.PrintQueue = queue;
             }
-
-            if (!string.IsNullOrWhiteSpace(targetPrinter))
-            {
-                try
-                {
-                    using var printServer = new LocalPrintServer();
-                    var queues = printServer.GetPrintQueues();
-                    PrintQueue? matchedQueue = null;
-                    foreach (var q in queues)
-                    {
-                        if (string.Equals(q.Name, targetPrinter, StringComparison.OrdinalIgnoreCase) ||
-                            string.Equals(q.FullName, targetPrinter, StringComparison.OrdinalIgnoreCase))
-                        {
-                            matchedQueue = q;
-                            break;
-                        }
-                    }
-
-                    if (matchedQueue == null)
-                    {
-                        foreach (var q in queues)
-                        {
-                            if (q.Name.Contains(targetPrinter, StringComparison.OrdinalIgnoreCase) ||
-                                targetPrinter.Contains(q.Name, StringComparison.OrdinalIgnoreCase) ||
-                                (targetPrinter.Contains("SL32", StringComparison.OrdinalIgnoreCase) && q.Name.Contains("SL32", StringComparison.OrdinalIgnoreCase)))
-                            {
-                                matchedQueue = q;
-                                break;
-                            }
-                        }
-                    }
-
-                    if (matchedQueue != null)
-                    {
-                        printDialog.PrintQueue = matchedQueue;
-                    }
-                    else
-                    {
-                        var queue = printServer.GetPrintQueue(targetPrinter);
-                        if (queue != null) printDialog.PrintQueue = queue;
-                    }
-                }
-                catch (Exception ex)
-                {
-                    System.Diagnostics.Debug.WriteLine($"Failed to bind label printer '{targetPrinter}': {ex.Message}");
-                }
-            }
-
-            if (printDialog.PrintQueue == null)
+            else
             {
                 throw new InvalidOperationException("لم يتم العثور على طابعة باركود مثبتة أو طابعة افتراضية في النظام. يرجى التأكد من تشغيل طابعة الملصقات واختيارها من إعدادات المختبر.");
             }
 
             var container = CreateLabelElement(data);
-
             printDialog.PrintVisual(container, $"TubeLabel_{data.AccessionNo}");
+
+            return printDialog.PrintQueue.Name;
         }
 
         public static void SaveLabelToPng(SpecimenLabelData data, string filePath)

@@ -1,0 +1,345 @@
+@inherits LayoutComponentBase
+@inject NavigationManager NavManager
+@inject UserPreferencesService Prefs
+@inject IJSRuntime JS
+@implements IDisposable
+
+<div class="lis-app-wrapper @(Prefs.Current.IsSidebarCollapsed ? "sidebar-collapsed" : "")">
+    <!-- Left Sidebar (MDB Sidenav compatible) -->
+    <aside class="lis-sidebar">
+        <NavMenu />
+    </aside>
+
+    <!-- Main Content Area -->
+    <div class="lis-main-content">
+        <!-- Top Navbar (MDB Navbar matching Admin Dashboard) -->
+        <header class="lis-topbar navbar navbar-expand-lg px-3 py-2 border-bottom d-flex justify-content-between align-items-center">
+            <!-- Left Side: Sidenav Toggle & Barcode Scanner -->
+            <div class="d-flex align-items-center gap-2">
+                <button class="btn btn-outline-secondary btn-sm p-1 px-2 border-0" type="button" @onclick="ToggleSidebar" 
+                        title="@Prefs.T("إخفاء / إظهار القائمة الجانبية", "Toggle Sidebar Navigation")" data-mdb-ripple-init>
+                    <i class="fas fa-bars fs-6"></i>
+                </button>
+
+                <div class="d-none d-md-flex align-items-center gap-2 ms-2">
+                    <div class="input-group input-group-sm" style="max-width: 320px;">
+                        <span class="input-group-text border-end-0 bg-transparent text-muted ps-3 pe-2">
+                            <i class="fas fa-search" style="font-size: 12px;"></i>
+                        </span>
+                        <input type="text" class="form-control border-start-0 ps-1 font-monospace" 
+                               placeholder="@Prefs.T("مسح باركود (ctrl + alt)...", "Scan barcode (ctrl + alt)...")" 
+                               @bind="QuickScanBarcode" @onkeydown="HandleQuickScanKey" />
+                        <button class="btn btn-primary btn-sm px-3" type="button" @onclick="DoQuickScan" data-mdb-ripple-init>
+                            @Prefs.T("بحث", "Search")
+                        </button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Right Side: Contact, Support, Notifications, Language, Theme, Profile -->
+            <div class="d-flex align-items-center gap-2">
+                <!-- Notifications Bell with Red Badge -->
+                <div class="position-relative me-1" title="@Prefs.T("الإشعارات والتنبيهات الحية", "Live Notifications")">
+                    <button class="btn btn-outline-secondary btn-sm p-2 rounded-circle border-0" type="button" data-mdb-ripple-init>
+                        <i class="fas fa-bell text-secondary"></i>
+                    </button>
+                    <span class="position-absolute top-0 start-100 translate-middle badge rounded-pill bg-danger" style="font-size: 9.5px; padding: 2px 5px; margin-top: 5px; margin-left: -8px;">
+                        1
+                    </span>
+                </div>
+
+                <!-- Language Quick Switcher -->
+                <button class="btn btn-outline-secondary btn-sm px-2 py-1 d-flex align-items-center gap-1 rounded-pill" type="button" @onclick="ToggleLanguage" 
+                        title="@Prefs.T("التبديل إلى English", "Switch to العربية")" data-mdb-ripple-init>
+                    <i class="fas fa-globe text-primary"></i>
+                    <span class="fw-bold" style="font-size: 11px;">@(Prefs.IsEnglish ? "العربية" : "EN")</span>
+                </button>
+
+                <!-- Theme Mode Toggle (Dark / Light) -->
+                <button class="btn btn-outline-secondary btn-sm p-2 rounded-circle" type="button" @onclick="ToggleTheme" 
+                        title="@(Prefs.Current.Theme == "dark" ? Prefs.T("التبديل إلى الوضع الفاتح (Light Mode)", "Switch to Light Mode") : Prefs.T("التبديل إلى الوضع الداكن (Dark Mode)", "Switch to Dark Mode"))" data-mdb-ripple-init>
+                    @if (Prefs.Current.Theme == "dark")
+                    {
+                        <span class="text-warning">☀️</span>
+                    }
+                    else
+                    {
+                        <span class="text-info">🌙</span>
+                    }
+                </button>
+
+                <!-- Open Preferences Modal Button -->
+                <button class="btn btn-outline-secondary btn-sm p-2 rounded-circle" type="button" @onclick="OpenPreferencesModal" 
+                        title="@Prefs.T("تفضيلات المستخدم وواجهة العرض", "User Preferences & Display")" data-mdb-ripple-init>
+                    <i class="fas fa-sliders-h"></i>
+                </button>
+
+                <!-- User Profile Pill -->
+                <div class="d-flex align-items-center gap-2 ms-2 ps-2 border-start border-secondary border-opacity-25" style="cursor: pointer;" @onclick="OpenPreferencesModal">
+                    <div class="text-end d-none d-sm-block">
+                        <div class="fw-bold small" style="line-height: 1.2;">@Prefs.T("د. مصطفى حميد", "Dr. Mustafa Hameed")</div>
+                        <small class="text-success fw-semibold" style="font-size: 10.5px;">🟢 @Prefs.T("مدير المختبر (Admin)", "Lab Director (Admin)")</small>
+                    </div>
+                    <div style="width: 36px; height: 36px; border-radius: 50%; background: linear-gradient(135deg, #2563EB 0%, #7C3AED 100%); display: flex; align-items: center; justify-content: center; font-size: 15px; color: #FFFFFF; font-weight: bold; box-shadow: 0 2px 8px rgba(0,0,0,0.15);">
+                        <span>MH</span>
+                    </div>
+                </div>
+            </div>
+        </header>
+
+        <!-- Page Body Container -->
+        <main class="lis-body-container">
+            @Body
+        </main>
+    </div>
+</div>
+
+<!-- ========================================== -->
+<!-- MODAL: USER PREFERENCES                    -->
+<!-- ========================================== -->
+@if (IsPreferencesModalOpen)
+{
+    <div class="modal fade show d-block" tabindex="-1" style="background: rgba(0,0,0,0.8); backdrop-filter: blur(4px); z-index: 1070;">
+        <div class="modal-dialog modal-dialog-centered">
+            <div class="modal-content card border-info" style="background: var(--bg-card); border-color: var(--border-color);">
+                <!-- Header -->
+                <div class="modal-header border-bottom border-secondary py-2 px-3 d-flex justify-content-between align-items-center">
+                    <h5 class="modal-title text-info fw-bold mb-0 d-flex align-items-center gap-2">
+                        <i class="fas fa-sliders-h"></i>
+                        <span>@Prefs.T("تفضيلات المستخدم وواجهة العرض (User Preferences)", "User Preferences & Display Settings")</span>
+                    </h5>
+                    <button type="button" class="btn-close btn-close-white" @onclick="() => IsPreferencesModalOpen = false"></button>
+                </div>
+
+                <!-- Body -->
+                <div class="modal-body p-3">
+                    @if (!string.IsNullOrEmpty(PreferencesAlert))
+                    {
+                        <div class="alert alert-success py-2 px-3 mb-3 small">
+                            @PreferencesAlert
+                        </div>
+                    }
+
+                    <!-- Section 1: Language (Arabic vs English) -->
+                    <div class="mb-3">
+                        <label class="form-label text-secondary small mb-2 fw-bold">
+                            1. @Prefs.T("لغة واجهة المستخدم (Interface Language):", "Interface Language:")
+                        </label>
+                        <div class="row g-2">
+                            <div class="col-6">
+                                <div class="card p-2 text-center border @(TempPrefs.Language == "ar" ? "border-primary bg-primary bg-opacity-10" : "border-secondary")" 
+                                     style="cursor: pointer;" @onclick='() => TempPrefs.Language = "ar"'>
+                                    <span class="fs-4 mb-1">🇮🇶</span>
+                                    <strong class="@(TempPrefs.Language == "ar" ? "text-primary" : "text-white") small">العربية (Arabic)</strong>
+                                    <small class="text-muted" style="font-size: 11px;">@Prefs.T("الواجهة من اليمين لليسار (RTL)", "Right-to-Left (RTL)")</small>
+                                </div>
+                            </div>
+                            <div class="col-6">
+                                <div class="card p-2 text-center border @(TempPrefs.Language == "en" ? "border-primary bg-primary bg-opacity-10" : "border-secondary")" 
+                                     style="cursor: pointer;" @onclick='() => TempPrefs.Language = "en"'>
+                                    <span class="fs-4 mb-1">🇬🇧</span>
+                                    <strong class="@(TempPrefs.Language == "en" ? "text-primary" : "text-white") small">English (الإنجليزية)</strong>
+                                    <small class="text-muted" style="font-size: 11px;">@Prefs.T("من اليسار لليمين (LTR)", "Left-to-Right (LTR)")</small>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Section 2: Theme Mode (Dark vs Light) -->
+                    <div class="mb-3">
+                        <label class="form-label text-secondary small mb-2 fw-bold">
+                            2. @Prefs.T("مظهر وسمة العرض (Theme Mode):", "Theme Mode:")
+                        </label>
+                        <div class="row g-2">
+                            <div class="col-6">
+                                <div class="card p-2 text-center border @(TempPrefs.Theme == "dark" ? "border-info bg-dark" : "border-secondary")" 
+                                     style="cursor: pointer;" @onclick='() => TempPrefs.Theme = "dark"'>
+                                    <span class="fs-4 mb-1">🌙</span>
+                                    <strong class="text-white small">@Prefs.T("الوضع الداكن (Dark)", "Dark Mode")</strong>
+                                    <small class="text-muted" style="font-size: 11px;">@Prefs.T("الافتراضي المريح للعين", "Default comfortable theme")</small>
+                                </div>
+                            </div>
+                            <div class="col-6">
+                                <div class="card p-2 text-center border @(TempPrefs.Theme == "light" ? "border-info bg-dark" : "border-secondary")" 
+                                     style="cursor: pointer;" @onclick='() => TempPrefs.Theme = "light"'>
+                                    <span class="fs-4 mb-1">☀️</span>
+                                    <strong class="text-white small">@Prefs.T("الوضع الفاتح (Light)", "Light Mode")</strong>
+                                    <small class="text-muted" style="font-size: 11px;">@Prefs.T("مظهر أبيض عالي السطوع", "Clean high-contrast theme")</small>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Section 3: Display Density -->
+                    <div class="mb-3">
+                        <label class="form-label text-secondary small mb-2 fw-bold">
+                            3. @Prefs.T("كثافة العرض للجداول والحقول (Display Density):", "Display Density:")
+                        </label>
+                        <div class="row g-2">
+                            <div class="col-6">
+                                <div class="card p-2 text-center border @(TempPrefs.Density == "standard" ? "border-info bg-dark" : "border-secondary")" 
+                                     style="cursor: pointer;" @onclick='() => TempPrefs.Density = "standard"'>
+                                    <strong class="text-white small">@Prefs.T("قياسي (Standard)", "Standard")</strong>
+                                    <small class="text-muted" style="font-size: 11px;">@Prefs.T("مسافات مريحة للشاشات الكبيرة", "Comfortable for large screens")</small>
+                                </div>
+                            </div>
+                            <div class="col-6">
+                                <div class="card p-2 text-center border @(TempPrefs.Density == "compact" ? "border-info bg-dark" : "border-secondary")" 
+                                     style="cursor: pointer;" @onclick='() => TempPrefs.Density = "compact"'>
+                                    <strong class="text-info small">@Prefs.T("مكثف (Compact)", "Compact")</strong>
+                                    <small class="text-muted" style="font-size: 11px;">@Prefs.T("مناسب لشاشات اللابتوب الصغيرة", "Optimized for laptops")</small>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Section 4: Accent Color -->
+                    <div class="mb-3">
+                        <label class="form-label text-secondary small mb-2 fw-bold">
+                            4. @Prefs.T("لون التمييز والأزرار (Accent Color):", "Accent Color:")
+                        </label>
+                        <div class="d-flex gap-2">
+                            <button type="button" class="btn btn-sm flex-grow-1 @(TempPrefs.AccentColor == "cyan" ? "btn-info fw-bold" : "btn-outline-secondary")" 
+                                    @onclick='() => TempPrefs.AccentColor = "cyan"'>
+                                @Prefs.T("سماوي (Cyan)", "Cyan")
+                            </button>
+                            <button type="button" class="btn btn-sm flex-grow-1 @(TempPrefs.AccentColor == "blue" ? "btn-primary fw-bold" : "btn-outline-secondary")" 
+                                    @onclick='() => TempPrefs.AccentColor = "blue"'>
+                                @Prefs.T("أزرق (Blue)", "Blue")
+                            </button>
+                            <button type="button" class="btn btn-sm flex-grow-1 @(TempPrefs.AccentColor == "emerald" ? "btn-success fw-bold" : "btn-outline-secondary")" 
+                                    @onclick='() => TempPrefs.AccentColor = "emerald"'>
+                                @Prefs.T("زمردي (Green)", "Emerald")
+                            </button>
+                            <button type="button" class="btn btn-sm flex-grow-1 @(TempPrefs.AccentColor == "purple" ? "btn-secondary fw-bold" : "btn-outline-secondary")" 
+                                    @onclick='() => TempPrefs.AccentColor = "purple"'>
+                                @Prefs.T("بنفسجي (Purple)", "Purple")
+                            </button>
+                        </div>
+                    </div>
+
+                    <!-- Section 5: Workflow Options -->
+                    <div class="p-3 mb-3 rounded bg-dark border border-secondary">
+                        <div class="form-check form-switch mb-2">
+                            <input class="form-check-input" type="checkbox" id="switchSound" @bind="TempPrefs.SoundEnabled" />
+                            <label class="form-check-label text-white small" for="switchSound">
+                                🔊 @Prefs.T("تفعيل التنبيه الصوتي (Audio Beep) عند مسح الباركود بنجاح", "Enable audio beep on successful barcode scan")
+                            </label>
+                        </div>
+
+                        <div class="mt-2">
+                            <label class="form-label text-secondary small mb-1">
+                                @Prefs.T("الصفحة الافتراضية عند بدء التشغيل:", "Default Landing Page:")
+                            </label>
+                            <select class="form-select form-select-sm" @bind="TempPrefs.DefaultLandingPage">
+                                <option value="/">@Prefs.T("لوحة المؤشرات (Dashboard)", "General Dashboard")</option>
+                                <option value="/orders">@Prefs.T("تسجيل المراجعين والطلبات (Orders)", "Orders & Patients")</option>
+                                <option value="/worklist">@Prefs.T("قائمة العمل والأنابيب (Worklist)", "Worklist & Tubes")</option>
+                                <option value="/results">@Prefs.T("إدخال واعتماد النتائج (Results)", "Results & Validation")</option>
+                            </select>
+                        </div>
+                    </div>
+
+                    <button type="button" class="btn btn-success btn-sm fw-bold w-100 py-2" @onclick="SavePreferences" data-mdb-ripple-init>
+                        💾 @Prefs.T("حفظ وتطبيق التفضيلات (Save & Apply)", "Save & Apply Preferences")
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+}
+
+<div id="blazor-error-ui" data-nosnippet>
+    An unhandled exception has occurred. See browser dev tools for details.
+    <a href="." class="reload">Reload</a>
+    <span class="dismiss">🗙</span>
+</div>
+
+@code {
+    private string QuickScanBarcode { get; set; } = "";
+    private bool IsPreferencesModalOpen = false;
+    private UserPreferences TempPrefs = new();
+    private string? PreferencesAlert;
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (firstRender)
+        {
+            Prefs.OnChange += StateHasChanged;
+            if (!Prefs.IsLoaded)
+            {
+                await Prefs.LoadAsync();
+            }
+        }
+    }
+
+    private async Task ToggleSidebar()
+    {
+        await Prefs.ToggleSidebarAsync();
+    }
+
+    private async Task ToggleTheme()
+    {
+        await Prefs.ToggleThemeAsync();
+    }
+
+    private async Task ToggleLanguage()
+    {
+        await Prefs.ToggleLanguageAsync();
+    }
+
+    private void OpenPreferencesModal()
+    {
+        TempPrefs = new UserPreferences
+        {
+            Language = Prefs.Current.Language,
+            Theme = Prefs.Current.Theme,
+            Density = Prefs.Current.Density,
+            AccentColor = Prefs.Current.AccentColor,
+            DefaultLandingPage = Prefs.Current.DefaultLandingPage,
+            SoundEnabled = Prefs.Current.SoundEnabled,
+            IsSidebarCollapsed = Prefs.Current.IsSidebarCollapsed
+        };
+        PreferencesAlert = null;
+        IsPreferencesModalOpen = true;
+    }
+
+    private async Task SavePreferences()
+    {
+        await Prefs.SaveAsync(TempPrefs);
+        PreferencesAlert = Prefs.T("✅ تم حفظ التفضيلات وتطبيقها بنجاح!", "✅ Preferences saved and applied successfully!");
+        await Task.Delay(800);
+        IsPreferencesModalOpen = false;
+    }
+
+    private async Task HandleQuickScanKey(KeyboardEventArgs e)
+    {
+        if (e.Key == "Enter")
+        {
+            await DoQuickScan();
+        }
+    }
+
+    private async Task DoQuickScan()
+    {
+        if (string.IsNullOrWhiteSpace(QuickScanBarcode))
+            return;
+
+        var term = QuickScanBarcode.Trim();
+        QuickScanBarcode = "";
+
+        if (term.Length == 6 && int.TryParse(term, out _))
+        {
+            NavManager.NavigateTo($"/worklist?highlightAccession={term}");
+        }
+        else
+        {
+            NavManager.NavigateTo($"/worklist?search={term}");
+        }
+    }
+
+    public void Dispose()
+    {
+        Prefs.OnChange -= StateHasChanged;
+    }
+}

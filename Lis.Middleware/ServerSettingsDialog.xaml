@@ -1,7 +1,7 @@
 <Window x:Class="Lis.Middleware.ServerSettingsDialog"
         xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
-        Title="إعدادات الاتصال بالسيرفر — Database Server Settings"
+        Title="Database Server Settings — LIS Middleware Host"
         Icon="Assets/app_icon.ico"
         Width="520" SizeToContent="Height"
         WindowStartupLocation="CenterOwner"

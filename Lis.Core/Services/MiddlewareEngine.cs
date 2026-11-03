@@ -20,6 +20,12 @@ namespace Lis.Core.Services
         public bool IsRunning => _cts != null && !_cts.IsCancellationRequested;
         public int ActiveDriversCount => _drivers.Count;
 
+        public DateTime? GetLastActivity(string instrumentCode)
+        {
+            var driver = _drivers.Find(d => string.Equals(d.InstrumentCode, instrumentCode, StringComparison.OrdinalIgnoreCase));
+            return driver?.LastActivity;
+        }
+
         public event EventHandler<bool>? StateChanged;
         public event EventHandler<(string instCode, string status)>? InstrumentStatusChanged;
 

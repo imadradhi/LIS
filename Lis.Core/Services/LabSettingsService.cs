@@ -54,7 +54,6 @@ namespace Lis.Core.Services
             await conn.ExecuteAsync(@"
                 ALTER TABLE lab_settings ADD COLUMN IF NOT EXISTS barcode_offset_mm DOUBLE PRECISION DEFAULT 15.0;
                 ALTER TABLE lab_settings ADD COLUMN IF NOT EXISTS theme TEXT DEFAULT 'Night';
-                UPDATE lab_settings SET label_printer = 'HPRT SL32BT' WHERE label_printer IS NULL;
             ");
 
             const string sql = @"
@@ -113,7 +112,7 @@ namespace Lis.Core.Services
                 ON CONFLICT (id) DO UPDATE
                 SET lab_name_ar = EXCLUDED.lab_name_ar,
                     lab_name_en = EXCLUDED.lab_name_en,
-                    logo_data = COALESCE(EXCLUDED.logo_data, lab_settings.logo_data),
+                    logo_data = EXCLUDED.logo_data,
                     address = EXCLUDED.address,
                     phones = EXCLUDED.phones,
                     email = EXCLUDED.email,
@@ -121,7 +120,7 @@ namespace Lis.Core.Services
                     report_footer_text = EXCLUDED.report_footer_text,
                     manager_name = EXCLUDED.manager_name,
                     manager_title = EXCLUDED.manager_title,
-                    signature_data = COALESCE(EXCLUDED.signature_data, lab_settings.signature_data),
+                    signature_data = EXCLUDED.signature_data,
                     paper_size = EXCLUDED.paper_size,
                     currency = EXCLUDED.currency,
                     label_printer = EXCLUDED.label_printer,

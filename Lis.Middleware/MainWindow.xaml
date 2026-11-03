@@ -1,9 +1,9 @@
 <Window x:Class="Lis.Middleware.MainWindow"
         xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
-        Title="خادم الميدلوير والربط مع أجهزة التحليل — LIS Middleware Host"
+        Title="LIS Instrument Middleware Host — Laboratory Interface"
         Icon="Assets/app_icon.ico"
-        Height="840" Width="1300" MinHeight="700" MinWidth="1100"
+        Height="870" Width="1380" MinHeight="700" MinWidth="1100"
         WindowStartupLocation="CenterScreen"
         Background="{DynamicResource AppBackgroundBrush}"
         FontFamily="{StaticResource AppFontFamily}"
@@ -20,43 +20,41 @@
         </Grid.RowDefinitions>
 
         <!-- ═════════════════════════════════════════════════════════════════ -->
-        <!-- ROW 0: TOP HEADER BAR (DockPanel: Title on Left, Actions on Right) -->
+        <!-- ROW 0: TOP HEADER BAR                                             -->
         <!-- ═════════════════════════════════════════════════════════════════ -->
         <Border Grid.Row="0" Style="{DynamicResource CardStyle}" Padding="16,12" Margin="0,0,0,12">
             <DockPanel LastChildFill="True">
                 <!-- Right Side: Controls & Engine Status -->
                 <StackPanel DockPanel.Dock="Right" Orientation="Horizontal" VerticalAlignment="Center">
-                    <!-- Engine Status Pill -->
-                    <Border x:Name="BadgeEngineStatus" Background="#064E3B" BorderBrush="#059669" BorderThickness="1" CornerRadius="8" Padding="12,6" Margin="0,0,8,0" VerticalAlignment="Center">
-                        <TextBlock x:Name="TxtEngineStatus" Text="🟢 الميدلوير يعمل ويستمع" FontSize="12.5" FontWeight="Bold" Foreground="#34D399"/>
+                    <!-- Clean Text Status (No Background Box) -->
+                    <Border x:Name="BadgeEngineStatus" Background="Transparent" BorderThickness="0" Padding="4,4" Margin="0,0,12,0" VerticalAlignment="Center">
+                        <TextBlock x:Name="TxtEngineStatus" Text="🟢 Engine Running &amp; Listening" FontSize="13" FontWeight="Bold" Foreground="#34D399"/>
                     </Border>
 
                     <!-- Control Buttons -->
-                    <Button x:Name="BtnToggleEngine" Content="⏹️ إيقاف الخدمة" Style="{DynamicResource SecondaryButtonStyle}" Margin="0,0,6,0" Padding="12,7" FontSize="12" FontWeight="SemiBold" Click="BtnToggleEngine_Click"/>
-                    <Button x:Name="BtnRestartEngine" Content="🔄 إعادة تشغيل" Style="{DynamicResource SecondaryButtonStyle}" Margin="0,0,6,0" Padding="12,7" FontSize="12" FontWeight="SemiBold" Click="BtnRestartEngine_Click"/>
-                    <Button x:Name="BtnServerSettings" Content="⚙️ إعدادات السيرفر" Style="{DynamicResource SecondaryButtonStyle}" Padding="12,7" FontSize="12" FontWeight="SemiBold" Click="BtnServerSettings_Click"/>
+                    <Button x:Name="BtnToggleEngine" Content="⏹️ Stop Engine" Style="{DynamicResource SecondaryButtonStyle}" Margin="0,0,6,0" Padding="12,7" Click="BtnToggleEngine_Click"/>
+                    <Button x:Name="BtnRestartEngine" Content="🔄 Restart Engine" Style="{DynamicResource SecondaryButtonStyle}" Margin="0,0,6,0" Padding="12,7" Click="BtnRestartEngine_Click"/>
+                    <Button x:Name="BtnServerSettings" Content="⚙️ Server Settings" Style="{DynamicResource SecondaryButtonStyle}" Padding="12,7" Click="BtnServerSettings_Click"/>
                 </StackPanel>
 
                 <!-- Left Side: System Title & Subtitle -->
                 <StackPanel Orientation="Horizontal" VerticalAlignment="Center" Margin="0,0,16,0">
-                    <Border Width="46" Height="46" CornerRadius="12" Background="#0B132B" BorderBrush="#0284C7" BorderThickness="1.2" Margin="0,0,14,0" ClipToBounds="True" VerticalAlignment="Center">
-                        <Image Source="Assets/logo.png" Stretch="Uniform" RenderOptions.BitmapScalingMode="HighQuality" Margin="2"/>
+                    <Border Width="44" Height="44" CornerRadius="10" Background="Transparent" Margin="0,0,12,0" VerticalAlignment="Center">
+                        <Image Source="Assets/logo.png" Stretch="Uniform" RenderOptions.BitmapScalingMode="HighQuality"/>
                     </Border>
                     <StackPanel VerticalAlignment="Center">
                         <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
-                            <TextBlock Text="خادم الميدلوير والربط المباشر مع أجهزة المختبر" FontSize="17" FontWeight="Bold" Foreground="{DynamicResource AccentBrush}"/>
-                            <Border Background="{DynamicResource PrimaryBrush}" CornerRadius="6" Padding="8,2" Margin="10,0,0,0" VerticalAlignment="Center">
-                                <TextBlock Text="LIS Middleware Engine v1.0.0" FontSize="11" FontWeight="Bold" Foreground="#FFFFFF"/>
-                            </Border>
+                            <TextBlock Text="LIS Instrument Middleware Host" FontSize="17" FontWeight="Bold" Foreground="#F8FAFC"/>
+                            <TextBlock Text="v1.0.0" FontSize="11" FontWeight="SemiBold" Foreground="#38BDF8" Margin="10,2,0,0" VerticalAlignment="Center"/>
                         </StackPanel>
-                        <TextBlock Text="استقبال النتائج وتصدير أوامر العمل للأجهزة تلقائياً عبر بروتوكولات ASTM 1394 / E1381 و HL7." FontSize="11.5" Foreground="{DynamicResource TextSecondaryBrush}" Margin="0,4,0,0"/>
+                        <TextBlock Text="Automated bidirectional query, worklist download, and test results ingestion (ASTM 1394 / E1381 &amp; HL7)." FontSize="11.5" Foreground="{DynamicResource TextSecondaryBrush}" Margin="0,3,0,0"/>
                     </StackPanel>
                 </StackPanel>
             </DockPanel>
         </Border>
 
         <!-- ═════════════════════════════════════════════════════════════════ -->
-        <!-- ROW 1: KPI STATS CARDS STRIP (4 Cards across the window)         -->
+        <!-- ROW 1: KPI STATS CARDS STRIP                                     -->
         <!-- ═════════════════════════════════════════════════════════════════ -->
         <Grid Grid.Row="1" Margin="0,0,0,12">
             <Grid.ColumnDefinitions>
@@ -67,53 +65,53 @@
             </Grid.ColumnDefinitions>
 
             <!-- Card 1: Listening Port -->
-            <Border Grid.Column="0" Style="{DynamicResource CardStyle}" Margin="0,0,6,0" Padding="14,10">
+            <Border Grid.Column="0" Style="{DynamicResource KpiCardStyle}" Margin="0,0,6,0">
                 <DockPanel LastChildFill="True">
-                    <TextBlock DockPanel.Dock="Right" Text="🌐" FontSize="24" Margin="10,0,0,0" VerticalAlignment="Center"/>
+                    <TextBlock DockPanel.Dock="Right" Text="🌐" FontSize="20" Margin="10,0,0,0" VerticalAlignment="Center"/>
                     <StackPanel VerticalAlignment="Center">
-                        <TextBlock Text="منفذ الاستماع (TCP Port)" FontSize="11" Foreground="{DynamicResource TextSecondaryBrush}" FontWeight="SemiBold"/>
-                        <TextBlock Text="Port 5100 (Host: 0.0.0.0)" FontSize="15" FontWeight="Bold" Foreground="{DynamicResource AccentBrush}" Margin="0,2,0,0"/>
+                        <TextBlock Text="Listening Port (TCP Server)" FontSize="11" Foreground="{DynamicResource TextSecondaryBrush}" FontWeight="SemiBold"/>
+                        <TextBlock Text="Port 5100 (Host: 0.0.0.0)" FontSize="15" FontWeight="Bold" Foreground="#38BDF8" Margin="0,2,0,0"/>
                     </StackPanel>
                 </DockPanel>
             </Border>
 
-            <!-- Card 2: Active Instruments -->
-            <Border Grid.Column="1" Style="{DynamicResource CardStyle}" Margin="6,0,6,0" Padding="14,10">
+            <!-- Card 2: Active Instruments & Live Heartbeat -->
+            <Border Grid.Column="1" Style="{DynamicResource KpiCardStyle}" Margin="6,0,6,0">
                 <DockPanel LastChildFill="True">
-                    <TextBlock DockPanel.Dock="Right" Text="🔬" FontSize="24" Margin="10,0,0,0" VerticalAlignment="Center"/>
+                    <TextBlock DockPanel.Dock="Right" Text="🔬" FontSize="20" Margin="10,0,0,0" VerticalAlignment="Center"/>
                     <StackPanel VerticalAlignment="Center">
-                        <TextBlock Text="الأجهزة المفعلة (Instruments)" FontSize="11" Foreground="{DynamicResource TextSecondaryBrush}" FontWeight="SemiBold"/>
+                        <TextBlock Text="Live / Active Instruments" FontSize="11" Foreground="{DynamicResource TextSecondaryBrush}" FontWeight="SemiBold"/>
                         <StackPanel Orientation="Horizontal" Margin="0,2,0,0">
-                            <TextBlock x:Name="TxtStatInstCount" Text="0" FontSize="16" FontWeight="Bold" Foreground="#FFFFFF"/>
-                            <TextBlock Text=" أجهزة نشطة" FontSize="12" Foreground="{DynamicResource TextSecondaryBrush}" VerticalAlignment="Center" Margin="4,0,0,0"/>
+                            <TextBlock x:Name="TxtStatInstCount" Text="0 / 0" FontSize="16" FontWeight="Bold" Foreground="#34D399"/>
+                            <TextBlock Text=" Online Devices" FontSize="12" Foreground="{DynamicResource TextSecondaryBrush}" VerticalAlignment="Center" Margin="4,0,0,0"/>
                         </StackPanel>
                     </StackPanel>
                 </DockPanel>
             </Border>
 
             <!-- Card 3: Inbound Messages -->
-            <Border Grid.Column="2" Style="{DynamicResource CardStyle}" Margin="6,0,6,0" Padding="14,10">
+            <Border Grid.Column="2" Style="{DynamicResource KpiCardStyle}" Margin="6,0,6,0">
                 <DockPanel LastChildFill="True">
-                    <TextBlock DockPanel.Dock="Right" Text="📥" FontSize="24" Margin="10,0,0,0" VerticalAlignment="Center"/>
+                    <TextBlock DockPanel.Dock="Right" Text="📥" FontSize="20" Margin="10,0,0,0" VerticalAlignment="Center"/>
                     <StackPanel VerticalAlignment="Center">
-                        <TextBlock Text="الوارد من الأجهزة (IN Messages)" FontSize="11" Foreground="#10B981" FontWeight="SemiBold"/>
+                        <TextBlock Text="Inbound Traffic (IN Messages)" FontSize="11" Foreground="#10B981" FontWeight="SemiBold"/>
                         <StackPanel Orientation="Horizontal" Margin="0,2,0,0">
                             <TextBlock x:Name="TxtStatInCount" Text="0" FontSize="16" FontWeight="Bold" Foreground="#34D399"/>
-                            <TextBlock Text=" إطار اليوم" FontSize="12" Foreground="{DynamicResource TextSecondaryBrush}" VerticalAlignment="Center" Margin="4,0,0,0"/>
+                            <TextBlock Text=" Frames Today" FontSize="12" Foreground="{DynamicResource TextSecondaryBrush}" VerticalAlignment="Center" Margin="4,0,0,0"/>
                         </StackPanel>
                     </StackPanel>
                 </DockPanel>
             </Border>
 
             <!-- Card 4: Outbound Messages -->
-            <Border Grid.Column="3" Style="{DynamicResource CardStyle}" Margin="6,0,0,0" Padding="14,10">
+            <Border Grid.Column="3" Style="{DynamicResource KpiCardStyle}" Margin="6,0,0,0">
                 <DockPanel LastChildFill="True">
-                    <TextBlock DockPanel.Dock="Right" Text="📤" FontSize="24" Margin="10,0,0,0" VerticalAlignment="Center"/>
+                    <TextBlock DockPanel.Dock="Right" Text="📤" FontSize="20" Margin="10,0,0,0" VerticalAlignment="Center"/>
                     <StackPanel VerticalAlignment="Center">
-                        <TextBlock Text="الصادر إلى الأجهزة (OUT Orders)" FontSize="11" Foreground="#38BDF8" FontWeight="SemiBold"/>
+                        <TextBlock Text="Outbound Traffic (OUT Orders)" FontSize="11" Foreground="#38BDF8" FontWeight="SemiBold"/>
                         <StackPanel Orientation="Horizontal" Margin="0,2,0,0">
                             <TextBlock x:Name="TxtStatOutCount" Text="0" FontSize="16" FontWeight="Bold" Foreground="#38BDF8"/>
-                            <TextBlock Text=" إطار اليوم" FontSize="12" Foreground="{DynamicResource TextSecondaryBrush}" VerticalAlignment="Center" Margin="4,0,0,0"/>
+                            <TextBlock Text=" Frames Today" FontSize="12" Foreground="{DynamicResource TextSecondaryBrush}" VerticalAlignment="Center" Margin="4,0,0,0"/>
                         </StackPanel>
                     </StackPanel>
                 </DockPanel>
@@ -125,9 +123,9 @@
         <!-- ═════════════════════════════════════════════════════════════════ -->
         <Grid Grid.Row="2">
             <Grid.ColumnDefinitions>
-                <!-- Left Side in LTR: Instruments List (380px) -->
-                <ColumnDefinition Width="380" MinWidth="320"/>
-                <!-- Right Side in LTR: Live ASTM Traffic Log (*) -->
+                <!-- Left Side: Instruments List (360px) -->
+                <ColumnDefinition Width="360" MinWidth="300"/>
+                <!-- Right Side: Live Traffic Log (*) -->
                 <ColumnDefinition Width="*"/>
             </Grid.ColumnDefinitions>
 
@@ -136,41 +134,39 @@
                 <DockPanel LastChildFill="True">
                     <!-- Panel Header -->
                     <DockPanel DockPanel.Dock="Top" Margin="0,0,0,12" LastChildFill="True">
-                        <TextBlock Text="🔬 الأجهزة المعرفة وحالات الاتصال" FontSize="13.5" FontWeight="Bold" Foreground="{DynamicResource AccentBrush}" VerticalAlignment="Center"/>
+                        <TextBlock Text="🔬 Configured Instruments &amp; Status" FontSize="13.5" FontWeight="Bold" Foreground="{DynamicResource AccentBrush}" VerticalAlignment="Center"/>
                     </DockPanel>
 
-                    <!-- Instruments DataGrid with Clear Spacing and Headers -->
+                    <!-- Instruments DataGrid (Plain Text, No Background Badges) -->
                     <DataGrid x:Name="GridInstruments" AutoGenerateColumns="False" IsReadOnly="True"
-                              Background="Transparent" RowBackground="#131D35" AlternatingRowBackground="#1A2540"
+                              Background="Transparent" RowBackground="#0D1424" AlternatingRowBackground="#10192D"
                               BorderThickness="1" BorderBrush="{DynamicResource BorderBrush}"
-                              GridLinesVisibility="Horizontal" HorizontalGridLinesBrush="{DynamicResource BorderBrush}"
-                              HeadersVisibility="Column" SelectionMode="Single" RowHeight="42">
+                              GridLinesVisibility="Horizontal" HorizontalGridLinesBrush="#151F33"
+                              HeadersVisibility="Column" SelectionMode="Single" RowHeight="44">
                         <DataGrid.ColumnHeaderStyle>
                             <Style TargetType="DataGridColumnHeader">
-                                <Setter Property="Background" Value="#0F172A"/>
+                                <Setter Property="Background" Value="#090E1A"/>
                                 <Setter Property="Foreground" Value="{DynamicResource TextSecondaryBrush}"/>
                                 <Setter Property="FontWeight" Value="SemiBold"/>
-                                <Setter Property="FontSize" Value="12"/>
+                                <Setter Property="FontSize" Value="11.5"/>
                                 <Setter Property="Padding" Value="8,8"/>
                                 <Setter Property="BorderThickness" Value="0,0,1,1"/>
-                                <Setter Property="BorderBrush" Value="{DynamicResource BorderBrush}"/>
+                                <Setter Property="BorderBrush" Value="#1E2B45"/>
                             </Style>
                         </DataGrid.ColumnHeaderStyle>
 
                         <DataGrid.Columns>
-                            <!-- كود الجهاز -->
-                            <DataGridTemplateColumn Header="كود الجهاز" Width="105">
+                            <!-- Instrument Code (Pure Colored Text) -->
+                            <DataGridTemplateColumn Header="Code" Width="85">
                                 <DataGridTemplateColumn.CellTemplate>
                                     <DataTemplate>
-                                        <Border Background="#0C4A6E" CornerRadius="4" Padding="6,3" HorizontalAlignment="Center" VerticalAlignment="Center">
-                                            <TextBlock Text="{Binding code}" FontSize="11" FontWeight="Bold" Foreground="#38BDF8"/>
-                                        </Border>
+                                        <TextBlock Text="{Binding code}" FontSize="12" FontWeight="Bold" Foreground="#38BDF8" HorizontalAlignment="Center" VerticalAlignment="Center"/>
                                     </DataTemplate>
                                 </DataGridTemplateColumn.CellTemplate>
                             </DataGridTemplateColumn>
 
-                            <!-- اسم الجهاز الكامل -->
-                            <DataGridTemplateColumn Header="اسم الجهاز" Width="*">
+                            <!-- Instrument Name & Connection -->
+                            <DataGridTemplateColumn Header="Name &amp; Interface" Width="*">
                                 <DataGridTemplateColumn.CellTemplate>
                                     <DataTemplate>
                                         <StackPanel VerticalAlignment="Center" Margin="6,0">
@@ -181,13 +177,14 @@
                                 </DataGridTemplateColumn.CellTemplate>
                             </DataGridTemplateColumn>
 
-                            <!-- حالة الربط المباشرة -->
-                            <DataGridTemplateColumn Header="الحالة" Width="95">
+                            <!-- Live Status (Pure Colored Text, No Box) -->
+                            <DataGridTemplateColumn Header="Live Status" Width="110">
                                 <DataGridTemplateColumn.CellTemplate>
                                     <DataTemplate>
-                                        <Border Background="{Binding StatusBgBrush}" CornerRadius="6" Padding="6,3" HorizontalAlignment="Center" VerticalAlignment="Center">
-                                            <TextBlock Text="{Binding status_text}" FontSize="11" FontWeight="Bold" Foreground="{Binding StatusFgBrush}"/>
-                                        </Border>
+                                        <StackPanel VerticalAlignment="Center" HorizontalAlignment="Center">
+                                            <TextBlock Text="{Binding status_text}" FontSize="11.5" FontWeight="Bold" Foreground="{Binding StatusFgBrush}" HorizontalAlignment="Center"/>
+                                            <TextBlock Text="{Binding last_seen_text}" FontSize="9.5" Foreground="{DynamicResource TextSecondaryBrush}" HorizontalAlignment="Center" Margin="0,2,0,0"/>
+                                        </StackPanel>
                                     </DataTemplate>
                                 </DataGridTemplateColumn.CellTemplate>
                             </DataGridTemplateColumn>
@@ -196,11 +193,13 @@
                 </DockPanel>
             </Border>
 
-            <!-- ── RIGHT COLUMN: Live ASTM Traffic Logs & Inspector ────────── -->
+            <!-- ── RIGHT COLUMN: Live Traffic Logs & Inspector ────────── -->
             <Border Grid.Column="1" Style="{DynamicResource CardStyle}" Padding="14">
                 <Grid>
                     <Grid.RowDefinitions>
                         <!-- Log Toolbar (DockPanel) -->
+                        <RowDefinition Height="Auto"/>
+                        <!-- Filter Strip (Instrument, Hide Polls, Search) -->
                         <RowDefinition Height="Auto"/>
                         <!-- Log DataGrid -->
                         <RowDefinition Height="*"/>
@@ -208,47 +207,74 @@
                         <RowDefinition Height="Auto"/>
                     </Grid.RowDefinitions>
 
-                    <!-- Log Toolbar (DockPanel: Title on Left, Action Buttons on Right) -->
-                    <DockPanel Grid.Row="0" Margin="0,0,0,10" LastChildFill="True">
-                        <!-- Right Side: Buttons (Copy, Clear, Refresh, Auto-scroll) -->
+                    <!-- Row 0: Log Toolbar -->
+                    <DockPanel Grid.Row="0" Margin="0,0,0,8" LastChildFill="True">
+                        <!-- Right Side: Action Buttons -->
                         <StackPanel DockPanel.Dock="Right" Orientation="Horizontal" VerticalAlignment="Center">
-                            <CheckBox x:Name="ChkAutoScroll" Content="تمرير تلقائي" IsChecked="True" Foreground="{DynamicResource TextSecondaryBrush}" FontSize="11.5" Margin="0,0,12,0" VerticalAlignment="Center"/>
-                            <Button Content="📋 نسخ السجل (Copy)" Style="{DynamicResource SecondaryButtonStyle}" Margin="0,0,6,0" Padding="10,5" FontSize="11.5" Click="BtnCopyLogs_Click"/>
-                            <Button Content="🗑️ مسح السجل (Clear)" Style="{DynamicResource SecondaryButtonStyle}" Margin="0,0,6,0" Padding="10,5" FontSize="11.5" Click="BtnClearLogs_Click"/>
-                            <Button Content="🔄 تحديث" Style="{DynamicResource SecondaryButtonStyle}" Padding="10,5" FontSize="11.5" Click="BtnRefreshLogs_Click"/>
+                            <CheckBox x:Name="ChkAutoScroll" Content="Auto-scroll" IsChecked="True" Foreground="{DynamicResource TextSecondaryBrush}" FontSize="11.5" Margin="0,0,10,0" VerticalAlignment="Center"/>
+                            <Button x:Name="BtnExportLogs" Content="💾 Export" Style="{DynamicResource SecondaryButtonStyle}" Margin="0,0,6,0" Padding="9,5" Click="BtnExportLogs_Click"/>
+                            <Button Content="📋 Copy" Style="{DynamicResource SecondaryButtonStyle}" Margin="0,0,6,0" Padding="9,5" Click="BtnCopyLogs_Click"/>
+                            <Button Content="🗑️ Clear" Style="{DynamicResource SecondaryButtonStyle}" Margin="0,0,6,0" Padding="9,5" Click="BtnClearLogs_Click"/>
+                            <Button Content="🧹 Purge >7d" Style="{DynamicResource SecondaryButtonStyle}" Margin="0,0,6,0" Padding="9,5" ToolTip="Purge logs older than 7 days" Click="BtnPurgeOldLogs_Click"/>
+                            <Button Content="🔄 Refresh" Style="{DynamicResource SecondaryButtonStyle}" Padding="9,5" Click="BtnRefreshLogs_Click"/>
                         </StackPanel>
 
-                        <!-- Left Side: Title + Live Badge -->
+                        <!-- Left Side: Title + Live Badge (Clean Text) -->
                         <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
-                            <TextBlock Text="📋 سجل حركة البيانات المباشر (Live ASTM Frames)" FontSize="13.5" FontWeight="Bold" Foreground="{DynamicResource AccentBrush}" VerticalAlignment="Center"/>
-                            <Border Background="#064E3B" BorderBrush="#059669" BorderThickness="1" CornerRadius="6" Padding="8,2" Margin="10,0,0,0" VerticalAlignment="Center">
-                                <TextBlock Text="مباشر 🟢" FontSize="11" FontWeight="Bold" Foreground="#34D399"/>
-                            </Border>
+                            <TextBlock Text="📋 Live Communication Traffic (ASTM / Serial)" FontSize="13.5" FontWeight="Bold" Foreground="{DynamicResource AccentBrush}" VerticalAlignment="Center"/>
+                            <TextBlock Text="LIVE 🟢" FontSize="11.5" FontWeight="Bold" Foreground="#34D399" Margin="10,0,0,0" VerticalAlignment="Center"/>
                         </StackPanel>
                     </DockPanel>
 
-                    <!-- Log DataGrid (Clean, Monospace, Ample Padding) -->
-                    <DataGrid Grid.Row="1" x:Name="GridMiddlewareLogs" AutoGenerateColumns="False" IsReadOnly="True"
+                    <!-- Row 1: Interactive Filter Strip -->
+                    <Border Grid.Row="1" Background="#0B1220" BorderBrush="#1B263B" BorderThickness="1" CornerRadius="8" Padding="10,6" Margin="0,0,0,8">
+                        <DockPanel LastChildFill="True">
+                            <!-- Search Payload / Barcode -->
+                            <StackPanel DockPanel.Dock="Right" Orientation="Horizontal" VerticalAlignment="Center">
+                                <TextBlock Text="🔍 Search:" FontSize="11.5" Foreground="{DynamicResource TextSecondaryBrush}" VerticalAlignment="Center" Margin="10,0,6,0"/>
+                                <TextBox x:Name="TxtSearchQuery" Width="170" Height="28" Padding="6,2" FontSize="11.5"
+                                         Background="#070B14" Foreground="#F8FAFC" BorderBrush="#1E2B45"
+                                         TextChanged="TxtSearchQuery_TextChanged"/>
+                            </StackPanel>
+
+                            <!-- Filters: Instrument selector + Hide Idle Polls -->
+                            <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
+                                <TextBlock Text="Instrument:" FontSize="11.5" Foreground="{DynamicResource TextSecondaryBrush}" VerticalAlignment="Center" Margin="0,0,6,0"/>
+                                <ComboBox x:Name="CmbFilterInstrument" Width="150" Height="28" FontSize="11.5"
+                                          Background="#0C1527" Foreground="#F8FAFC" BorderBrush="#1E2B45"
+                                          SelectionChanged="CmbFilterInstrument_SelectionChanged"/>
+
+                                <Border Width="1" Background="#1B263B" Margin="12,2" Height="18"/>
+
+                                <CheckBox x:Name="ChkHideIdlePolls" Content="Hide Idle Polls (POLL / NO-ORDER)" IsChecked="False"
+                                          Foreground="{DynamicResource TextSecondaryBrush}" FontSize="11.5" VerticalAlignment="Center"
+                                          Checked="ChkHideIdlePolls_Changed" Unchecked="ChkHideIdlePolls_Changed"/>
+                            </StackPanel>
+                        </DockPanel>
+                    </Border>
+
+                    <!-- Row 2: Log DataGrid (Pure Text Colors, Zero Background Boxes) -->
+                    <DataGrid Grid.Row="2" x:Name="GridMiddlewareLogs" AutoGenerateColumns="False" IsReadOnly="True"
                               SelectionMode="Single" SelectionChanged="GridMiddlewareLogs_SelectionChanged"
-                              Background="Transparent" RowBackground="#131D35" AlternatingRowBackground="#1A2540"
+                              Background="Transparent" RowBackground="#0D1424" AlternatingRowBackground="#10192D"
                               BorderThickness="1" BorderBrush="{DynamicResource BorderBrush}"
-                              GridLinesVisibility="Horizontal" HorizontalGridLinesBrush="{DynamicResource BorderBrush}"
+                              GridLinesVisibility="Horizontal" HorizontalGridLinesBrush="#151F33"
                               HeadersVisibility="Column" RowHeight="32">
                         <DataGrid.ColumnHeaderStyle>
                             <Style TargetType="DataGridColumnHeader">
-                                <Setter Property="Background" Value="#0F172A"/>
+                                <Setter Property="Background" Value="#090E1A"/>
                                 <Setter Property="Foreground" Value="{DynamicResource TextSecondaryBrush}"/>
                                 <Setter Property="FontWeight" Value="SemiBold"/>
-                                <Setter Property="FontSize" Value="12"/>
+                                <Setter Property="FontSize" Value="11.5"/>
                                 <Setter Property="Padding" Value="8,6"/>
                                 <Setter Property="BorderThickness" Value="0,0,1,1"/>
-                                <Setter Property="BorderBrush" Value="{DynamicResource BorderBrush}"/>
+                                <Setter Property="BorderBrush" Value="#1E2B45"/>
                             </Style>
                         </DataGrid.ColumnHeaderStyle>
 
                         <DataGrid.Columns>
-                            <!-- التاريخ والوقت -->
-                            <DataGridTextColumn Header="التاريخ والوقت" Binding="{Binding timestamp, StringFormat='dd/MM/yyyy HH:mm:ss'}" Width="140">
+                            <!-- Timestamp -->
+                            <DataGridTextColumn Header="Timestamp" Binding="{Binding timestamp_formatted}" Width="150">
                                 <DataGridTextColumn.ElementStyle>
                                     <Style TargetType="TextBlock">
                                         <Setter Property="FontFamily" Value="Consolas"/>
@@ -260,106 +286,86 @@
                                 </DataGridTextColumn.ElementStyle>
                             </DataGridTextColumn>
 
-                            <!-- كود الجهاز -->
-                            <DataGridTemplateColumn Header="الجهاز" Width="105">
+                            <!-- Instrument Code (Pure Colored Text) -->
+                            <DataGridTemplateColumn Header="Instrument" Width="90">
                                 <DataGridTemplateColumn.CellTemplate>
                                     <DataTemplate>
-                                        <Border Background="#0C4A6E" CornerRadius="4" Padding="6,2" HorizontalAlignment="Center" VerticalAlignment="Center">
-                                            <TextBlock Text="{Binding instrument_code}" FontSize="11" FontWeight="Bold" Foreground="#38BDF8"/>
-                                        </Border>
+                                        <TextBlock Text="{Binding instrument_code}" FontSize="12" FontWeight="Bold" Foreground="#38BDF8" HorizontalAlignment="Center" VerticalAlignment="Center"/>
                                     </DataTemplate>
                                 </DataGridTemplateColumn.CellTemplate>
                             </DataGridTemplateColumn>
 
-                            <!-- الاتجاه: IN أخضر فسفوري / OUT أزرق سماوي -->
-                            <DataGridTemplateColumn Header="الاتجاه" Width="95">
+                            <!-- Direction (Pure Colored Text) -->
+                            <DataGridTemplateColumn Header="Direction" Width="85">
                                 <DataGridTemplateColumn.CellTemplate>
                                     <DataTemplate>
-                                        <Border CornerRadius="4" Padding="8,2" HorizontalAlignment="Center" VerticalAlignment="Center">
-                                            <Border.Style>
-                                                <Style TargetType="Border">
-                                                    <Setter Property="Background" Value="#064E3B"/>
-                                                    <Style.Triggers>
-                                                        <DataTrigger Binding="{Binding direction}" Value="OUT">
-                                                            <Setter Property="Background" Value="#0C4A6E"/>
-                                                        </DataTrigger>
-                                                    </Style.Triggers>
-                                                </Style>
-                                            </Border.Style>
-                                            <TextBlock FontWeight="Bold" FontSize="11">
-                                                <TextBlock.Style>
-                                                    <Style TargetType="TextBlock">
-                                                        <Setter Property="Text" Value="📥 وارد (IN)"/>
-                                                        <Setter Property="Foreground" Value="#34D399"/>
-                                                        <Style.Triggers>
-                                                            <DataTrigger Binding="{Binding direction}" Value="OUT">
-                                                                <Setter Property="Text" Value="📤 صادر (OUT)"/>
-                                                                <Setter Property="Foreground" Value="#38BDF8"/>
-                                                            </DataTrigger>
-                                                        </Style.Triggers>
-                                                    </Style>
-                                                </TextBlock.Style>
-                                            </TextBlock>
-                                        </Border>
+                                        <TextBlock Text="{Binding DirectionBadgeText}" FontSize="11.5" FontWeight="Bold" Foreground="{Binding DirectionFgBrush}" HorizontalAlignment="Center" VerticalAlignment="Center"/>
                                     </DataTemplate>
                                 </DataGridTemplateColumn.CellTemplate>
                             </DataGridTemplateColumn>
 
-                            <!-- الحالة -->
-                            <DataGridTextColumn Header="الحالة" Binding="{Binding parse_status}" Width="85">
-                                <DataGridTextColumn.ElementStyle>
-                                    <Style TargetType="TextBlock">
-                                        <Setter Property="FontSize" Value="11"/>
-                                        <Setter Property="Foreground" Value="{DynamicResource TextSecondaryBrush}"/>
-                                        <Setter Property="VerticalAlignment" Value="Center"/>
-                                        <Setter Property="HorizontalAlignment" Value="Center"/>
-                                    </Style>
-                                </DataGridTextColumn.ElementStyle>
-                            </DataGridTextColumn>
+                            <!-- Packet Type (Pure Colored Text) -->
+                            <DataGridTemplateColumn Header="Type" Width="95">
+                                <DataGridTemplateColumn.CellTemplate>
+                                    <DataTemplate>
+                                        <TextBlock Text="{Binding type_badge}" FontSize="11.5" FontWeight="Bold" Foreground="{Binding TypeBadgeFgBrush}" HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                                    </DataTemplate>
+                                </DataGridTemplateColumn.CellTemplate>
+                            </DataGridTemplateColumn>
 
-                            <!-- نص الإطار الخام -->
-                            <DataGridTemplateColumn Header="محتوى الإطار / الرسالة الخام (ASTM Payload)" Width="*">
+                            <!-- Status (Pure Colored Text) -->
+                            <DataGridTemplateColumn Header="Status" Width="70">
+                                <DataGridTemplateColumn.CellTemplate>
+                                    <DataTemplate>
+                                        <TextBlock Text="{Binding parse_status}" FontSize="11" FontWeight="Bold" Foreground="{Binding StatusFgBrush}" HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                                    </DataTemplate>
+                                </DataGridTemplateColumn.CellTemplate>
+                            </DataGridTemplateColumn>
+
+                            <!-- Raw Payload Text (Phosphorescent Terminal Green) -->
+                            <DataGridTemplateColumn Header="Raw Payload" Width="*">
                                 <DataGridTemplateColumn.CellTemplate>
                                     <DataTemplate>
                                         <TextBlock Text="{Binding raw_message}" FontFamily="Consolas" FontSize="11.5"
-                                                   TextTrimming="CharacterEllipsis" VerticalAlignment="Center" Margin="6,0">
-                                            <TextBlock.Style>
-                                                <Style TargetType="TextBlock">
-                                                    <Setter Property="Foreground" Value="#34D399"/>
-                                                    <Style.Triggers>
-                                                        <DataTrigger Binding="{Binding direction}" Value="OUT">
-                                                            <Setter Property="Foreground" Value="#38BDF8"/>
-                                                        </DataTrigger>
-                                                    </Style.Triggers>
-                                                </Style>
-                                            </TextBlock.Style>
-                                        </TextBlock>
+                                                   Foreground="#34D399" TextTrimming="CharacterEllipsis"
+                                                   VerticalAlignment="Center" Margin="8,0"/>
                                     </DataTemplate>
                                 </DataGridTemplateColumn.CellTemplate>
                             </DataGridTemplateColumn>
                         </DataGrid.Columns>
                     </DataGrid>
 
-                    <!-- Collapsible Raw Message Detail Inspector (Bottom of Log) -->
-                    <Border Grid.Row="2" x:Name="BorderLogDetails" Visibility="Collapsed"
-                            Background="#0F172A" BorderBrush="{DynamicResource BorderBrush}"
+                    <!-- Row 3: Collapsible Raw Message Detail Inspector (Bottom of Log) -->
+                    <Border Grid.Row="3" x:Name="BorderLogDetails" Visibility="Collapsed"
+                            Background="#090E1A" BorderBrush="#1E2B45"
                             BorderThickness="1" CornerRadius="8" Padding="12" Margin="0,10,0,0">
                         <Grid>
                             <Grid.RowDefinitions>
                                 <RowDefinition Height="Auto"/>
                                 <RowDefinition Height="Auto"/>
+                                <RowDefinition Height="Auto"/>
                             </Grid.RowDefinitions>
 
-                            <DockPanel Grid.Row="0" Margin="0,0,0,6" LastChildFill="True">
-                                <Button DockPanel.Dock="Right" Content="📋 نسخ النص بالكامل" Style="{DynamicResource SecondaryButtonStyle}"
-                                        Padding="10,4" FontSize="11" Click="BtnCopySelectedRaw_Click"/>
-                                <TextBlock x:Name="TxtLogDetailHeader" Text="تفاصيل الإطار المحدد (Selected ASTM Frame)" FontSize="12"
+                            <!-- Inspector Header Bar -->
+                            <DockPanel Grid.Row="0" Margin="0,0,0,8" LastChildFill="True">
+                                <StackPanel DockPanel.Dock="Right" Orientation="Horizontal" VerticalAlignment="Center">
+                                    <Button x:Name="BtnToggleHex" Content="🔠 Hex View" Style="{DynamicResource SecondaryButtonStyle}"
+                                            Margin="0,0,6,0" Padding="10,4" FontSize="11" Click="BtnToggleHex_Click"/>
+                                    <Button Content="📋 Copy Frame" Style="{DynamicResource SecondaryButtonStyle}"
+                                            Padding="10,4" FontSize="11" Click="BtnCopySelectedRaw_Click"/>
+                                </StackPanel>
+                                <TextBlock x:Name="TxtLogDetailHeader" Text="Selected Frame Details &amp; Protocol Inspector" FontSize="12.5"
                                            FontWeight="Bold" Foreground="{DynamicResource AccentBrush}" VerticalAlignment="Center"/>
                             </DockPanel>
 
-                            <TextBox Grid.Row="1" x:Name="TxtLogDetailMessage" IsReadOnly="True"
-                                     Background="#070A12" Foreground="#38BDF8" BorderBrush="{DynamicResource BorderBrush}"
-                                     BorderThickness="1" FontFamily="Consolas" FontSize="12"
+                            <!-- Decoded Human-Readable Interpretation (Clean Colored Text) -->
+                            <TextBlock Grid.Row="1" x:Name="TxtLogDetailDesc" Text="Frame Interpretation" FontSize="12.5"
+                                       FontWeight="SemiBold" Foreground="#38BDF8" TextWrapping="Wrap" Margin="0,0,0,8"/>
+
+                            <!-- Raw Message Box (Text / Hex Dump) -->
+                            <TextBox Grid.Row="2" x:Name="TxtLogDetailMessage" IsReadOnly="True"
+                                     Background="#050811" Foreground="#34D399" BorderBrush="#1E2B45"
+                                     BorderThickness="1" FontFamily="Consolas" FontSize="11.5"
                                      TextWrapping="Wrap" MaxHeight="110" VerticalScrollBarVisibility="Auto" Padding="10"/>
                         </Grid>
                     </Border>

@@ -1,0 +1,1525 @@
+@page "/catalog"
+@inject ITestCatalogService CatalogService
+@inject UserPreferencesService Prefs
+@implements IDisposable
+
+<PageTitle>@Prefs.T("دليل الفحوصات والأسعار والبارامترات - LIS Web", "Test Catalog & Parameters - LIS Web")</PageTitle>
+
+<div class="d-flex align-items-center justify-content-between mb-4 flex-wrap gap-2">
+    <div>
+        <h3 class="fw-bold text-white mb-1 d-flex align-items-center gap-2">
+            <i class="fas fa-book-medical text-info"></i>
+            <span>@Prefs.T("دليل الفحوصات والبارامترات (Test Catalog & Parameters)", "Test Catalog & Parameters")</span>
+        </h3>
+        <p class="text-secondary mb-0 small">إدارة التحاليل، الأسعار، أنواع الأنابيب، والمعدلات الطبيعية لكل فحص</p>
+    </div>
+    <div class="d-flex gap-2">
+        <button class="btn btn-success fw-bold px-3" data-mdb-ripple-init @onclick="NewTestForm">
+            <i class="fas fa-plus me-1"></i> @Prefs.T("إضافة فحص جديد", "New Test")
+        </button>
+    </div>
+</div>
+
+@if (!string.IsNullOrEmpty(AlertMessage))
+{
+    <div class="alert @AlertClass py-2 px-3 mb-3">@AlertMessage</div>
+}
+
+<div class="row g-4">
+    <!-- Left Column: Master Tests List (col-md-7) -->
+    <div class="col-md-7">
+        <div class="card p-3 mb-3 border-0 shadow-2-strong" style="background: var(--bg-card);">
+            <div class="row g-2 align-items-center">
+                <div class="col-md-6">
+                    <div class="input-group">
+                        <span class="input-group-text bg-dark border-secondary text-secondary">
+                            <i class="fas fa-search"></i>
+                        </span>
+                        <input type="text" class="form-control" placeholder="@Prefs.T("ابحث باسم التحليل أو الكود...", "Search by test name or code...")" 
+                               @bind="SearchQuery" @bind:event="oninput" @onkeyup="FilterTests" />
+                    </div>
+                </div>
+                <div class="col-md-4">
+                    <select class="form-select" @bind="DepartmentFilter" @bind:after="FilterTests">
+                        <option value="">@Prefs.T("جميع الأقسام", "All Departments")</option>
+                        @if (Departments != null)
+                        {
+                            @foreach (var d in Departments)
+                            {
+                                <option value="@d.Id">@d.DisplayName</option>
+                            }
+                        }
+                    </select>
+                </div>
+                <div class="col-md-2 text-end">
+                    <span class="badge bg-info text-dark py-2 px-2 fw-bold w-100">
+                        @(TestsList?.Count ?? 0) @Prefs.T("فحص", "Tests")
+                    </span>
+                </div>
+            </div>
+        </div>
+
+        <div class="card p-0 border-0 shadow-2-strong overflow-hidden" style="background: var(--bg-card); max-height: 70vh; overflow-y: auto;">
+            @if (TestsList == null)
+            {
+                <div class="text-center py-5 text-secondary">
+                    <div class="spinner-border spinner-border-sm text-info mb-2"></div>
+                    <div>@Prefs.T("جاري تحميل الفحوصات...", "Loading test catalog...")</div>
+                </div>
+            }
+            else if (!TestsList.Any())
+            {
+                <div class="text-center py-5 text-secondary">@Prefs.T("لا توجد فحوصات مطابقة للبحث.", "No matching tests found.")</div>
+            }
+            else
+            {
+                <div class="table-responsive">
+                    <table class="table table-hover align-middle mb-0 table-stagger">
+                        <thead>
+                            <tr>
+                                <th>@Prefs.T("كود التحليل", "Test Code")</th>
+                                <th>@Prefs.T("اسم التحليل (English)", "Test Name")</th>
+                                <th>@Prefs.T("القسم", "Department")</th>
+                                <th>@Prefs.T("نوع الأنبوب", "Tube Type")</th>
+                                <th>@Prefs.T("السعر", "Price")</th>
+                                <th class="text-center" style="width: 70px;">@Prefs.T("الحالة", "Status")</th>
+                                <th class="text-center" style="width: 90px;">@Prefs.T("إجراءات", "Actions")</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            @foreach (var t in TestsList)
+                            {
+                                bool isSelected = SelectedTest?.Id == t.Id;
+                                <tr class="@(isSelected ? "table-primary" : "")" style="cursor: pointer;" @onclick="() => SelectTest(t)">
+                                    <td class="fw-bold text-info font-monospace">@t.TestCode</td>
+                                    <td class="fw-bold fs-6">@(string.IsNullOrWhiteSpace(t.NameEn) ? t.NameAr : t.NameEn)</td>
+                                    <td class="small text-muted">@t.DepartmentName</td>
+                                    <!-- Tube Type Column: Text Color Only, NO background -->
+                                    <td class="font-monospace fw-semibold" style="color: @GetTubeColor(t.SpecimenTypeName);">
+                                        @t.SpecimenTypeName
+                                    </td>
+                                    <td class="fw-bold text-success font-monospace">@t.FormattedPrice</td>
+                                    <!-- Status Column: Green mark if active, Red mark if disabled, NO text -->
+                                    <td class="text-center">
+                                        @if (t.Active)
+                                        {
+                                            <i class="fas fa-check-circle text-success fs-5" title="مفعل (Active)"></i>
+                                        }
+                                        else
+                                        {
+                                            <i class="fas fa-times-circle text-danger fs-5" title="معطل (Disabled)"></i>
+                                        }
+                                    </td>
+                                    <!-- Actions: Icon only for parameters button -->
+                                    <td class="text-center">
+                                        <div class="d-flex align-items-center justify-content-center gap-2">
+                                            <button class="btn btn-sm btn-outline-primary btn-action-icon p-0" style="width: 32px; height: 32px; min-height: 32px; border-radius: 8px;" data-mdb-ripple-init title="تفاصيل وبارامترات الفحص والقيم المرجعية" @onclick:stopPropagation="true" @onclick="() => OpenManageComponentsModal(t)">
+                                                <i class="fas fa-sliders fs-6"></i>
+                                            </button>
+                                            <button class="btn btn-sm btn-outline-danger btn-action-icon p-0" style="width: 32px; height: 32px; min-height: 32px; border-radius: 8px;" data-mdb-ripple-init title="حذف أو تعطيل" @onclick:stopPropagation="true" @onclick="() => DeleteTest(t.Id)">
+                                                <i class="fas fa-trash-can fs-6"></i>
+                                            </button>
+                                        </div>
+                                    </td>
+                                </tr>
+                            }
+                        </tbody>
+                    </table>
+                </div>
+            }
+        </div>
+    </div>
+
+    <!-- Right Column: Detail Form & Parameters (col-md-5) -->
+    <div class="col-md-5">
+        <div class="card p-0 border-0 shadow-2-strong overflow-hidden" style="background: var(--bg-card);">
+            <!-- Card Header: Test Details -->
+            <div class="p-3 border-bottom border-secondary bg-dark d-flex justify-content-between align-items-center">
+                <div class="d-flex align-items-center gap-2">
+                    <i class="fas fa-file-medical text-primary fs-5"></i>
+                    <h5 class="fw-bold text-white mb-0">Test Details</h5>
+                    @if (SelectedTest != null && SelectedTest.Id > 0)
+                    {
+                        <span class="badge bg-primary bg-opacity-25 text-primary border border-primary font-monospace">
+                            @SelectedTest.TestCode
+                        </span>
+                    }
+                </div>
+                @if (SelectedTest != null && SelectedTest.Id > 0)
+                {
+                    <button type="button" class="btn btn-sm btn-outline-success px-3 py-1 fw-bold" @onclick="NewTestForm" title='@Prefs.T("إضافة فحص جديد", "Add New Test")'>
+                        <i class="fas fa-plus me-1"></i> @Prefs.T("فحص جديد", "New Test")
+                    </button>
+                }
+            </div>
+
+            <div class="p-4">
+                @if (SelectedTest != null && SelectedTest.Id > 0)
+                {
+                    <!-- Prominent Button: Test Parameters & Reference ranges -->
+                    <button type="button" 
+                            class="btn btn-primary fw-bold w-100 mb-4 py-2 shadow-sm d-flex align-items-center justify-content-center gap-2 fs-6" 
+                            data-mdb-ripple-init
+                            @onclick="() => OpenManageComponentsModal(SelectedTest)">
+                        <i class="fas fa-sliders fs-5"></i>
+                        <span>Test Parameters & Reference ranges</span>
+                        @if (ComponentsList != null && ComponentsList.Any())
+                        {
+                            <span class="badge bg-light text-primary rounded-pill ms-1 font-monospace">@ComponentsList.Count</span>
+                        }
+                    </button>
+                }
+                else
+                {
+                    <div class="alert alert-info py-2 px-3 mb-3 small d-flex align-items-center gap-2">
+                        <i class="fas fa-circle-info"></i>
+                        <span>@Prefs.T("أدخل بيانات الفحص الجديد ثم احفظه لتهيئة البارامترات والمديات المرجعية.", "Enter new test details and save to configure parameters & ranges.")</span>
+                    </div>
+                }
+
+                <div class="row g-3">
+                    <div class="col-md-6">
+                        <label class="form-label text-secondary fw-semibold">@Prefs.T("كود التحليل (Test Code):", "Test Code:")</label>
+                        <input type="text" class="form-control text-uppercase fw-bold font-monospace" @bind="EditTestCode" placeholder="مثال: T_CBC" />
+                    </div>
+
+                    <div class="col-md-6">
+                        <label class="form-label text-secondary fw-semibold">@Prefs.T("السعر (IQD):", "Price (IQD):")</label>
+                        <input type="number" class="form-control fw-bold text-success font-monospace" @bind="EditPrice" min="0" />
+                    </div>
+
+                    <div class="col-md-12">
+                        <label class="form-label text-secondary fw-semibold">@Prefs.T("الاسم بالإنجليزية (Name En):", "English Name:")</label>
+                        <input type="text" class="form-control" @bind="EditNameEn" placeholder="Test Name in English..." />
+                    </div>
+
+                    <div class="col-md-12">
+                        <label class="form-label text-secondary fw-semibold">@Prefs.T("الاسم بالعربية:", "Arabic Name:")</label>
+                        <input type="text" class="form-control" @bind="EditNameAr" placeholder="اسم التحليل بالعربية..." />
+                    </div>
+
+                    <div class="col-md-6">
+                        <label class="form-label text-secondary fw-semibold">@Prefs.T("القسم الطبي:", "Department:")</label>
+                        <select class="form-select" @bind="EditDepartmentId">
+                            <option value="0">@Prefs.T("اختر القسم...", "Select Department...")</option>
+                            @if (Departments != null)
+                            {
+                                @foreach (var d in Departments)
+                                {
+                                    <option value="@d.Id">@d.DisplayName</option>
+                                }
+                            }
+                        </select>
+                    </div>
+
+                    <div class="col-md-6">
+                        <label class="form-label text-secondary fw-semibold">@Prefs.T("نوع الأنبوب (Tube):", "Tube Type:")</label>
+                        <select class="form-select" @bind="EditSpecimenTypeId">
+                            <option value="0">@Prefs.T("اختر الأنبوب...", "Select Tube...")</option>
+                            @if (SpecimenTypes != null)
+                            {
+                                @foreach (var s in SpecimenTypes)
+                                {
+                                    <option value="@s.Id">@s.DisplayName</option>
+                                }
+                            }
+                        </select>
+                    </div>
+
+                    <div class="col-md-12">
+                        <div class="form-check form-switch mt-2">
+                            <input class="form-check-input" type="checkbox" id="chkActive" @bind="EditActive" />
+                            <label class="form-check-label text-white fw-bold" for="chkActive">
+                                @Prefs.T("فحص مفعل ومتاح للاختيار في الاستقبال", "Test active & available in Reception")
+                            </label>
+                        </div>
+                    </div>
+
+                    <div class="col-md-12 pt-3 border-top border-secondary d-flex justify-content-between">
+                        <button type="button" class="btn btn-outline-secondary" data-mdb-ripple-init @onclick="NewTestForm">@Prefs.T("تفريغ الحقول", "Clear Fields")</button>
+                        <button type="button" class="btn btn-success fw-bold px-4" data-mdb-ripple-init @onclick="SaveTest">
+                            <i class="fas fa-floppy-disk me-1"></i> @Prefs.T("حفظ الفحص", "Save Test")
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- ========================================================================= -->
+<!-- MODAL: Manage Components, Parameters & Reference Ranges (ManageComponents) -->
+<!-- ========================================================================= -->
+@if (IsManageComponentsModalOpen && ModalTest != null)
+{
+    <div class="modal fade show d-block" tabindex="-1" style="background: rgba(15, 23, 42, 0.75); backdrop-filter: blur(6px); z-index: 1060;">
+        <div class="modal-dialog modal-dialog-centered" style="max-width: 1040px; width: 95vw; margin: 1.5rem auto;">
+            <div class="modal-content border-0 shadow-lg" style="background: var(--bg-card); border-radius: 14px; overflow: hidden; border: 1px solid var(--border-color) !important; max-height: 86vh; display: flex; flex-direction: column;">
+                <!-- Header -->
+                <div class="modal-header py-2 px-3 border-bottom d-flex justify-content-between align-items-center" style="background: var(--bg-card-hover); border-color: var(--border-color) !important;">
+                    <div class="d-flex align-items-center gap-2 flex-wrap">
+                        <div class="d-flex align-items-center justify-content-center bg-primary bg-opacity-15 text-primary rounded-3" style="width: 32px; height: 32px;">
+                            <i class="fas fa-sliders" style="font-size: 14px;"></i>
+                        </div>
+                        <div>
+                            <div class="d-flex align-items-center gap-2">
+                                <h6 class="fw-bold mb-0 text-white" style="font-size: 14px;">@Prefs.T("إدارة بارامترات الفحص والقيم الطبيعية", "Manage Test Parameters & Ranges")</h6>
+                                <span class="badge bg-primary font-monospace px-2 py-0" style="font-size: 11.5px;">@ModalTest.TestCode</span>
+                                <span class="badge bg-secondary bg-opacity-25 text-secondary border px-2 py-0" style="font-size: 11px;">@(ModalTest.DepartmentName ?? "القسم")</span>
+                            </div>
+                            <div class="text-muted d-flex align-items-center gap-2" style="font-size: 11.5px;">
+                                <span>@(ModalTest.NameAr ?? ModalTest.NameEn)</span>
+                                <span>•</span>
+                                <span>أنبوب: <strong class="text-light">@(ModalTest.SpecimenTypeName ?? "--")</strong></span>
+                                <span>•</span>
+                                <span>السعر: <strong class="text-success font-monospace">@ModalTest.FormattedPrice</strong></span>
+                            </div>
+                        </div>
+                    </div>
+                    <button type="button" class="btn-close btn-close-white" style="font-size: 11px;" @onclick="CloseManageComponentsModal" title="إغلاق"></button>
+                </div>
+
+                <!-- Body (Master-Detail Layout: Compact 280px List / Workspace) -->
+                <div class="modal-body p-3 overflow-hidden d-flex flex-column" style="min-height: 480px; max-height: calc(86vh - 58px);">
+                    @if (!string.IsNullOrEmpty(ModalAlertMessage))
+                    {
+                        <div class="alert @ModalAlertClass py-1 px-3 mb-2 d-flex justify-content-between align-items-center small" style="font-size: 12px;">
+                            <span>@ModalAlertMessage</span>
+                            <button type="button" class="btn-close btn-close-white small" style="font-size: 10px;" @onclick="ClearModalAlert"></button>
+                        </div>
+                    }
+
+                    <div class="d-flex gap-3 flex-grow-1 overflow-hidden" style="min-height: 430px;">
+                        <!-- LEFT PANE: Parameters List (Fixed 280px) -->
+                        <div class="d-flex flex-column" style="width: 280px; flex-shrink: 0;">
+                            <div class="card p-0 flex-grow-1 overflow-hidden d-flex flex-column border rounded-3" style="background: var(--bg-card); border-color: var(--border-color) !important;">
+                                <!-- Left Pane Header -->
+                                <div class="py-2 px-3 border-bottom d-flex justify-content-between align-items-center" style="background: var(--bg-card-hover); border-color: var(--border-color) !important;">
+                                    <div class="d-flex align-items-center gap-1">
+                                        <i class="fas fa-list-check text-primary" style="font-size: 12px;"></i>
+                                        <span class="fw-bold small">@Prefs.T("البارامترات", "Parameters")</span>
+                                        <span class="badge rounded-pill bg-primary bg-opacity-15 text-primary px-2" style="font-size: 10.5px;">@(FilteredModalComponents?.Count ?? 0)</span>
+                                    </div>
+                                    <button type="button" class="btn btn-sm btn-primary py-0 px-2 fw-semibold" style="font-size: 11.5px; height: 26px;" @onclick="StartNewComponentForm" data-mdb-ripple-init>
+                                        <i class="fas fa-plus me-1"></i> @Prefs.T("جديد", "New")
+                                    </button>
+                                </div>
+
+                                <!-- Left Pane Search Filter -->
+                                <div class="p-2 border-bottom" style="border-color: var(--border-color) !important;">
+                                    <div class="input-group input-group-sm">
+                                        <span class="input-group-text bg-transparent border-end-0 text-muted py-0" style="font-size: 11px;">
+                                            <i class="fas fa-search"></i>
+                                        </span>
+                                        <input type="text" class="form-control form-control-sm border-start-0 ps-1" style="font-size: 11.5px; height: 28px;" 
+                                               placeholder="@Prefs.T("بحث بالرمز أو الاسم...", "Search code or name...")" @bind="CompSearchFilter" @bind:event="oninput" />
+                                    </div>
+                                </div>
+
+                                <!-- Left Pane Scrollable List -->
+                                <div class="list-group list-group-flush flex-grow-1 overflow-auto p-2 gap-1" style="max-height: 440px;">
+                                    @if (FilteredModalComponents != null && FilteredModalComponents.Any())
+                                    {
+                                        @foreach (var comp in FilteredModalComponents)
+                                        {
+                                            bool isSelected = !IsAddingNewComponent && SelectedComponentForRanges?.Id == comp.Id;
+                                            <div class="list-group-item list-group-item-action rounded-2 py-1 px-2 d-flex justify-content-between align-items-center border @(isSelected ? "border-primary bg-primary bg-opacity-10" : "border-transparent")"
+                                                 style="cursor: pointer; transition: all 0.15s; font-size: 12px; @(isSelected ? "border-inline-start: 3px solid var(--bs-primary) !important;" : "")" @onclick="() => SelectComponentForRanges(comp)">
+                                                <div class="d-flex align-items-center gap-2 overflow-hidden">
+                                                    <span class="fw-bold font-monospace @(isSelected ? "text-primary" : "text-info")" style="font-size: 12px; min-width: 38px;">
+                                                        @comp.DisplayCode
+                                                    </span>
+                                                    <div class="text-truncate">
+                                                        <div class="fw-semibold text-truncate text-white" style="font-size: 11.5px;" title="@comp.NameEn">@comp.NameEn</div>
+                                                        <div class="text-muted d-flex align-items-center gap-1" style="font-size: 10px;">
+                                                            @if (!string.IsNullOrEmpty(comp.NameAr))
+                                                            {
+                                                                <span>@comp.NameAr</span>
+                                                                <span>•</span>
+                                                            }
+                                                            <span>@(comp.Unit ?? "--")</span>
+                                                        </div>
+                                                    </div>
+                                                </div>
+                                                <div class="d-flex align-items-center gap-1 flex-shrink-0">
+                                                    <span class="badge bg-secondary bg-opacity-25 text-secondary font-monospace" style="font-size: 10px;" title="عدد المديات الطبيعية">
+                                                        @comp.RangesCount م
+                                                    </span>
+                                                    <button class="btn btn-sm btn-outline-danger p-0 border-0" style="width: 22px; height: 22px;" title="حذف المكون" @onclick:stopPropagation="true" @onclick="() => DeleteComponent(comp.Id, comp.DisplayCode)">
+                                                        <i class="fas fa-trash-can" style="font-size: 10px;"></i>
+                                                    </button>
+                                                </div>
+                                            </div>
+                                        }
+                                    }
+                                    else
+                                    {
+                                        <div class="text-center py-5 text-muted small" style="font-size: 12px;">
+                                            لا توجد مكونات مسجلة.
+                                        </div>
+                                    }
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- RIGHT PANE: Details & Workspace (Flex-grow) -->
+                        <div class="d-flex flex-column flex-grow-1 overflow-hidden" style="min-width: 0;">
+                            <div class="card p-0 flex-grow-1 overflow-hidden d-flex flex-column border rounded-3" style="background: var(--bg-card); border-color: var(--border-color) !important;">
+                                @if (IsAddingNewComponent)
+                                {
+                                    <!-- ============================================== -->
+                                    <!-- FORM: ADD NEW COMPONENT                        -->
+                                    <!-- ============================================== -->
+                                    <div class="py-2 px-3 border-bottom d-flex justify-content-between align-items-center" style="background: var(--bg-card-hover); border-color: var(--border-color) !important;">
+                                        <div class="d-flex align-items-center gap-2">
+                                            <i class="fas fa-plus-circle text-primary"></i>
+                                            <span class="fw-bold small text-white">إضافة بارامتر جديد للفحص (@ModalTest.TestCode)</span>
+                                        </div>
+                                        <button type="button" class="btn btn-sm btn-outline-secondary py-0 px-2" style="font-size: 11px;" @onclick="CancelNewComponentForm">
+                                            إلغاء
+                                        </button>
+                                    </div>
+
+                                    <div class="p-3 overflow-auto flex-grow-1">
+                                        <div class="row g-2 mb-2">
+                                            <div class="col-md-4">
+                                                <label class="form-label small fw-bold mb-1" style="font-size: 11px;">@Prefs.T("الرمز (Code)*:", "Symbol (Code)*:")</label>
+                                                <input type="text" class="form-control form-control-sm text-uppercase font-monospace fw-bold text-primary" @bind="EditingComponent.DisplayCode" placeholder="مثال: ALB, WBC" />
+                                            </div>
+                                            <div class="col-md-8">
+                                                <label class="form-label small fw-bold mb-1" style="font-size: 11px;">@Prefs.T("الاسم بالإنجليزية (Name En)*:", "English Name*:")</label>
+                                                <input type="text" class="form-control form-control-sm" @bind="EditingComponent.NameEn" placeholder="مثال: Albumin, White Blood Cells" />
+                                            </div>
+                                            <div class="col-md-6">
+                                                <label class="form-label small fw-bold mb-1" style="font-size: 11px;">@Prefs.T("الاسم بالعربية:", "Arabic Name:")</label>
+                                                <input type="text" class="form-control form-control-sm" @bind="EditingComponent.NameAr" placeholder="مثال: الألبومين، كريات الدم البيضاء" />
+                                            </div>
+                                            <div class="col-md-3">
+                                                <label class="form-label small fw-bold mb-1" style="font-size: 11px;">@Prefs.T("الوحدة (Unit):", "Unit:")</label>
+                                                <input type="text" class="form-control form-control-sm" @bind="EditingComponent.Unit" placeholder="مثال: g/dL, mg/dL" />
+                                            </div>
+                                            <div class="col-md-3">
+                                                <label class="form-label small fw-bold mb-1" style="font-size: 11px;">@Prefs.T("الكسور العشرية:", "Decimals:")</label>
+                                                <select class="form-select form-select-sm" @bind="EditingComponent.Decimals">
+                                                    <option value="0">0 (صحيح)</option>
+                                                    <option value="1">1 (مثل 3.5)</option>
+                                                    <option value="2">2 (مثل 3.55)</option>
+                                                    <option value="3">3 (مثل 3.555)</option>
+                                                </select>
+                                            </div>
+                                        </div>
+
+                                        <!-- Analyzer Mapping in Add Form -->
+                                        <div class="card p-2 mb-3 border rounded-3" style="background: var(--bg-card-hover); border-color: var(--border-color) !important;">
+                                            <label class="form-label small fw-bold text-primary d-flex align-items-center gap-1 mb-1" style="font-size: 11px;">
+                                                <i class="fas fa-satellite-dish"></i>
+                                                <span>@Prefs.T("ربط جهاز التحليل (Analyzer Mapping) - اختياري:", "Analyzer Mapping (Optional):")</span>
+                                            </label>
+                                            <div class="row g-2 align-items-center">
+                                                <div class="col-md-7">
+                                                    <select class="form-select form-select-sm" @bind="SelectedInstrumentId">
+                                                        <option value="0">@Prefs.T("-- بدون جهاز (إدخال يدوي) --", "-- No Analyzer (Manual Entry) --")</option>
+                                                        @if (AllInstrumentsList != null)
+                                                        {
+                                                            @foreach (var inst in AllInstrumentsList)
+                                                            {
+                                                                <option value="@inst.Id">@inst.DisplayName</option>
+                                                            }
+                                                        }
+                                                    </select>
+                                                </div>
+                                                <div class="col-md-5">
+                                                    <input type="text" class="form-control form-control-sm font-monospace" placeholder="كود الفحص بالجهاز (e.g. ALB)" @bind="SelectedInstrumentTestCode" />
+                                                </div>
+                                            </div>
+                                        </div>
+
+                                        <div class="d-flex justify-content-end gap-2">
+                                            <button type="button" class="btn btn-sm btn-outline-secondary px-3" @onclick="CancelNewComponentForm">
+                                                إلغاء
+                                            </button>
+                                            <button type="button" class="btn btn-sm btn-primary px-3 fw-bold" @onclick="SaveComponent" data-mdb-ripple-init>
+                                                <i class="fas fa-check me-1"></i> @Prefs.T("حفظ وإضافة البارامتر", "Save & Add Parameter")
+                                            </button>
+                                        </div>
+                                    </div>
+                                }
+                                else if (SelectedComponentForRanges != null)
+                                {
+                                    <!-- ============================================== -->
+                                    <!-- SELECTED COMPONENT DETAILS                     -->
+                                    <!-- ============================================== -->
+                                    <!-- Right Pane Header Bar -->
+                                    <div class="py-2 px-3 border-bottom d-flex justify-content-between align-items-center flex-wrap gap-2" style="background: var(--bg-card-hover); border-color: var(--border-color) !important;">
+                                        <div class="d-flex align-items-center gap-2 flex-wrap">
+                                            <span class="badge bg-primary font-monospace px-2 py-1" style="font-size: 13px;">[@SelectedComponentForRanges.DisplayCode]</span>
+                                            <strong class="text-white" style="font-size: 13.5px;">@SelectedComponentForRanges.NameEn</strong>
+                                            @if (!string.IsNullOrEmpty(SelectedComponentForRanges.NameAr))
+                                            {
+                                                <span class="text-muted small" style="font-size: 11.5px;">(@SelectedComponentForRanges.NameAr)</span>
+                                            }
+                                            <div class="d-inline-flex align-items-center gap-2 text-muted ms-2" style="font-size: 11px;">
+                                                <span>الوحدة: <strong class="text-info font-monospace">@(SelectedComponentForRanges.Unit ?? "--")</strong></span>
+                                                <span>•</span>
+                                                <span>الكسور: <strong class="text-info font-monospace">@SelectedComponentForRanges.Decimals</strong></span>
+                                                @if (!string.IsNullOrWhiteSpace(SelectedComponentForRanges.InstrumentName) || !string.IsNullOrWhiteSpace(SelectedComponentForRanges.InstrumentCode))
+                                                {
+                                                    <span>•</span>
+                                                    <span class="badge bg-success bg-opacity-15 text-success font-monospace" style="font-size: 10.5px;">
+                                                        <i class="fas fa-satellite-dish me-1"></i>@(SelectedComponentForRanges.InstrumentCode ?? SelectedComponentForRanges.InstrumentName) (@SelectedComponentForRanges.InstrumentTestCode)
+                                                    </span>
+                                                }
+                                            </div>
+                                        </div>
+
+                                        <!-- Right Navigation Tabs (Compact) -->
+                                        <div class="btn-group btn-group-sm" role="group">
+                                            <button type="button" class="btn btn-sm @(ActiveRightTab == "ranges" ? "btn-primary fw-bold" : "btn-outline-secondary") py-1 px-2" style="font-size: 11.5px;" data-mdb-ripple-init @onclick='() => ActiveRightTab = "ranges"'>
+                                                <i class="fas fa-bullseye me-1"></i> @Prefs.T("المديات", "Ranges") (@(ComponentRangesList?.Count ?? 0))
+                                            </button>
+                                            <button type="button" class="btn btn-sm @(ActiveRightTab == "instruments" ? "btn-primary fw-bold" : "btn-outline-secondary") py-1 px-2" style="font-size: 11.5px;" data-mdb-ripple-init @onclick='() => ActiveRightTab = "instruments"'>
+                                                <i class="fas fa-satellite-dish me-1"></i> @Prefs.T("الأجهزة", "Analyzers") (@(ComponentInstrumentMappings?.Count ?? 0))
+                                            </button>
+                                            <button type="button" class="btn btn-sm @(ActiveRightTab == "edit_component" ? "btn-primary fw-bold" : "btn-outline-secondary") py-1 px-2" style="font-size: 11.5px;" data-mdb-ripple-init @onclick='() => ActiveRightTab = "edit_component"'>
+                                                <i class="fas fa-sliders-h me-1"></i> @Prefs.T("تعديل", "Edit")
+                                            </button>
+                                        </div>
+                                    </div>
+
+                                    <!-- Right Pane Content -->
+                                    <div class="flex-grow-1 overflow-auto d-flex flex-column p-3">
+                                        @if (ActiveRightTab == "ranges")
+                                        {
+                                            <!-- ============================================== -->
+                                            <!-- TAB 1: REFERENCE & CRITICAL RANGES             -->
+                                            <!-- ============================================== -->
+                                            <div class="d-flex justify-content-between align-items-center mb-2">
+                                                <div class="fw-semibold small d-flex align-items-center gap-1 text-muted" style="font-size: 12px;">
+                                                    <i class="fas fa-bullseye text-primary"></i>
+                                                    <span>@Prefs.T("المديات المرجعية والحرجة المعتمدة للبارامتر", "Approved Reference & Panic Ranges")</span>
+                                                </div>
+                                                <button type="button" class="btn btn-sm @(IsAddingRangeMode ? "btn-outline-secondary" : "btn-success") py-1 px-2" style="font-size: 11.5px;" data-mdb-ripple-init @onclick="ToggleAddRangeMode">
+                                                    <i class="fas @(IsAddingRangeMode ? "fa-xmark" : "fa-plus") me-1"></i>
+                                                    <span>@(IsAddingRangeMode ? (NewRangeModel.Id > 0 ? Prefs.T("إلغاء التعديل", "Cancel Edit") : Prefs.T("إغلاق النموذج", "Close Form")) : Prefs.T("إضافة مدى طبيعي", "Add Reference Range"))</span>
+                                                </button>
+                                            </div>
+
+                                            @if (IsAddingRangeMode)
+                                            {
+                                                <!-- Compact Inline Add / Edit Range Card -->
+                                                <div class="card p-2 mb-2 border rounded-3 shadow-sm" style="background: var(--bg-card-hover); border-color: @(NewRangeModel.Id > 0 ? "var(--bs-primary)" : "var(--border-color)") !important;">
+                                                    <div class="d-flex justify-content-between align-items-center mb-1">
+                                                        <strong class="@(NewRangeModel.Id > 0 ? "text-primary" : "text-success") small d-flex align-items-center gap-1" style="font-size: 11.5px;">
+                                                            <i class="fas @(NewRangeModel.Id > 0 ? "fa-pen-to-square" : "fa-plus-circle")"></i>
+                                                            <span>@(NewRangeModel.Id > 0 ? Prefs.T($"تعديل المدى المرجعي (#{NewRangeModel.Id}):", $"Edit Reference Range (#{NewRangeModel.Id}):") : Prefs.T("تسجيل مدى طبيعي وحرج جديد:", "Register Reference & Critical Range:"))</span>
+                                                        </strong>
+                                                        <button type="button" class="btn btn-sm btn-outline-secondary py-0 px-2" style="font-size: 10.5px;" @onclick="ResetRangeForm">
+                                                            @(NewRangeModel.Id > 0 ? Prefs.T("جديد", "Reset to New") : Prefs.T("تفريغ", "Clear Fields"))
+                                                        </button>
+                                                    </div>
+
+                                                    <div class="row g-2 mb-2">
+                                                        <div class="col-md-3">
+                                                            <label class="form-label small mb-1" style="font-size: 11px;">@Prefs.T("الجنس:", "Gender:")</label>
+                                                            <select class="form-select form-select-sm" @bind="NewRangeModel.Sex">
+                                                                <option value="B">@Prefs.T("كلاهما (All)", "Both (All)")</option>
+                                                                <option value="M">@Prefs.T("ذكور (Male)", "Male")</option>
+                                                                <option value="F">@Prefs.T("إناث (Female)", "Female")</option>
+                                                            </select>
+                                                        </div>
+                                                        <div class="col-md-3">
+                                                            <label class="form-label small mb-1" style="font-size: 11px;">@Prefs.T("من عمر:", "Min Age:")</label>
+                                                            <input type="number" class="form-control form-control-sm font-monospace" @bind="NewRangeModel.AgeMin" min="0" />
+                                                        </div>
+                                                        <div class="col-md-3">
+                                                            <label class="form-label small mb-1" style="font-size: 11px;">@Prefs.T("إلى عمر:", "Max Age:")</label>
+                                                            <input type="number" class="form-control form-control-sm font-monospace" @bind="NewRangeModel.AgeMax" min="0" />
+                                                        </div>
+                                                        <div class="col-md-3">
+                                                            <label class="form-label small mb-1" style="font-size: 11px;">@Prefs.T("الوحدة:", "Unit:")</label>
+                                                            <select class="form-select form-select-sm" @bind="NewRangeModel.AgeUnit">
+                                                                <option value="Years">@Prefs.T("سنة (Years)", "Years")</option>
+                                                                <option value="Months">@Prefs.T("شهر (Months)", "Months")</option>
+                                                                <option value="Days">@Prefs.T("يوم (Days)", "Days")</option>
+                                                            </select>
+                                                        </div>
+                                                    </div>
+
+                                                    <div class="row g-2 mb-2">
+                                                        <div class="col-md-3">
+                                                            <label class="form-label text-success small mb-1 fw-bold" style="font-size: 11px;">@Prefs.T("الحد الأدنى الطبيعي:", "Normal Min:")</label>
+                                                            <input type="number" step="0.01" class="form-control form-control-sm text-success fw-bold font-monospace" @bind="NewRangeModel.Low" placeholder="مثال: 3.5" />
+                                                        </div>
+                                                        <div class="col-md-3">
+                                                            <label class="form-label text-success small mb-1 fw-bold" style="font-size: 11px;">@Prefs.T("الحد الأعلى الطبيعي:", "Normal Max:")</label>
+                                                            <input type="number" step="0.01" class="form-control form-control-sm text-success fw-bold font-monospace" @bind="NewRangeModel.High" placeholder="مثال: 5.2" />
+                                                        </div>
+                                                        <div class="col-md-3">
+                                                            <label class="form-label text-danger small mb-1 fw-bold" style="font-size: 11px;">@Prefs.T("الحرج الأدنى (Panic):", "Panic Low:")</label>
+                                                            <input type="number" step="0.01" class="form-control form-control-sm text-danger fw-bold font-monospace" @bind="NewRangeModel.CriticalLow" placeholder="مثال: 2.0" />
+                                                        </div>
+                                                        <div class="col-md-3">
+                                                            <label class="form-label text-danger small mb-1 fw-bold" style="font-size: 11px;">@Prefs.T("الحرج الأعلى (Panic):", "Panic High:")</label>
+                                                            <input type="number" step="0.01" class="form-control form-control-sm text-danger fw-bold font-monospace" @bind="NewRangeModel.CriticalHigh" placeholder="مثال: 6.5" />
+                                                        </div>
+                                                    </div>
+
+                                                    <div class="row g-2 align-items-center">
+                                                        <div class="col-md-8">
+                                                            <input type="text" class="form-control form-control-sm" style="font-size: 11.5px;" @bind="NewRangeModel.Note" placeholder="@Prefs.T("ملاحظات سريرية اختيارية...", "Optional clinical note...")" />
+                                                        </div>
+                                                        <div class="col-md-4 d-flex justify-content-end gap-1">
+                                                            <button type="button" class="btn btn-sm btn-outline-secondary px-2" style="font-size: 11px;" @onclick="() => { IsAddingRangeMode = false; ResetRangeForm(); }">
+                                                                @Prefs.T("إلغاء", "Cancel")
+                                                            </button>
+                                                            <button type="button" class="btn btn-sm @(NewRangeModel.Id > 0 ? "btn-primary" : "btn-success") px-3 fw-bold" style="font-size: 11.5px;" @onclick="SaveReferenceRange" data-mdb-ripple-init>
+                                                                <i class="fas fa-check me-1"></i> @(NewRangeModel.Id > 0 ? Prefs.T("تحديث المدى", "Update Range") : Prefs.T("حفظ المدى", "Save Range"))
+                                                            </button>
+                                                        </div>
+                                                    </div>
+                                                </div>
+                                            }
+
+                                            <!-- Reference Ranges Table (Compact) -->
+                                            @if (ComponentRangesList == null || !ComponentRangesList.Any())
+                                            {
+                                                <div class="text-center py-4 text-muted small card p-3 border border-dashed rounded-3 flex-grow-1 d-flex flex-column align-items-center justify-content-center" style="font-size: 12px;">
+                                                    <i class="fas fa-bullseye fs-3 text-muted opacity-50 mb-2"></i>
+                                                    <p class="mb-2">لا توجد مديات طبيعية مسجلة لهذا البارامتر حتى الآن.</p>
+                                                    <button type="button" class="btn btn-sm btn-success px-3" style="font-size: 11.5px;" @onclick="() => { ResetRangeForm(); IsAddingRangeMode = true; }">
+                                                        <i class="fas fa-plus me-1"></i> إضافة المدى الطبيعي الآن
+                                                    </button>
+                                                </div>
+                                            }
+                                            else
+                                            {
+                                                <div class="table-responsive border rounded-3 overflow-auto" style="max-height: 380px;">
+                                                    <table class="table table-sm table-hover align-middle mb-0 lis-table" style="font-size: 12px;">
+                                                        <thead class="bg-dark" style="font-size: 11px; letter-spacing: 0.5px;">
+                                                            <tr>
+                                                                <th style="padding: 6px 10px;">@Prefs.T("الجنس", "GENDER")</th>
+                                                                <th style="padding: 6px 10px;">@Prefs.T("الفئة العمرية", "AGE GROUP")</th>
+                                                                <th style="padding: 6px 10px;">@Prefs.T("المدى الطبيعي", "REFERENCE RANGE")</th>
+                                                                <th style="padding: 6px 10px;">@Prefs.T("القيم الحرجة", "PANIC / CRITICAL")</th>
+                                                                <th style="padding: 6px 10px;">@Prefs.T("ملاحظات سريرية", "CLINICAL NOTES")</th>
+                                                                <th class="text-center" style="padding: 6px 10px; width: 75px;">@Prefs.T("إجراء", "ACTIONS")</th>
+                                                            </tr>
+                                                        </thead>
+                                                        <tbody>
+                                                            @foreach (var rng in ComponentRangesList)
+                                                            {
+                                                                <tr class="@(rng.Id == NewRangeModel.Id && IsAddingRangeMode ? "table-primary" : "")">
+                                                                    <td style="padding: 6px 10px;">
+                                                                        @if (rng.Sex == "M")
+                                                                        {
+                                                                            <span class="text-primary fw-semibold"><i class="fas fa-mars me-1"></i> ذكور</span>
+                                                                        }
+                                                                        else if (rng.Sex == "F")
+                                                                        {
+                                                                            <span class="text-danger fw-semibold"><i class="fas fa-venus me-1"></i> إناث</span>
+                                                                        }
+                                                                        else
+                                                                        {
+                                                                            <span class="text-secondary fw-semibold"><i class="fas fa-venus-mars me-1"></i> كلاهما</span>
+                                                                        }
+                                                                    </td>
+                                                                    <td style="padding: 6px 10px;" class="font-monospace small">@rng.AgeDisplay</td>
+                                                                    <td style="padding: 6px 10px;">
+                                                                        <span class="fw-bold text-success font-monospace" dir="ltr">@rng.RangeDisplay</span>
+                                                                        <span class="text-muted small ms-1 font-monospace" dir="ltr">@(SelectedComponentForRanges.Unit ?? "")</span>
+                                                                    </td>
+                                                                    <td style="padding: 6px 10px;">
+                                                                        @if ((rng.CriticalLow.HasValue || rng.CriticalHigh.HasValue) && !string.IsNullOrWhiteSpace(rng.CriticalDisplay) && rng.CriticalDisplay != "—")
+                                                                        {
+                                                                            <span class="badge bg-danger-subtle text-danger border border-danger-subtle font-monospace px-2 py-1" style="font-size: 10.5px;" dir="ltr">
+                                                                                <i class="fas fa-triangle-exclamation me-1"></i> @rng.CriticalDisplay
+                                                                            </span>
+                                                                        }
+                                                                        else
+                                                                        {
+                                                                            <span class="text-muted small">--</span>
+                                                                        }
+                                                                    </td>
+                                                                    <td class="small text-muted text-truncate" style="padding: 6px 10px; max-width: 200px;" title="@(rng.Note ?? "")">
+                                                                        @(string.IsNullOrWhiteSpace(rng.Note) ? "--" : rng.Note)
+                                                                    </td>
+                                                                    <td class="text-center" style="padding: 6px 10px;">
+                                                                        <div class="d-inline-flex gap-1">
+                                                                            <button class="btn btn-sm @(rng.Id == NewRangeModel.Id && IsAddingRangeMode ? "btn-primary text-white" : "btn-outline-primary") p-0" 
+                                                                                    style="width: 26px; height: 26px; border-radius: 5px;" 
+                                                                                    title='@Prefs.T("تعديل المدى", "Edit Range")' 
+                                                                                    data-mdb-ripple-init 
+                                                                                    @onclick="() => EditReferenceRange(rng)">
+                                                                                <i class="fas fa-pen-to-square" style="font-size: 11px;"></i>
+                                                                            </button>
+                                                                            <button class="btn btn-sm btn-outline-danger p-0" 
+                                                                                    style="width: 26px; height: 26px; border-radius: 5px;" 
+                                                                                    title='@Prefs.T("حذف المدى", "Delete Range")' 
+                                                                                    data-mdb-ripple-init 
+                                                                                    @onclick="() => DeleteReferenceRange(rng.Id)">
+                                                                                <i class="fas fa-trash-can" style="font-size: 11px;"></i>
+                                                                            </button>
+                                                                        </div>
+                                                                    </td>
+                                                                </tr>
+                                                            }
+                                                        </tbody>
+                                                    </table>
+                                                </div>
+                                            }
+                                        }
+                                        else if (ActiveRightTab == "instruments")
+                                        {
+                                            <!-- ============================================== -->
+                                            <!-- TAB 2: LINKED INSTRUMENTS                      -->
+                                            <!-- ============================================== -->
+                                            <div class="d-flex justify-content-between align-items-center mb-2">
+                                                <div class="fw-semibold small d-flex align-items-center gap-1 text-muted" style="font-size: 12px;">
+                                                    <i class="fas fa-satellite-dish text-primary"></i>
+                                                    <span>@Prefs.T("أجهزة التحليل وقنوات الربط", "Analyzer Mappings & Channels")</span>
+                                                </div>
+                                                <small class="text-secondary" style="font-size: 11px;">@Prefs.T("تعديل الكود وحفظه مباشرة", "Edit and save code directly")</small>
+                                            </div>
+
+                                            @if (ComponentInstrumentMappings != null && ComponentInstrumentMappings.Any())
+                                            {
+                                                <div class="table-responsive border rounded-3 mb-2 overflow-auto" style="max-height: 220px;">
+                                                    <table class="table table-sm table-hover align-middle mb-0 lis-table" style="font-size: 12px;">
+                                                        <thead class="bg-dark" style="font-size: 11px;">
+                                                            <tr>
+                                                                <th style="padding: 6px 10px;">@Prefs.T("اسم الجهاز", "Instrument Name")</th>
+                                                                <th style="padding: 6px 10px;">@Prefs.T("رمز الجهاز", "Code")</th>
+                                                                <th style="padding: 6px 10px; min-width: 220px;">@Prefs.T("كود الفحص بالجهاز", "Instrument Test Code")</th>
+                                                                <th class="text-center" style="padding: 6px 10px; width: 85px;">@Prefs.T("إلغاء الربط", "Unlink")</th>
+                                                            </tr>
+                                                        </thead>
+                                                        <tbody>
+                                                            @foreach (var map in ComponentInstrumentMappings)
+                                                            {
+                                                                <tr>
+                                                                    <td style="padding: 6px 10px;" class="fw-semibold">
+                                                                        <i class="fas fa-satellite-dish text-primary me-1"></i>
+                                                                        @map.InstrumentName
+                                                                    </td>
+                                                                    <td style="padding: 6px 10px;" class="font-monospace text-info fw-semibold small">@(string.IsNullOrEmpty(map.InstrumentCode) ? "--" : map.InstrumentCode)</td>
+                                                                    <td style="padding: 6px 10px;">
+                                                                        <div class="input-group input-group-sm" style="max-width: 210px;">
+                                                                            <input type="text" class="form-control form-control-sm font-monospace fw-bold text-primary py-0" style="height: 28px; font-size: 12px;" 
+                                                                                   @bind="map.InstrumentTestCode" 
+                                                                                   placeholder="كود الفحص" />
+                                                                            <button type="button" class="btn btn-primary btn-sm px-2 fw-semibold" style="height: 28px; font-size: 11.5px;" 
+                                                                                    title='@Prefs.T("حفظ كود الجهاز", "Save Code")' 
+                                                                                    data-mdb-ripple-init
+                                                                                    @onclick="() => SaveUpdatedMapping(map)">
+                                                                                <i class="fas fa-floppy-disk me-1"></i> @Prefs.T("حفظ", "Save")
+                                                                            </button>
+                                                                        </div>
+                                                                    </td>
+                                                                    <td class="text-center" style="padding: 6px 10px;">
+                                                                        <button class="btn btn-sm btn-outline-danger py-0 px-2" style="font-size: 11px; height: 26px;" data-mdb-ripple-init title='@Prefs.T("إلغاء الربط", "Unlink")' @onclick="() => DeleteInstrumentMapping(map.InstrumentId)">
+                                                                            <i class="fas fa-trash-can me-1"></i> @Prefs.T("فك", "Unlink")
+                                                                        </button>
+                                                                    </td>
+                                                                </tr>
+                                                            }
+                                                        </tbody>
+                                                    </table>
+                                                </div>
+                                            }
+                                            else
+                                            {
+                                                <div class="text-center py-3 text-muted small card p-2 mb-2 border border-dashed rounded-3" style="font-size: 11.5px;">
+                                                    لا توجد أجهزة مربوطة بهذا البارامتر حالياً.
+                                                </div>
+                                            }
+
+                                            <!-- Form to add another instrument -->
+                                            <div class="card p-2 border rounded-3 shadow-sm" style="background: var(--bg-card-hover); border-color: var(--border-color) !important;">
+                                                <strong class="text-primary small d-flex align-items-center gap-1 mb-2" style="font-size: 11px;">
+                                                    <i class="fas fa-plus-circle"></i>
+                                                    <span>@Prefs.T("ربط جهاز تحليل إضافي بهذا البارامتر:", "Link additional analyzer:")</span>
+                                                </strong>
+                                                <div class="row g-2 align-items-center">
+                                                    <div class="col-md-6">
+                                                        <select class="form-select form-select-sm" @bind="NewMappingInstrumentId">
+                                                            @if (AllInstrumentsList != null)
+                                                            {
+                                                                @foreach (var inst in AllInstrumentsList)
+                                                                {
+                                                                    <option value="@inst.Id">@inst.DisplayName</option>
+                                                                }
+                                                            }
+                                                        </select>
+                                                    </div>
+                                                    <div class="col-md-4">
+                                                        <input type="text" class="form-control form-control-sm font-monospace fw-bold" style="font-size: 12px;" placeholder='@Prefs.T("كود الفحص (e.g. ALB, GLU)", "Test Code (e.g. ALB, GLU)")' @bind="NewMappingTestCode" />
+                                                    </div>
+                                                    <div class="col-md-2">
+                                                        <button type="button" class="btn btn-sm btn-primary w-100 fw-bold" style="font-size: 11.5px;" data-mdb-ripple-init @onclick="AddInstrumentMapping">
+                                                            ربط
+                                                        </button>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        }
+                                        else if (ActiveRightTab == "edit_component")
+                                        {
+                                            <!-- ============================================== -->
+                                            <!-- TAB 3: EDIT COMPONENT DETAILS                  -->
+                                            <!-- ============================================== -->
+                                            <div class="card p-3 border rounded-3" style="background: var(--bg-card-hover); border-color: var(--border-color) !important;">
+                                                <h6 class="fw-bold mb-3 d-flex align-items-center gap-2 text-primary" style="font-size: 13px;">
+                                                    <i class="fas fa-sliders-h"></i>
+                                                    <span>@Prefs.T("تعديل البيانات الفنية للبارامتر", "Edit Technical Details") (@EditingComponent.DisplayCode)</span>
+                                                </h6>
+
+                                                <div class="row g-2 mb-3">
+                                                    <div class="col-md-4">
+                                                        <label class="form-label small fw-bold mb-1" style="font-size: 11px;">@Prefs.T("الرمز (Code)*:", "Symbol (Code)*:")</label>
+                                                        <input type="text" class="form-control form-control-sm text-uppercase font-monospace fw-bold text-primary" @bind="EditingComponent.DisplayCode" />
+                                                    </div>
+                                                    <div class="col-md-8">
+                                                        <label class="form-label small fw-bold mb-1" style="font-size: 11px;">@Prefs.T("الاسم بالإنجليزية (Name En)*:", "English Name*:")</label>
+                                                        <input type="text" class="form-control form-control-sm" @bind="EditingComponent.NameEn" />
+                                                    </div>
+                                                    <div class="col-md-6">
+                                                        <label class="form-label small fw-bold mb-1" style="font-size: 11px;">@Prefs.T("الاسم بالعربية:", "Arabic Name:")</label>
+                                                        <input type="text" class="form-control form-control-sm" @bind="EditingComponent.NameAr" />
+                                                    </div>
+                                                    <div class="col-md-3">
+                                                        <label class="form-label small fw-bold mb-1" style="font-size: 11px;">@Prefs.T("الوحدة (Unit):", "Unit:")</label>
+                                                        <input type="text" class="form-control form-control-sm" @bind="EditingComponent.Unit" />
+                                                    </div>
+                                                    <div class="col-md-3">
+                                                        <label class="form-label small fw-bold mb-1" style="font-size: 11px;">@Prefs.T("الكسور العشرية:", "Decimals:")</label>
+                                                        <select class="form-select form-select-sm" @bind="EditingComponent.Decimals">
+                                                            <option value="0">0 (أعداد صحيحة)</option>
+                                                            <option value="1">1 (مثل 3.5)</option>
+                                                            <option value="2">2 (مثل 3.55)</option>
+                                                            <option value="3">3 (مثل 3.555)</option>
+                                                        </select>
+                                                    </div>
+                                                </div>
+
+                                                <div class="d-flex justify-content-end gap-2">
+                                                    <button type="button" class="btn btn-sm btn-primary px-3 fw-bold" style="font-size: 11.5px;" @onclick="SaveComponent" data-mdb-ripple-init>
+                                                        <i class="fas fa-floppy-disk me-1"></i> @Prefs.T("حفظ التعديلات", "Save Changes")
+                                                    </button>
+                                                </div>
+                                            </div>
+                                        }
+                                    </div>
+                                }
+                                else
+                                {
+                                    <div class="text-center py-5 text-muted d-flex flex-column align-items-center justify-content-center h-100" style="font-size: 12px;">
+                                        <i class="fas fa-hand-pointer fs-2 opacity-50 mb-2"></i>
+                                        <span>اختر بارامتراً من القائمة لتعديل تفاصيله وقيمه الطبيعية</span>
+                                    </div>
+                                }
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+}
+
+@code {
+    private List<TestCatalogDto>? TestsList;
+    private List<TestCatalogDto>? AllTests;
+    private IEnumerable<DepartmentDto>? Departments;
+    private IEnumerable<SpecimenTypeDto>? SpecimenTypes;
+    private TestCatalogDto? SelectedTest;
+    private List<ComponentDto>? ComponentsList;
+    private string SearchQuery = "";
+    private string DepartmentFilter = "";
+    private string AlertMessage = "";
+    private string AlertClass = "alert-success";
+
+    // Form fields
+    private string EditTestCode = "";
+    private decimal EditPrice = 0;
+    private string EditNameAr = "";
+    private string EditNameEn = "";
+    private long EditDepartmentId = 0;
+    private long EditSpecimenTypeId = 0;
+    private bool EditActive = true;
+
+    // Manage Components & Reference Ranges Modal State
+    private bool IsManageComponentsModalOpen = false;
+    private bool IsAddingNewComponent = false;
+    private bool IsAddingRangeMode = false;
+    private TestCatalogDto? ModalTest;
+    private List<ComponentDto>? ModalComponentsList;
+    private ComponentDto? SelectedComponentForRanges;
+    private List<ReferenceRangeDto>? ComponentRangesList;
+    private List<InstrumentSimpleDto>? AllInstrumentsList;
+    private List<InstrumentMappingItemDto>? ComponentInstrumentMappings;
+    private string ActiveRightTab = "ranges";
+    private long NewMappingInstrumentId = 0;
+    private string NewMappingTestCode = "";
+    private string CompSearchFilter = "";
+    private string ModalAlertMessage = "";
+    private string ModalAlertClass = "alert-success";
+
+    private void ToggleAddRangeMode()
+    {
+        if (IsAddingRangeMode)
+        {
+            IsAddingRangeMode = false;
+            ResetRangeForm();
+        }
+        else
+        {
+            ResetRangeForm();
+            IsAddingRangeMode = true;
+        }
+    }
+
+    private void CancelNewComponentForm()
+    {
+        IsAddingNewComponent = false;
+        if (ModalComponentsList != null && ModalComponentsList.Any())
+        {
+            if (SelectedComponentForRanges == null)
+            {
+                _ = SelectComponentForRanges(ModalComponentsList.First());
+            }
+            ActiveRightTab = "ranges";
+        }
+    }
+
+    private List<ComponentDto>? FilteredModalComponents =>
+        string.IsNullOrWhiteSpace(CompSearchFilter)
+            ? ModalComponentsList
+            : ModalComponentsList?.Where(c =>
+                c.DisplayCode.Contains(CompSearchFilter, StringComparison.OrdinalIgnoreCase) ||
+                c.NameEn.Contains(CompSearchFilter, StringComparison.OrdinalIgnoreCase) ||
+                (c.NameAr != null && c.NameAr.Contains(CompSearchFilter, StringComparison.OrdinalIgnoreCase))).ToList();
+
+    // Component Edit Form Model
+    private ComponentDto EditingComponent = new();
+    private long SelectedInstrumentId = 0;
+    private string SelectedInstrumentTestCode = "";
+
+    // Range Edit Form Model
+    private ReferenceRangeDto NewRangeModel = new() { Sex = "B", AgeMin = 18, AgeMax = 100, AgeUnit = "Years" };
+
+    [SupplyParameterFromQuery]
+    public string? OpenTestCode { get; set; }
+
+    [SupplyParameterFromQuery]
+    public string? OpenTab { get; set; }
+
+    protected override async Task OnInitializedAsync()
+    {
+        Prefs.OnChange += OnPrefsChanged;
+        Departments = await CatalogService.GetDepartmentsAsync();
+        SpecimenTypes = await CatalogService.GetSpecimenTypesAsync();
+        await LoadCatalog();
+
+        if (!string.IsNullOrEmpty(OpenTestCode) && AllTests != null)
+        {
+            var match = AllTests.FirstOrDefault(t => t.TestCode.Equals(OpenTestCode, StringComparison.OrdinalIgnoreCase));
+            if (match != null)
+            {
+                await OpenManageComponentsModal(match);
+                if (!string.IsNullOrEmpty(OpenTab))
+                {
+                    ActiveRightTab = OpenTab;
+                }
+            }
+        }
+    }
+
+    private async Task LoadCatalog()
+    {
+        try
+        {
+            AllTests = (await CatalogService.GetAllTestsAsync()).ToList();
+            FilterTests();
+
+            if (SelectedTest == null && TestsList != null && TestsList.Any())
+            {
+                await SelectTest(TestsList.First());
+            }
+            else if (SelectedTest != null && AllTests != null)
+            {
+                var current = AllTests.FirstOrDefault(t => t.Id == SelectedTest.Id);
+                if (current != null) await SelectTest(current);
+            }
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"[Catalog Load Error] {ex.Message}");
+        }
+    }
+
+    private void FilterTests()
+    {
+        if (AllTests == null) return;
+        var q = AllTests.AsEnumerable();
+
+        if (!string.IsNullOrWhiteSpace(SearchQuery))
+        {
+            var s = SearchQuery.Trim();
+            q = q.Where(t => t.TestCode.Contains(s, StringComparison.OrdinalIgnoreCase) ||
+                             (t.NameAr != null && t.NameAr.Contains(s, StringComparison.OrdinalIgnoreCase)) ||
+                             (t.NameEn != null && t.NameEn.Contains(s, StringComparison.OrdinalIgnoreCase)));
+        }
+
+        if (long.TryParse(DepartmentFilter, out var deptId) && deptId > 0)
+        {
+            q = q.Where(t => t.DepartmentId == deptId);
+        }
+
+        TestsList = q.ToList();
+    }
+
+    private async Task SelectTest(TestCatalogDto t)
+    {
+        SelectedTest = t;
+        EditTestCode = t.TestCode;
+        EditPrice = t.Price;
+        EditNameAr = t.NameAr ?? "";
+        EditNameEn = t.NameEn;
+        EditDepartmentId = t.DepartmentId ?? 0;
+        EditSpecimenTypeId = t.SpecimenTypeId ?? 0;
+        EditActive = t.Active;
+
+        try
+        {
+            ComponentsList = (await CatalogService.GetComponentsForTestAsync(t.Id)).ToList();
+        }
+        catch
+        {
+            ComponentsList = new();
+        }
+    }
+
+    private void NewTestForm()
+    {
+        SelectedTest = new TestCatalogDto();
+        EditTestCode = "";
+        EditPrice = 0;
+        EditNameAr = "";
+        EditNameEn = "";
+        EditDepartmentId = Departments?.FirstOrDefault()?.Id ?? 0;
+        EditSpecimenTypeId = SpecimenTypes?.FirstOrDefault()?.Id ?? 0;
+        EditActive = true;
+        ComponentsList = null;
+    }
+
+    private async Task SaveTest()
+    {
+        if (string.IsNullOrWhiteSpace(EditTestCode) || string.IsNullOrWhiteSpace(EditNameEn))
+        {
+            AlertClass = "alert-danger";
+            AlertMessage = "يرجى إدخال كود التحليل واسمه بالإنجليزية على الأقل.";
+            return;
+        }
+
+        try
+        {
+            var dto = new TestCatalogDto
+            {
+                Id = SelectedTest?.Id ?? 0,
+                TestCode = EditTestCode.Trim().ToUpper(),
+                NameEn = EditNameEn.Trim(),
+                NameAr = string.IsNullOrWhiteSpace(EditNameAr) ? null : EditNameAr.Trim(),
+                Price = EditPrice,
+                DepartmentId = EditDepartmentId > 0 ? EditDepartmentId : null,
+                SpecimenTypeId = EditSpecimenTypeId > 0 ? EditSpecimenTypeId : null,
+                Active = EditActive
+            };
+
+            await CatalogService.SaveTestAsync(dto, userId: 1);
+            AlertClass = "alert-success";
+            AlertMessage = "✅ تم حفظ التحليل بنجاح!";
+            await LoadCatalog();
+        }
+        catch (Exception ex)
+        {
+            AlertClass = "alert-danger";
+            AlertMessage = $"حدث خطأ أثناء الحفظ: {ex.Message}";
+        }
+    }
+
+    private async Task DeleteTest(long testId)
+    {
+        try
+        {
+            await CatalogService.DeleteTestAsync(testId, userId: 1);
+            AlertClass = "alert-warning";
+            AlertMessage = "تم حذف أو تعطيل التحليل بنجاح.";
+            await LoadCatalog();
+        }
+        catch (Exception ex)
+        {
+            AlertClass = "alert-danger";
+            AlertMessage = $"فشل الحذف: {ex.Message}";
+        }
+    }
+
+    private void ClearModalAlert() => ModalAlertMessage = "";
+
+    private async Task OpenManageComponentsModal(TestCatalogDto test)
+    {
+        ModalTest = test;
+        IsManageComponentsModalOpen = true;
+        ModalAlertMessage = "";
+        CompSearchFilter = "";
+        ActiveRightTab = "ranges";
+
+        if (AllInstrumentsList == null)
+        {
+            AllInstrumentsList = (await CatalogService.GetInstrumentsAsync()).ToList();
+        }
+
+        if (NewMappingInstrumentId == 0 && AllInstrumentsList != null && AllInstrumentsList.Any())
+        {
+            NewMappingInstrumentId = AllInstrumentsList.First().Id;
+        }
+
+        await ReloadModalComponents();
+
+        if (ModalComponentsList != null && ModalComponentsList.Any())
+        {
+            await SelectComponentForRanges(ModalComponentsList.First());
+        }
+        else
+        {
+            StartNewComponentForm();
+        }
+    }
+
+    private void CloseManageComponentsModal()
+    {
+        IsManageComponentsModalOpen = false;
+    }
+
+    private async Task ReloadModalComponents()
+    {
+        if (ModalTest == null) return;
+        try
+        {
+            ModalComponentsList = (await CatalogService.GetComponentsForTestAsync(ModalTest.Id)).ToList();
+            ComponentsList = ModalComponentsList;
+        }
+        catch (Exception ex)
+        {
+            ModalAlertClass = "alert-danger";
+            ModalAlertMessage = $"خطأ في تحميل البارامترات: {ex.Message}";
+        }
+    }
+
+    private async Task SelectComponentForRanges(ComponentDto comp)
+    {
+        IsAddingNewComponent = false;
+        IsAddingRangeMode = false;
+        if (ActiveRightTab == "edit_component") ActiveRightTab = "ranges";
+        SelectedComponentForRanges = comp;
+        EditingComponent = new ComponentDto
+        {
+            Id = comp.Id,
+            TestId = comp.TestId,
+            ComponentCode = comp.ComponentCode,
+            DisplayCode = comp.DisplayCode,
+            NameEn = comp.NameEn,
+            NameAr = comp.NameAr,
+            Unit = comp.Unit,
+            Decimals = comp.Decimals,
+            SortOrder = comp.SortOrder,
+            ResultType = comp.ResultType
+        };
+
+        // Load mappings
+        try
+        {
+            var mappings = (await CatalogService.GetInstrumentMappingsForComponentAsync(comp.Id)).ToList();
+            ComponentInstrumentMappings = mappings;
+            if (mappings.Any())
+            {
+                SelectedInstrumentId = mappings.First().InstrumentId;
+                SelectedInstrumentTestCode = mappings.First().InstrumentTestCode;
+            }
+            else
+            {
+                SelectedInstrumentId = 0;
+                SelectedInstrumentTestCode = "";
+            }
+        }
+        catch
+        {
+            ComponentInstrumentMappings = new();
+            SelectedInstrumentId = 0;
+            SelectedInstrumentTestCode = "";
+        }
+
+        // Load ranges
+        try
+        {
+            ComponentRangesList = (await CatalogService.GetReferenceRangesAsync(comp.Id)).ToList();
+        }
+        catch
+        {
+            ComponentRangesList = new();
+        }
+
+        ResetRangeForm();
+    }
+
+    private void StartNewComponentForm()
+    {
+        IsAddingNewComponent = true;
+        IsAddingRangeMode = false;
+        ActiveRightTab = "ranges";
+        SelectedComponentForRanges = null;
+        ComponentRangesList = null;
+        ComponentInstrumentMappings = null;
+        EditingComponent = new ComponentDto
+        {
+            Id = 0,
+            TestId = ModalTest?.Id ?? 0,
+            ComponentCode = "",
+            DisplayCode = "",
+            NameEn = "",
+            NameAr = "",
+            Unit = "",
+            Decimals = 1,
+            ResultType = "numeric"
+        };
+        SelectedInstrumentId = 0;
+        SelectedInstrumentTestCode = "";
+    }
+
+    private async Task SaveComponent()
+    {
+        if (ModalTest == null) return;
+        if (string.IsNullOrWhiteSpace(EditingComponent.DisplayCode) || string.IsNullOrWhiteSpace(EditingComponent.NameEn))
+        {
+            ModalAlertClass = "alert-warning";
+            ModalAlertMessage = "يرجى كتابة رمز البارامتر (Code) واسمه بالإنجليزية (Name En).";
+            return;
+        }
+
+        try
+        {
+            EditingComponent.TestId = ModalTest.Id;
+            EditingComponent.ComponentCode = EditingComponent.DisplayCode.Trim().ToUpper();
+            EditingComponent.DisplayCode = EditingComponent.DisplayCode.Trim().ToUpper();
+            EditingComponent.NameEn = EditingComponent.NameEn.Trim();
+            EditingComponent.NameAr = string.IsNullOrWhiteSpace(EditingComponent.NameAr) ? null : EditingComponent.NameAr.Trim();
+            EditingComponent.Unit = string.IsNullOrWhiteSpace(EditingComponent.Unit) ? null : EditingComponent.Unit.Trim();
+
+            long compId = await CatalogService.SaveComponentAsync(EditingComponent, userId: 1);
+
+            // Handle Instrument Mapping
+            if (SelectedInstrumentId > 0 && !string.IsNullOrWhiteSpace(SelectedInstrumentTestCode))
+            {
+                await CatalogService.AddOrUpdateInstrumentMappingAsync(
+                    SelectedInstrumentId,
+                    ModalTest.Id,
+                    compId,
+                    SelectedInstrumentTestCode.Trim(),
+                    null, null, 1);
+            }
+
+            ModalAlertClass = "alert-success";
+            ModalAlertMessage = $"✅ تم حفظ بارامتر [{EditingComponent.DisplayCode}] بنجاح!";
+
+            IsAddingNewComponent = false;
+            await ReloadModalComponents();
+            var saved = ModalComponentsList?.FirstOrDefault(c => c.Id == compId || c.DisplayCode == EditingComponent.DisplayCode);
+            if (saved != null) await SelectComponentForRanges(saved);
+        }
+        catch (Exception ex)
+        {
+            ModalAlertClass = "alert-danger";
+            ModalAlertMessage = $"خطأ أثناء حفظ البارامتر: {ex.Message}";
+        }
+    }
+
+    private async Task DeleteComponent(long compId, string code)
+    {
+        try
+        {
+            await CatalogService.DeleteComponentAsync(compId, userId: 1);
+            ModalAlertClass = "alert-success";
+            ModalAlertMessage = $"🗑️ تم حذف البارامتر [{code}] بنجاح.";
+            await ReloadModalComponents();
+
+            if (SelectedComponentForRanges?.Id == compId)
+            {
+                if (ModalComponentsList != null && ModalComponentsList.Any())
+                    await SelectComponentForRanges(ModalComponentsList.First());
+                else
+                    StartNewComponentForm();
+            }
+        }
+        catch (Exception ex)
+        {
+            ModalAlertClass = "alert-danger";
+            ModalAlertMessage = $"خطأ أثناء حذف البارامتر: {ex.Message}";
+        }
+    }
+
+    private async Task UnlinkInstrument()
+    {
+        if (SelectedInstrumentId > 0 && SelectedComponentForRanges != null)
+        {
+            try
+            {
+                await CatalogService.DeleteInstrumentMappingAsync(SelectedInstrumentId, SelectedComponentForRanges.Id, 1);
+                SelectedInstrumentId = 0;
+                SelectedInstrumentTestCode = "";
+                ModalAlertClass = "alert-warning";
+                ModalAlertMessage = "تم إلغاء ربط الجهاز من هذا البارامتر بنجاح.";
+
+                ComponentInstrumentMappings = (await CatalogService.GetInstrumentMappingsForComponentAsync(SelectedComponentForRanges.Id)).ToList();
+                await ReloadModalComponents();
+
+                var updated = ModalComponentsList?.FirstOrDefault(c => c.Id == SelectedComponentForRanges.Id);
+                if (updated != null)
+                {
+                    SelectedComponentForRanges.InstrumentName = updated.InstrumentName;
+                    SelectedComponentForRanges.InstrumentCode = updated.InstrumentCode;
+                    SelectedComponentForRanges.InstrumentTestCode = updated.InstrumentTestCode;
+                }
+            }
+            catch (Exception ex)
+            {
+                ModalAlertClass = "alert-danger";
+                ModalAlertMessage = $"خطأ في فك الربط: {ex.Message}";
+            }
+        }
+    }
+
+    private async Task AddInstrumentMapping()
+    {
+        if (SelectedComponentForRanges == null || ModalTest == null)
+        {
+            ModalAlertClass = "alert-warning";
+            ModalAlertMessage = "يرجى تحديد بارامتر أولاً من القائمة.";
+            return;
+        }
+
+        if (NewMappingInstrumentId <= 0)
+        {
+            ModalAlertClass = "alert-warning";
+            ModalAlertMessage = "يرجى اختيار جهاز تحليل من القائمة المنسدلة.";
+            return;
+        }
+
+        if (string.IsNullOrWhiteSpace(NewMappingTestCode))
+        {
+            ModalAlertClass = "alert-warning";
+            ModalAlertMessage = "يرجى إدخال الكود الذي يرسله هذا الجهاز (Test Code) مثل HbA1c أو A1c.";
+            return;
+        }
+
+        try
+        {
+            await CatalogService.AddOrUpdateInstrumentMappingAsync(
+                NewMappingInstrumentId,
+                ModalTest.Id,
+                SelectedComponentForRanges.Id,
+                NewMappingTestCode.Trim(),
+                userId: 1);
+
+            NewMappingTestCode = "";
+            ModalAlertClass = "alert-success";
+            ModalAlertMessage = "✅ تم ربط جهاز التحليل بالبارامتر بنجاح!";
+
+            ComponentInstrumentMappings = (await CatalogService.GetInstrumentMappingsForComponentAsync(SelectedComponentForRanges.Id)).ToList();
+            await ReloadModalComponents();
+
+            var updated = ModalComponentsList?.FirstOrDefault(c => c.Id == SelectedComponentForRanges.Id);
+            if (updated != null)
+            {
+                SelectedComponentForRanges.InstrumentName = updated.InstrumentName;
+                SelectedComponentForRanges.InstrumentCode = updated.InstrumentCode;
+                SelectedComponentForRanges.InstrumentTestCode = updated.InstrumentTestCode;
+            }
+        }
+        catch (Exception ex)
+        {
+            ModalAlertClass = "alert-danger";
+            ModalAlertMessage = $"خطأ في ربط الجهاز: {ex.Message}";
+        }
+    }
+
+    private async Task DeleteInstrumentMapping(long instrumentId)
+    {
+        if (SelectedComponentForRanges == null) return;
+
+        try
+        {
+            await CatalogService.DeleteInstrumentMappingAsync(instrumentId, SelectedComponentForRanges.Id, 1);
+            ModalAlertClass = "alert-warning";
+            ModalAlertMessage = "تم إلغاء ربط الجهاز بنجاح.";
+
+            ComponentInstrumentMappings = (await CatalogService.GetInstrumentMappingsForComponentAsync(SelectedComponentForRanges.Id)).ToList();
+            await ReloadModalComponents();
+
+            var updated = ModalComponentsList?.FirstOrDefault(c => c.Id == SelectedComponentForRanges.Id);
+            if (updated != null)
+            {
+                SelectedComponentForRanges.InstrumentName = updated.InstrumentName;
+                SelectedComponentForRanges.InstrumentCode = updated.InstrumentCode;
+                SelectedComponentForRanges.InstrumentTestCode = updated.InstrumentTestCode;
+            }
+        }
+        catch (Exception ex)
+        {
+            ModalAlertClass = "alert-danger";
+            ModalAlertMessage = $"خطأ في إلغاء ربط الجهاز: {ex.Message}";
+        }
+    }
+
+    private async Task SaveUpdatedMapping(InstrumentMappingItemDto map)
+    {
+        if (SelectedComponentForRanges == null || ModalTest == null) return;
+
+        if (string.IsNullOrWhiteSpace(map.InstrumentTestCode))
+        {
+            ModalAlertClass = "alert-warning";
+            ModalAlertMessage = "يرجى كتابة كود الفحص في الجهاز قبل الحفظ.";
+            return;
+        }
+
+        try
+        {
+            await CatalogService.AddOrUpdateInstrumentMappingAsync(
+                map.InstrumentId,
+                ModalTest.Id,
+                SelectedComponentForRanges.Id,
+                map.InstrumentTestCode.Trim(),
+                map.ReportableLow,
+                map.ReportableHigh,
+                userId: 1);
+
+            ModalAlertClass = "alert-success";
+            ModalAlertMessage = $"✅ تم حفظ وتحديث كود الجهاز [{map.InstrumentName}] إلى ({map.InstrumentTestCode.Trim()}) بنجاح!";
+
+            ComponentInstrumentMappings = (await CatalogService.GetInstrumentMappingsForComponentAsync(SelectedComponentForRanges.Id)).ToList();
+            await ReloadModalComponents();
+
+            var updated = ModalComponentsList?.FirstOrDefault(c => c.Id == SelectedComponentForRanges.Id);
+            if (updated != null)
+            {
+                SelectedComponentForRanges.InstrumentName = updated.InstrumentName;
+                SelectedComponentForRanges.InstrumentCode = updated.InstrumentCode;
+                SelectedComponentForRanges.InstrumentTestCode = updated.InstrumentTestCode;
+            }
+        }
+        catch (Exception ex)
+        {
+            ModalAlertClass = "alert-danger";
+            ModalAlertMessage = $"خطأ أثناء حفظ كود الجهاز: {ex.Message}";
+        }
+    }
+
+    private void EditReferenceRange(ReferenceRangeDto rng)
+    {
+        NewRangeModel = new ReferenceRangeDto
+        {
+            Id = rng.Id,
+            RangeCode = rng.RangeCode,
+            ComponentId = rng.ComponentId,
+            Sex = rng.Sex,
+            AgeMin = rng.AgeMin,
+            AgeMax = rng.AgeMax,
+            AgeUnit = rng.AgeUnit ?? "Years",
+            Low = rng.Low,
+            High = rng.High,
+            CriticalLow = rng.CriticalLow,
+            CriticalHigh = rng.CriticalHigh,
+            Note = rng.Note
+        };
+        IsAddingRangeMode = true;
+    }
+
+    private void ResetRangeForm()
+    {
+        NewRangeModel = new ReferenceRangeDto
+        {
+            Id = 0,
+            ComponentId = SelectedComponentForRanges?.Id ?? 0,
+            Sex = "B",
+            AgeMin = 18,
+            AgeMax = 100,
+            AgeUnit = "Years",
+            Low = null,
+            High = null,
+            CriticalLow = null,
+            CriticalHigh = null,
+            Note = null
+        };
+    }
+
+    private async Task SaveReferenceRange()
+    {
+        if (SelectedComponentForRanges == null) return;
+
+        try
+        {
+            bool isUpdate = NewRangeModel.Id > 0;
+            NewRangeModel.ComponentId = SelectedComponentForRanges.Id;
+            await CatalogService.SaveReferenceRangeAsync(NewRangeModel, userId: 1);
+
+            ModalAlertClass = "alert-success";
+            ModalAlertMessage = isUpdate 
+                ? "✅ تم تحديث المدى المرجعي بنجاح!" 
+                : "✅ تمت إضافة المدى المرجعي بنجاح!";
+
+            ComponentRangesList = (await CatalogService.GetReferenceRangesAsync(SelectedComponentForRanges.Id)).ToList();
+            await ReloadModalComponents();
+            ResetRangeForm();
+            IsAddingRangeMode = false;
+        }
+        catch (Exception ex)
+        {
+            ModalAlertClass = "alert-danger";
+            ModalAlertMessage = $"خطأ أثناء حفظ المدى: {ex.Message}";
+        }
+    }
+
+    private async Task DeleteReferenceRange(long rangeId)
+    {
+        if (SelectedComponentForRanges == null) return;
+
+        try
+        {
+            await CatalogService.DeleteReferenceRangeAsync(rangeId, userId: 1);
+            ModalAlertClass = "alert-success";
+            ModalAlertMessage = "🗑️ تم حذف المدى الطبيعي بنجاح.";
+
+            ComponentRangesList = (await CatalogService.GetReferenceRangesAsync(SelectedComponentForRanges.Id)).ToList();
+            await ReloadModalComponents();
+        }
+        catch (Exception ex)
+        {
+            ModalAlertClass = "alert-danger";
+            ModalAlertMessage = $"خطأ أثناء حذف المدى: {ex.Message}";
+        }
+    }
+
+    private void OnPrefsChanged() => InvokeAsync(StateHasChanged);
+
+    public void Dispose() => Prefs.OnChange -= OnPrefsChanged;
+
+    private static string GetTubeColor(string? specimenType)
+    {
+        if (string.IsNullOrEmpty(specimenType)) return "#94A3B8";
+        var s = specimenType.ToLower();
+        if (s.Contains("edta") || s.Contains("purple") || s.Contains("lavender")) return "#8B5CF6"; // Purple
+        if (s.Contains("serum") || s.Contains("red") || s.Contains("gold") || s.Contains("yellow")) return "#EF4444"; // Red
+        if (s.Contains("citrate") || s.Contains("blue")) return "#3B82F6"; // Blue
+        if (s.Contains("heparin") || s.Contains("green")) return "#10B981"; // Green
+        if (s.Contains("glucose") || s.Contains("gray")) return "#64748B"; // Gray
+        return "#00B4D8";
+    }
+}

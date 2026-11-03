@@ -1,0 +1,114 @@
+.lis-app-wrapper {
+    display: flex;
+    min-height: 100vh;
+    background-color: var(--bg-main);
+    direction: ltr;
+}
+
+.lis-sidebar {
+    width: 250px;
+    min-width: 250px;
+    background-color: var(--bg-sidebar);
+    border-right: 1px solid var(--border-color);
+    display: flex;
+    flex-direction: column;
+    transition: width 0.2s ease, min-width 0.2s ease;
+    overflow-y: auto;
+    overflow-x: hidden;
+    z-index: 100;
+}
+
+/* Collapsed Sidebar Mode (Icons Only) */
+.sidebar-collapsed .lis-sidebar {
+    width: 66px;
+    min-width: 66px;
+}
+
+.lis-main-content {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    min-width: 0;
+    overflow-x: auto; /* Prevent any content clipping on small screens */
+    width: 100%;
+}
+
+.lis-topbar {
+    min-height: 54px;
+    height: 54px;
+    background-color: var(--bg-sidebar);
+    border-bottom: 1px solid var(--border-color);
+    padding: 0 16px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+}
+
+.lis-body-container {
+    flex: 1;
+    padding: 16px 20px;
+    background-color: var(--bg-main);
+    overflow-y: auto;
+    overflow-x: auto;
+    min-width: 0;
+}
+
+/* Laptop and standard screen optimizations (1400px and below) */
+@media (max-width: 1400px) {
+    .lis-sidebar {
+        width: 220px;
+        min-width: 220px;
+    }
+    .lis-body-container {
+        padding: 12px 14px;
+    }
+    .lis-topbar {
+        padding: 0 12px;
+        min-height: 48px;
+        height: 48px;
+    }
+}
+
+#blazor-error-ui {
+    background: #EF4444;
+    color: #FFFFFF;
+    bottom: 0;
+    box-shadow: 0 -1px 10px rgba(0, 0, 0, 0.4);
+    display: none;
+    left: 0;
+    padding: 0.8rem 1.4rem;
+    position: fixed;
+    width: 100%;
+    z-index: 1000;
+    text-align: center;
+    font-weight: bold;
+}
+
+#blazor-error-ui .reload {
+    color: #FFFFFF;
+    text-decoration: underline;
+    margin-right: 15px;
+}
+
+#blazor-error-ui .dismiss {
+    cursor: pointer;
+    position: absolute;
+    left: 1rem;
+    top: 0.75rem;
+}
+
+@media (max-width: 768px) {
+    .lis-app-wrapper {
+        flex-direction: column;
+    }
+    .lis-sidebar {
+        width: 100%;
+        min-width: 100%;
+        border-right: none;
+        border-bottom: 1px solid var(--border-color);
+    }
+    .sidebar-collapsed .lis-sidebar {
+        display: none;
+    }
+}

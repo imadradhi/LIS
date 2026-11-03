@@ -1,0 +1,922 @@
+@page "/settings"
+@inject ILabSettingsService SettingsService
+@inject NavigationManager NavManager
+@inject DirectPrintService PrintService
+@inject UserPreferencesService Prefs
+@implements IDisposable
+
+<PageTitle>@Prefs.T("إعدادات النظام والمختبر والترويسة - LIS Web", "Settings & Reports - LIS Web")</PageTitle>
+
+@if (!string.IsNullOrEmpty(StatusMessage))
+{
+    <div class="alert @StatusClass mb-3 py-2 px-3 shadow d-flex justify-content-between align-items-center">
+        <span>@StatusMessage</span>
+        <button type="button" class="btn-close btn-close-white small" @onclick="ClearStatusMessage"></button>
+    </div>
+}
+
+@if (SettingsModel != null)
+{
+    <!-- ═══ TOP ROW: Lab Information Fields (Full Width Card) ══════════════════ -->
+    <div class="card p-4 mb-4 border-0 shadow-2-strong" style="background: var(--bg-card);">
+        <!-- Header with Save Button -->
+        <div class="d-flex align-items-center justify-content-between mb-3 pb-2 border-bottom border-secondary flex-wrap gap-2">
+            <div class="d-flex align-items-center gap-2">
+                <i class="fas fa-hospital text-info fs-4"></i>
+                <div>
+                    <h5 class="fw-bold text-info mb-0">@Prefs.T("إعدادات المختبر والترويسة (Lab Settings & Header)", "Laboratory Settings & Header")</h5>
+                    <small class="text-secondary">@Prefs.T("بيانات المختبر الأساسية التي تظهر في رأس التقارير والوصولات", "Master laboratory information displayed on report headers and receipts.")</small>
+                </div>
+            </div>
+            <button class="btn btn-success fw-bold px-4 fs-6 shadow-sm btn-action-animated" data-mdb-ripple-init @onclick="SaveSettings" disabled="@IsSaving">
+                @if (IsSaving)
+                {
+                    <span class="spinner-border spinner-border-sm me-1"></span>
+                    <span>@Prefs.T("جاري الحفظ...", "Saving...")</span>
+                }
+                else
+                {
+                    <span><i class="fas fa-floppy-disk me-1"></i> @Prefs.T("حفظ الإعدادات (Save Settings)", "Save Settings")</span>
+                }
+            </button>
+        </div>
+
+        <!-- Row 0: Official Laboratory Logo Configuration -->
+        <div class="row g-3 mb-3 p-3 rounded-3" style="background: rgba(0, 180, 216, 0.05); border: 1px dashed rgba(0, 180, 216, 0.35);">
+            <div class="col-12 col-md-auto d-flex align-items-center justify-content-center">
+                @if (SettingsModel.LogoData != null && SettingsModel.LogoData.Length > 0)
+                {
+                    <div class="position-relative border rounded p-1 bg-white shadow-sm d-flex align-items-center justify-content-center" style="width: 100px; height: 100px;">
+                        <img src="data:image/png;base64,@Convert.ToBase64String(SettingsModel.LogoData)" 
+                             alt="Lab Logo" 
+                             style="max-width: 90px; max-height: 90px; object-fit: contain;" />
+                    </div>
+                }
+                else
+                {
+                    <div class="rounded border border-secondary border-dashed d-flex flex-column align-items-center justify-content-center text-muted"
+                         style="width: 100px; height: 100px; background: rgba(255,255,255,0.02);">
+                        <i class="fas fa-image fs-2 mb-1 text-secondary opacity-50"></i>
+                        <span style="font-size: 11px;">@Prefs.T("لا يوجد شعار", "No Logo")</span>
+                    </div>
+                }
+            </div>
+            <div class="col-12 col-md d-flex flex-column justify-content-center">
+                <div class="d-flex align-items-center gap-2 mb-1">
+                    <span class="fw-bold text-info fs-6">
+                        <i class="fas fa-certificate text-warning me-1"></i> @Prefs.T("شعار المختبر المعتمد في التقارير الطبية الرسمية (Official Laboratory Logo):", "Official Accredited Laboratory Logo:")
+                    </span>
+                    @if (SettingsModel.LogoData != null && SettingsModel.LogoData.Length > 0)
+                    {
+                        <span class="badge bg-success bg-opacity-25 text-success border border-success">
+                            <i class="fas fa-check-circle me-1"></i> @Prefs.T("شعار معتمد في كافة التقارير", "Accredited in Reports")
+                        </span>
+                    }
+                </div>
+                <div class="small text-secondary mb-2">
+                    @Prefs.T("يظهر هذا الشعار الرسمي في أعلى ترويسة تقارير الفحوصات الطبية المطبوعة والمعاينات الرقمية للمرضى بدقة عالية (يدعم صيغ PNG, JPG, WEBP, SVG حتى 5 ميغابايت).", "This official logo is displayed at the top header of printed medical reports and digital previews (supports PNG, JPG, WEBP, SVG up to 5MB).")
+                </div>
+                <div class="d-flex align-items-center gap-2 flex-wrap">
+                    <label class="btn btn-outline-info btn-sm fw-bold mb-0 cursor-pointer" for="logoFileInput">
+                        <i class="fas fa-upload me-1"></i>
+                        @(SettingsModel.LogoData != null && SettingsModel.LogoData.Length > 0 ? Prefs.T("تغيير الشعار الحالي (Change Logo)", "Change Current Logo") : Prefs.T("رفع شعار المختبر (Upload Logo)", "Upload Lab Logo"))
+                    </label>
+                    <InputFile id="logoFileInput" OnChange="HandleLogoUpload" accept=".png,.jpg,.jpeg,.webp,.svg" class="d-none" />
+
+                    @if (SettingsModel.LogoData != null && SettingsModel.LogoData.Length > 0)
+                    {
+                        <button type="button" class="btn btn-outline-danger btn-sm" @onclick="RemoveLogo">
+                            <i class="fas fa-trash-alt me-1"></i> @Prefs.T("حذف الشعار", "Remove Logo")
+                        </button>
+                    }
+                    <button type="button" class="btn btn-success btn-sm fw-bold px-3 shadow-sm btn-action-animated" data-mdb-ripple-init @onclick="SaveSettings" disabled="@IsSaving">
+                        <i class="fas fa-floppy-disk me-1"></i> @Prefs.T("حفظ وتثبيت الشعار", "Save Logo")
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Row 1: Lab Name Arabic, Lab Name English, Address, Phones -->
+        <div class="row g-3 mb-3">
+            <div class="col-xxl-3 col-xl-3 col-md-6 col-12">
+                <label class="form-label text-secondary small fw-semibold mb-1">@Prefs.T("اسم المختبر بالعربية (Lab Name - Arabic):", "Lab Name (Arabic):")</label>
+                <input type="text" class="form-control fw-bold" @bind="SettingsModel.LabNameAr" @bind:event="oninput" placeholder="مختبر التحليلات التخصصي" />
+            </div>
+            <div class="col-xxl-3 col-xl-3 col-md-6 col-12">
+                <label class="form-label text-secondary small fw-semibold mb-1">@Prefs.T("اسم المختبر بالإنجليزية (Lab Name - English):", "Lab Name (English):")</label>
+                <input type="text" class="form-control fw-bold font-monospace" @bind="SettingsModel.LabNameEn" @bind:event="oninput" placeholder="Specialized Medical Laboratory" />
+            </div>
+            <div class="col-xxl-3 col-xl-3 col-md-6 col-12">
+                <label class="form-label text-secondary small fw-semibold mb-1">@Prefs.T("العنوان (Address):", "Address:")</label>
+                <input type="text" class="form-control" @bind="SettingsModel.Address" @bind:event="oninput" placeholder="العراق - بغداد" />
+            </div>
+            <div class="col-xxl-3 col-xl-3 col-md-6 col-12">
+                <label class="form-label text-secondary small fw-semibold mb-1">@Prefs.T("أرقام الهواتف (Phone Numbers):", "Phone Numbers:")</label>
+                <input type="text" class="form-control font-monospace" @bind="SettingsModel.Phones" @bind:event="oninput" placeholder="07701234567" />
+            </div>
+        </div>
+
+        <!-- Row 2: Email, Header Text, Manager Name, Title, Footer Text -->
+        <div class="row g-3">
+            <div class="col-xxl-2 col-xl-4 col-md-6 col-12">
+                <label class="form-label text-secondary small fw-semibold mb-1">@Prefs.T("البريد الإلكتروني (Email):", "Email Address:")</label>
+                <input type="email" class="form-control font-monospace" @bind="SettingsModel.Email" placeholder="lab@example.com" />
+            </div>
+            <div class="col-xxl-3 col-xl-4 col-md-6 col-12">
+                <label class="form-label text-secondary small fw-semibold mb-1">@Prefs.T("نص رأس التقرير (Report Header):", "Report Header Text:")</label>
+                <input type="text" class="form-control" @bind="SettingsModel.ReportHeaderText" @bind:event="oninput" placeholder="مختبر التحليلات المرضية المتقدمة" />
+            </div>
+            <div class="col-xxl-2 col-xl-4 col-md-6 col-12">
+                <label class="form-label text-secondary small fw-semibold mb-1">@Prefs.T("الطبيب المسؤول (Manager Name):", "Director / Manager Name:")</label>
+                <input type="text" class="form-control" @bind="SettingsModel.ManagerName" @bind:event="oninput" placeholder="د. أحمد علي" />
+            </div>
+            <div class="col-xxl-2 col-xl-6 col-md-6 col-12">
+                <label class="form-label text-secondary small fw-semibold mb-1">@Prefs.T("اللقب والتخصص (Title):", "Professional Title:")</label>
+                <input type="text" class="form-control" @bind="SettingsModel.ManagerTitle" @bind:event="oninput" placeholder="أخصائي التحليلات المرضية" />
+            </div>
+            <div class="col-xxl-3 col-xl-6 col-md-12 col-12">
+                <label class="form-label text-secondary small fw-semibold mb-1">@Prefs.T("نص تذييل التقرير (Footer):", "Report Footer Text:")</label>
+                <input type="text" class="form-control" @bind="SettingsModel.ReportFooterText" @bind:event="oninput" placeholder="نتائج الفحوصات تعتمد سريرياً بالربط مع حالة المريض" />
+            </div>
+        </div>
+    </div>
+
+    <!-- ═══ BOTTOM ROW: Controls (Left) + Live Preview (Right) ═════════════ -->
+    <div class="row g-4">
+        <!-- LEFT COLUMN: Settings Controls & Tools (col-xxl-6 / col-12) -->
+        <div class="col-xxl-6 col-xl-6 col-12 d-flex flex-column gap-3">
+
+            <!-- 1. Tests & Pricing Catalog Quick Launcher -->
+            <div class="card p-3 mb-0 border-0 shadow-2-strong card-hover-lift" style="background: var(--bg-card); border-right: 4px solid var(--accent) !important;">
+                <div class="d-flex align-items-center justify-content-between flex-wrap gap-2">
+                    <div>
+                        <div class="fw-bold text-info fs-6 d-flex align-items-center gap-2">
+                            <i class="fas fa-flask"></i>
+                            <span>@Prefs.T("دليل الفحوصات الطبية والأسعار (Tests Catalog):", "Test Catalog & Pricing:")</span>
+                        </div>
+                        <div class="small text-secondary mt-1">
+                            @Prefs.T("إضافة فحوصات جديدة للمختبر، تعديل الأسعار، ربط الفحوصات بالأنابيب والأقسام الطبية، والبارامترات.", "Manage lab tests, edit pricing, map specimen tubes, departments, and technical parameters.")
+                        </div>
+                    </div>
+                    <a href="catalog" class="btn btn-primary btn-sm fw-bold px-3 text-nowrap btn-action-animated" data-mdb-ripple-init>
+                        <i class="fas fa-clipboard-list me-1"></i> @Prefs.T("فتح دليل الفحوصات", "Open Test Catalog")
+                    </a>
+                </div>
+            </div>
+
+            <!-- 2. Database Server Connection Settings Card -->
+            <div class="card p-3 mb-0 border-0 shadow-2-strong card-hover-lift" style="background: var(--bg-card);">
+                <div class="d-flex align-items-center justify-content-between flex-wrap gap-2">
+                    <div>
+                        <div class="d-flex align-items-center gap-2">
+                            <i class="fas fa-server text-white"></i>
+                            <span class="fw-bold text-white fs-6">@Prefs.T("خادم قاعدة البيانات والسيرفر (Database Server):", "Database Server Connection:")</span>
+                            <span class="badge bg-success bg-opacity-25 text-success border border-success font-monospace">
+                                127.0.0.1:5432 (lis_db)
+                            </span>
+                        </div>
+                        <div class="small text-secondary mt-1">
+                            @Prefs.T("تعديل عنوان السيرفر والمنفذ واسم قاعدة البيانات للربط الشبكي بين أجهزة المختبر ومحطات العمل.", "Configure host, port, and database name for network integration across workstations.")
+                        </div>
+                    </div>
+                    <button type="button" class="btn btn-outline-secondary btn-sm px-3 text-nowrap" data-mdb-ripple-init @onclick="() => IsServerModalOpen = true">
+                        <i class="fas fa-gear me-1"></i> @Prefs.T("تفاصيل السيرفر", "Server Details")
+                    </button>
+                </div>
+            </div>
+
+            <!-- 3. Default System Printers Section -->
+            <div class="card p-4 mb-0 border-0 shadow-2-strong" style="background: var(--bg-card);">
+                <div class="d-flex align-items-center justify-content-between mb-3 pb-2 border-bottom border-secondary flex-wrap gap-2">
+                    <div>
+                        <h6 class="fw-bold text-info mb-0 d-flex align-items-center gap-2">
+                            <i class="fas fa-print"></i>
+                            <span>@Prefs.T("طابعات النظام والطباعة الصامتة المباشرة (Default Printers & Direct Silent Print):", "System Printers & Direct Silent Print:")</span>
+                        </h6>
+                        <small class="text-secondary">@Prefs.T("تم كشف", "Detected") @InstalledPrinters.Count @Prefs.T("طابعة متصلة بالنظام حالياً", "printers connected to system")</small>
+                    </div>
+                    <div class="d-flex align-items-center gap-2">
+                        <button type="button" class="btn btn-outline-info btn-sm py-1 px-3 fw-bold btn-action-animated" data-mdb-ripple-init @onclick="DetectPrinters">
+                            <i class="fas fa-sync-alt me-1"></i> @Prefs.T("كشف وتحديث الطابعات", "Detect & Refresh Printers")
+                        </button>
+                        <button type="button" class="btn btn-success btn-sm py-1 px-3 fw-bold shadow-sm btn-action-animated" data-mdb-ripple-init @onclick="SaveSettings" disabled="@IsSaving">
+                            <i class="fas fa-floppy-disk me-1"></i> @Prefs.T("حفظ الطابعات (Save)", "Save Printers")
+                        </button>
+                    </div>
+                </div>
+
+                <datalist id="systemInstalledPrinters">
+                    @foreach (var printer in InstalledPrinters)
+                    {
+                        <option value="@printer">@printer</option>
+                    }
+                </datalist>
+
+                <!-- Label & Report Printers -->
+                <div class="row g-3 mb-3">
+                    <div class="col-md-6">
+                        <label class="form-label text-secondary small fw-semibold mb-1">
+                            <i class="fas fa-tag text-info me-1"></i> @Prefs.T("طابعة الملصقات والباركود (Label 5×2.5cm):", "Label & Barcode Printer (5×2.5cm):")
+                        </label>
+                        <div class="input-group">
+                            <select class="form-select font-monospace" @bind="SettingsModel.LabelPrinter" @bind:after="AutoSavePrinters">
+                                <option value="">-- @Prefs.T("طابعة الباركود الافتراضية (Windows Default)", "Default Label Printer") --</option>
+                                @foreach (var printer in InstalledPrinters)
+                                {
+                                    <option value="@printer">@printer</option>
+                                }
+                                @if (!string.IsNullOrEmpty(SettingsModel.LabelPrinter) && !InstalledPrinters.Contains(SettingsModel.LabelPrinter))
+                                {
+                                    <option value="@SettingsModel.LabelPrinter">@SettingsModel.LabelPrinter (Custom)</option>
+                                }
+                            </select>
+                            <button type="button" class="btn btn-outline-success fw-bold btn-sm" data-mdb-ripple-init title='@Prefs.T("إرسال أمر طباعة مباشر وصامت بدون شاشة معاينة", "Send direct silent print without preview")' @onclick="PrintDirectTestLabel">
+                                <i class="fas fa-bolt me-1"></i> @Prefs.T("صامتة", "Silent")
+                            </button>
+                        </div>
+                    </div>
+                    <div class="col-md-6">
+                        <label class="form-label text-secondary small fw-semibold mb-1">
+                            <i class="fas fa-file-lines text-info me-1"></i> @Prefs.T("طابعة التقارير والنتائج (Report A4):", "Reports Printer (A4):")
+                        </label>
+                        <div class="input-group">
+                            <select class="form-select font-monospace" @bind="SettingsModel.ReportPrinter" @bind:after="AutoSavePrinters">
+                                <option value="">-- @Prefs.T("طابعة التقارير الافتراضية (Windows Default)", "Default Report Printer") --</option>
+                                @foreach (var printer in InstalledPrinters)
+                                {
+                                    <option value="@printer">@printer</option>
+                                }
+                                @if (!string.IsNullOrEmpty(SettingsModel.ReportPrinter) && !InstalledPrinters.Contains(SettingsModel.ReportPrinter))
+                                {
+                                    <option value="@SettingsModel.ReportPrinter">@SettingsModel.ReportPrinter (Custom)</option>
+                                }
+                            </select>
+                            <button type="button" class="btn btn-outline-success fw-bold btn-sm" data-mdb-ripple-init title='@Prefs.T("إرسال أمر طباعة مباشر وصامت لتقرير النتائج", "Send direct silent print for report")' @onclick="PrintDirectTestReport">
+                                <i class="fas fa-bolt me-1"></i> @Prefs.T("صامتة", "Silent")
+                            </button>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Receipt Printer -->
+                <div class="mb-3">
+                    <label class="form-label text-secondary small fw-semibold mb-1">
+                        <i class="fas fa-receipt text-info me-1"></i> @Prefs.T("طابعة وصولات الكاشير الحرارية (Receipt 80mm):", "Thermal Receipt Printer (80mm):")
+                    </label>
+                    <div class="input-group">
+                        <select class="form-select font-monospace" @bind="SettingsModel.ReceiptPrinter" @bind:after="AutoSavePrinters">
+                            <option value="">-- @Prefs.T("طابعة الوصولات الافتراضية (Windows Default)", "Default Receipt Printer") --</option>
+                            @foreach (var printer in InstalledPrinters)
+                            {
+                                <option value="@printer">@printer</option>
+                            }
+                            @if (!string.IsNullOrEmpty(SettingsModel.ReceiptPrinter) && !InstalledPrinters.Contains(SettingsModel.ReceiptPrinter))
+                            {
+                                <option value="@SettingsModel.ReceiptPrinter">@SettingsModel.ReceiptPrinter (Custom)</option>
+                            }
+                        </select>
+                        <button type="button" class="btn btn-outline-success fw-bold" data-mdb-ripple-init title='@Prefs.T("إرسال وصل كاشير صامت مباشرة للطابعة دون نوافذ", "Send direct silent receipt")' @onclick="PrintDirectTestReceipt">
+                            <i class="fas fa-bolt me-1"></i> @Prefs.T("صامتة", "Silent")
+                        </button>
+                        <button type="button" class="btn btn-outline-info" data-mdb-ripple-init @onclick="() => IsTestReceiptModalOpen = true">
+                            <i class="fas fa-eye me-1"></i> @Prefs.T("معاينة الوصل", "Preview Receipt")
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Direct Save Printers Action Bar -->
+                <div class="d-flex justify-content-between align-items-center mb-3 pt-2 border-top border-secondary flex-wrap gap-2">
+                    <small class="text-success">
+                        <i class="fas fa-circle-check me-1"></i> @Prefs.T("يتم حفظ أي تغيير على الطابعات تلقائياً وفوراً في النظام.", "Any printer changes are automatically saved to the system.")
+                    </small>
+                    <button type="button" class="btn btn-success btn-sm fw-bold px-4 shadow-sm btn-action-animated" data-mdb-ripple-init @onclick="SaveSettings" disabled="@IsSaving">
+                        <i class="fas fa-floppy-disk me-1"></i> @Prefs.T("حفظ وتثبيت الطابعات (Save Printers)", "Save & Apply Printers")
+                    </button>
+                </div>
+
+                <!-- Silent Printing & Kiosk Mode Info Box -->
+                <div class="p-3 rounded border border-info border-opacity-25" style="background: rgba(0, 180, 216, 0.05);">
+                    <div class="d-flex align-items-center gap-2 mb-2">
+                        <span class="badge bg-success text-white px-2 py-1">
+                            <i class="fas fa-check me-1"></i> @Prefs.T("مفعل وجاهز", "Active & Ready")
+                        </span>
+                        <strong class="text-info small">@Prefs.T("دليل الطباعة الصامتة الفورية في المختبر (Silent Printing Guide):", "Direct Silent Printing Guide:")</strong>
+                    </div>
+                    <div class="small text-secondary mb-2">
+                        • <strong>@Prefs.T("الطباعة الصامتة المباشرة (Direct Server Spooler):", "Direct Server Spooler:")</strong> @Prefs.T("تتم إحالة أوامر طباعة الملصقات والإيصالات فوراً من أزرار النظام إلى طابعة Windows Spooler دون فتح نافذة المتصفح نهائياً وبالمقاس الدقيق (50×25 مم أو 80 مم).", "Printing labels and receipts sends commands directly to Windows Spooler bypassing browser dialogs at exact paper dimensions (50x25mm or 80mm).")
+                    </div>
+                    <div class="small text-secondary mb-2">
+                        • <strong>@Prefs.T("الطباعة الصامتة من المتصفح (Browser Kiosk Printing):", "Browser Kiosk Printing:")</strong> @Prefs.T("لتخطي نافذة معاينة المتصفح في أي مكان، يمكنك تشغيل متصفح Chrome أو Edge بوضع الكيوسك عبر الاختصار التالي:", "To bypass browser print dialog entirely, launch Chrome or Edge with kiosk mode using:")
+                    </div>
+                    <div class="input-group input-group-sm">
+                        <span class="input-group-text bg-dark border-secondary text-info fw-bold">@Prefs.T("أمر تشغيل المتصفح الصامت:", "Kiosk Launch Command:")</span>
+                        <input type="text" readonly class="form-control bg-dark border-secondary text-white font-monospace" value="chrome.exe --kiosk-printing --app=http://localhost:5215/" />
+                    </div>
+                </div>
+            </div>
+
+            <!-- 4. Barcode Calibration -->
+            <div class="card p-4 mb-0 border-0 shadow-2-strong" style="background: var(--bg-card);">
+                <div class="d-flex align-items-center justify-content-between flex-wrap gap-2">
+                    <div class="flex-grow-1 me-3">
+                        <div class="fw-bold text-info small mb-1 d-flex align-items-center gap-1">
+                            <i class="fas fa-crosshairs"></i>
+                            <span>@Prefs.T("معايرة موضع الباركود أفقياً (Barcode Alignment Calibration):", "Barcode Horizontal Alignment Calibration:")</span>
+                        </div>
+                        <div class="small text-secondary mb-2">
+                            @Prefs.T("إذا كانت الطباعة منحرفة على لاصق 5×2.5 سم، اختر قيمة الإزاحة لتوسيطه بدقة:", "If label printing is misaligned on 50×25mm labels, choose offset to center accurately:")
+                        </div>
+                        <select class="form-select font-monospace" @bind="SettingsModel.BarcodeOffsetMm">
+                            <option value="20.0">+20 mm (@Prefs.T("إزاحة لليمين 20 مم", "Right shift 20 mm"))</option>
+                            <option value="18.0">+18 mm (@Prefs.T("إزاحة لليمين 18 مم", "Right shift 18 mm"))</option>
+                            <option value="16.0">+16 mm (@Prefs.T("إزاحة لليمين 16 مم", "Right shift 16 mm"))</option>
+                            <option value="15.0">+15 mm (@Prefs.T("إزاحة لليمين 15 مم - الافتراضي", "Right shift 15 mm - Default"))</option>
+                            <option value="14.0">+14 mm (@Prefs.T("إزاحة لليمين 14 مم", "Right shift 14 mm"))</option>
+                            <option value="12.0">+12 mm (@Prefs.T("إزاحة لليمين 12 مم", "Right shift 12 mm"))</option>
+                            <option value="10.0">+10 mm (@Prefs.T("إزاحة لليمين 10 مم", "Right shift 10 mm"))</option>
+                            <option value="8.0">+8 mm (@Prefs.T("إزاحة لليمين 8 مم", "Right shift 8 mm"))</option>
+                            <option value="5.0">+5 mm (@Prefs.T("إزاحة لليمين 5 مم", "Right shift 5 mm"))</option>
+                            <option value="0.0">0 mm (@Prefs.T("بدون إزاحة", "No offset"))</option>
+                        </select>
+                    </div>
+                    <button type="button" class="btn btn-outline-info px-3 btn-action-animated" data-mdb-ripple-init @onclick="() => IsTestLabelModalOpen = true">
+                        <i class="fas fa-print me-1"></i> @Prefs.T("طباعة ملصق تجريبي", "Print Test Label")
+                    </button>
+                </div>
+            </div>
+
+            <!-- 5. Theme Selection -->
+            <div class="card p-4 mb-0 border-0 shadow-2-strong" style="background: var(--bg-card);">
+                <div class="row align-items-center g-2">
+                    <div class="col-md-7">
+                        <div class="fw-bold text-info small d-flex align-items-center gap-1">
+                            <i class="fas fa-palette"></i>
+                            <span>@Prefs.T("مظهر وتصميم البرنامج (Theme Selection):", "Application Theme Selection:")</span>
+                        </div>
+                        <div class="small text-secondary mt-1">@Prefs.T("اختر مظهر الواجهة المفضل (يحفظ تلقائياً في قاعدة البيانات):", "Choose preferred UI appearance (automatically saved):")</div>
+                    </div>
+                    <div class="col-md-5">
+                        <select class="form-select" @bind="SettingsModel.Theme">
+                            <option value="BiotechDark">Biotech Dark Mode — @Prefs.T("داكن مشرق", "Dark Modern")</option>
+                            <option value="CleanWhite">Medical Clean White — @Prefs.T("أبيض طبي نظيف", "Clean White")</option>
+                            <option value="RoyalBlue">Clinical Royal Blue — @Prefs.T("أزرق ملكي", "Royal Blue")</option>
+                        </select>
+                    </div>
+                </div>
+            </div>
+
+        </div>
+
+        <!-- RIGHT COLUMN: LIVE PREVIEW OF REPORT HEADER (col-xxl-6 / col-12) -->
+        <div class="col-xxl-6 col-xl-6 col-12">
+            <div class="card p-4 h-100 d-flex flex-column border-0 shadow-2-strong" style="background: var(--bg-card); overflow-x: auto;">
+                <div class="d-flex align-items-center justify-content-between mb-3 pb-2 border-bottom border-secondary">
+                    <h5 class="fw-bold text-info mb-0 d-flex align-items-center gap-2">
+                        <i class="fas fa-eye"></i>
+                        <span>@Prefs.T("المعاينة الحية لترويسة التقارير والوصولات (Live Report Preview)", "Live Report & Receipt Header Preview")</span>
+                    </h5>
+                    <span class="badge bg-secondary font-monospace">A4 Sheet</span>
+                </div>
+
+                <!-- Simulated A4 Report Paper -->
+                <div class="flex-grow-1 p-4 bg-white text-dark rounded shadow medical-report-container" 
+                     style="font-family: 'ButrosAsma', 'Boutros Asma', 'BoutrosAsma', 'Segoe UI', Tahoma, sans-serif; min-height: 520px; line-height: 1.35; border: 1px solid #cbd5e1; direction: ltr; text-align: left;">
+                    
+                    <!-- Report Header -->
+                    <div class="row align-items-center mb-3">
+                        <!-- Left: Logo & English Info -->
+                        <div class="col-8 d-flex align-items-center gap-3">
+                            @if (SettingsModel.LogoData != null && SettingsModel.LogoData.Length > 0)
+                            {
+                                <div class="p-1 border rounded bg-white shadow-sm d-flex align-items-center justify-content-center" style="width: 65px; height: 65px; min-width: 65px;">
+                                    <img src="data:image/png;base64,@Convert.ToBase64String(SettingsModel.LogoData)" 
+                                         alt="Lab Logo" 
+                                         style="max-width: 58px; max-height: 58px; object-fit: contain;" />
+                                </div>
+                            }
+                            else
+                            {
+                                <div class="d-inline-flex align-items-center justify-content-center rounded-3 bg-dark text-info shadow-sm"
+                                     style="width: 55px; height: 55px; min-width: 55px; font-size: 26px; border: 2px solid #00b4d8;">
+                                    🔬
+                                </div>
+                            }
+
+                            <div>
+                                <h5 class="fw-bold mb-0 text-dark" style="font-size: 16px; font-family: 'ButrosAsma', 'Boutros Asma', sans-serif;">
+                                    @(string.IsNullOrWhiteSpace(SettingsModel.LabNameEn) ? "Specialized Medical Laboratory" : SettingsModel.LabNameEn)
+                                </h5>
+                                <div class="fw-semibold text-secondary" style="font-size: 13px;">
+                                    @(string.IsNullOrWhiteSpace(SettingsModel.LabNameAr) ? "مختبر التحليلات التخصصي" : SettingsModel.LabNameAr)
+                                </div>
+                                <div class="small text-muted" style="font-size: 10.5px;">
+                                    @(string.IsNullOrWhiteSpace(SettingsModel.ReportHeaderText) ? "Clinical Pathology, Biochemistry & Hematology" : SettingsModel.ReportHeaderText)
+                                </div>
+                                <div class="small text-muted" style="font-size: 10.5px;">
+                                    @(string.IsNullOrWhiteSpace(SettingsModel.Address) ? "Baghdad - Iraq" : SettingsModel.Address) | Tel: @(string.IsNullOrWhiteSpace(SettingsModel.Phones) ? "07701234567" : SettingsModel.Phones)
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Right: Report Title & IDs -->
+                        <div class="col-4 text-end">
+                            <div class="fw-bold text-dark mb-1" style="font-size: 13.5px; letter-spacing: 1.5px; font-family: 'ButrosAsma', 'Boutros Asma', sans-serif;">
+                                MEDICAL LABORATORY REPORT
+                            </div>
+                            <div class="text-secondary small font-monospace" style="font-size: 10.5px;">
+                                Patient ID: <strong class="text-dark">100015</strong>
+                            </div>
+                            <div class="text-secondary small font-monospace" style="font-size: 10.5px;">
+                                Sample No: <strong class="text-dark">200586</strong>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Separator Blue Line -->
+                    <div style="height: 3px; background-color: #00b4d8; margin-bottom: 14px; border-radius: 2px;"></div>
+
+                    <!-- Simulated Patient Demographic Box (LTR) -->
+                    <div class="p-2 mb-3 rounded" style="background-color: #f8fafc; border: 1px solid #e2e8f0; font-size: 11px;">
+                        <div class="row g-2 mb-1">
+                            <div class="col-4"><strong>Patient Name:</strong> علي أحمد كاظم (Ali Ahmed)</div>
+                            <div class="col-4"><strong>Age / Gender:</strong> 35 Years / Male</div>
+                            <div class="col-4 text-end"><strong>MRN:</strong> P-100015</div>
+                        </div>
+                        <div class="row g-2 text-muted" style="font-size: 10px;">
+                            <div class="col-4"><strong>Date:</strong> @DateTime.Today.ToString("dd/MM/yyyy")</div>
+                            <div class="col-4"><strong>Accession / Barcode:</strong> 200586</div>
+                            <div class="col-4 text-end"><strong>Doctor:</strong> د. كمال النعيمي</div>
+                        </div>
+                    </div>
+
+                    <!-- Group 1: Hematology Department -->
+                    <div class="mb-3">
+                        <div class="d-flex align-items-center justify-content-between px-2 py-1 mb-1 rounded" style="background-color: #f1f5f9; color: #0b132b; border: 1px solid #cbd5e1; border-left: 4px solid #00B4D8;">
+                            <span class="fw-bold" style="font-size: 11.5px; letter-spacing: 0.5px;">
+                                <i class="fas fa-droplet text-info me-1"></i> HEMATOLOGY
+                            </span>
+                            <span class="badge bg-white text-secondary border" style="font-size: 9.5px;">3 TESTS</span>
+                        </div>
+                        <table style="width: 100%; font-size: 11px; margin-bottom: 8px; border-collapse: collapse;">
+                            <thead>
+                                <tr style="background-color: #f1f5f9; border-bottom: 2px solid #cbd5e1; font-weight: bold;">
+                                    <th style="padding: 5px 8px; text-align: left; width: 34%;">Test / Component</th>
+                                    <th style="padding: 5px 8px; text-align: center; width: 18%;">Result</th>
+                                    <th style="padding: 5px 8px; text-align: center; width: 12%;">Flag</th>
+                                    <th style="padding: 5px 8px; text-align: center; width: 14%;">Unit</th>
+                                    <th style="padding: 5px 8px; text-align: left; width: 22%;">Reference Range</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <!-- Panel Header Row -->
+                                <tr style="background-color: #f1f5f9; border-top: 1px solid #cbd5e1; border-bottom: 1px solid #cbd5e1;">
+                                    <td colspan="5" style="padding: 4px 8px; font-weight: bold; color: #0b132b; font-size: 11px;">
+                                        <i class="fas fa-flask text-info me-1" style="font-size: 9px;"></i> Complete Blood Count (CBC)
+                                    </td>
+                                </tr>
+                                <tr style="border-bottom: 1px solid #e2e8f0;">
+                                    <td style="padding: 4px 8px 4px 18px; font-weight: 600;">White Blood Cells (WBC)</td>
+                                    <td style="padding: 4px 8px; text-align: center; font-weight: bold;">7.2</td>
+                                    <td style="padding: 4px 8px; text-align: center; color: #10b981; font-weight: bold; font-family: monospace;">N</td>
+                                    <td style="padding: 4px 8px; text-align: center; color: #64748b;">10^3/uL</td>
+                                    <td style="padding: 4px 8px; color: #64748b;">4.0 - 11.0</td>
+                                </tr>
+                                <tr style="border-bottom: 1px solid #e2e8f0;">
+                                    <td style="padding: 4px 8px 4px 18px; font-weight: 600;">Hemoglobin (HGB)</td>
+                                    <td style="padding: 4px 8px; text-align: center; font-weight: bold;">14.5</td>
+                                    <td style="padding: 4px 8px; text-align: center; color: #10b981; font-weight: bold; font-family: monospace;">N</td>
+                                    <td style="padding: 4px 8px; text-align: center; color: #64748b;">g/dL</td>
+                                    <td style="padding: 4px 8px; color: #64748b;">13.0 - 17.0</td>
+                                </tr>
+                                <tr style="border-bottom: 1px solid #e2e8f0;">
+                                    <td style="padding: 4px 8px 4px 18px; font-weight: 600;">Platelets (PLT)</td>
+                                    <td style="padding: 4px 8px; text-align: center; font-weight: bold;">250</td>
+                                    <td style="padding: 4px 8px; text-align: center; color: #10b981; font-weight: bold; font-family: monospace;">N</td>
+                                    <td style="padding: 4px 8px; text-align: center; color: #64748b;">10^3/uL</td>
+                                    <td style="padding: 4px 8px; color: #64748b;">150 - 450</td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+
+                    <!-- Group 2: Clinical Biochemistry Department -->
+                    <div class="mb-3">
+                        <div class="d-flex align-items-center justify-content-between px-2 py-1 mb-1 rounded" style="background-color: #f1f5f9; color: #0b132b; border: 1px solid #cbd5e1; border-left: 4px solid #00B4D8;">
+                            <span class="fw-bold" style="font-size: 11.5px; letter-spacing: 0.5px;">
+                                <i class="fas fa-flask text-info me-1"></i> BIOCHEMISTRY
+                            </span>
+                            <span class="badge bg-white text-secondary border" style="font-size: 9.5px;">2 TESTS</span>
+                        </div>
+                        <table style="width: 100%; font-size: 11px; margin-bottom: 8px; border-collapse: collapse;">
+                            <thead>
+                                <tr style="background-color: #f1f5f9; border-bottom: 2px solid #cbd5e1; font-weight: bold;">
+                                    <th style="padding: 5px 8px; text-align: left; width: 34%;">Test / Component</th>
+                                    <th style="padding: 5px 8px; text-align: center; width: 18%;">Result</th>
+                                    <th style="padding: 5px 8px; text-align: center; width: 12%;">Flag</th>
+                                    <th style="padding: 5px 8px; text-align: center; width: 14%;">Unit</th>
+                                    <th style="padding: 5px 8px; text-align: left; width: 22%;">Reference Range</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <tr style="border-bottom: 1px solid #e2e8f0;">
+                                    <td style="padding: 5px 8px; font-weight: 600;">Fasting Blood Sugar (GLUC)</td>
+                                    <td style="padding: 5px 8px; text-align: center; font-weight: bold;">95</td>
+                                    <td style="padding: 5px 8px; text-align: center; color: #10b981; font-weight: bold; font-family: monospace;">N</td>
+                                    <td style="padding: 5px 8px; text-align: center; color: #64748b;">mg/dL</td>
+                                    <td style="padding: 5px 8px; color: #64748b;">70 - 105</td>
+                                </tr>
+                                <tr style="border-bottom: 1px solid #e2e8f0;">
+                                    <td style="padding: 5px 8px; font-weight: 600;">Serum Triglycerides (TRIG)</td>
+                                    <td style="padding: 5px 8px; text-align: center; font-weight: bold; color: #ef4444;">185</td>
+                                    <td style="padding: 5px 8px; text-align: center; color: #ef4444; font-weight: bold; font-family: monospace;">H ↑</td>
+                                    <td style="padding: 5px 8px; text-align: center; color: #64748b;">mg/dL</td>
+                                    <td style="padding: 5px 8px; color: #64748b;">&lt; 150</td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+
+                    <!-- Simulated Footer & Doctor Signature -->
+                    <div class="mt-auto pt-3 border-top border-secondary border-opacity-25" style="border-top: 1px solid #cbd5e1;">
+                        <div class="row align-items-end">
+                            <div class="col-8">
+                                <div class="text-muted" style="font-size: 10px;">
+                                    @(string.IsNullOrWhiteSpace(SettingsModel.ReportFooterText) ? "Notice: Laboratory results must be clinically correlated with patient status." : SettingsModel.ReportFooterText)
+                                </div>
+                            </div>
+                            <div class="col-4 text-center">
+                                <div class="text-muted small" style="font-size: 10px;">@Prefs.T("توقيع الطبيب المشرف:", "Consultant Signature:")</div>
+                                <div class="fw-bold mt-1 text-dark" style="font-size: 12.5px; font-family: 'ButrosAsma', 'Boutros Asma', sans-serif;">
+                                    @(string.IsNullOrWhiteSpace(SettingsModel.ManagerName) ? "د. أحمد علي" : SettingsModel.ManagerName)
+                                </div>
+                                <div class="text-muted" style="font-size: 10px;">
+                                    @(string.IsNullOrWhiteSpace(SettingsModel.ManagerTitle) ? "أخصائي التحليلات المرضية" : SettingsModel.ManagerTitle)
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+}
+
+<!-- ========================================================================= -->
+<!-- MODAL: Database Server Connection Details                                 -->
+<!-- ========================================================================= -->
+@if (IsServerModalOpen)
+{
+    <div class="modal fade show d-block" tabindex="-1" style="background: rgba(0,0,0,0.75); backdrop-filter: blur(4px); z-index: 1050;">
+        <div class="modal-dialog modal-dialog-centered" style="max-width: 500px;">
+            <div class="modal-content card border-0 shadow-3-strong" style="background: var(--bg-card);">
+                <div class="modal-header border-bottom border-secondary d-flex justify-content-between align-items-center bg-dark py-2">
+                    <h6 class="modal-title text-info fw-bold mb-0 d-flex align-items-center gap-2">
+                        <i class="fas fa-server"></i>
+                        <span>@Prefs.T("إعدادات خادم قاعدة البيانات (Database Server)", "Database Server Details")</span>
+                    </h6>
+                    <button type="button" class="btn-close btn-close-white" @onclick="() => IsServerModalOpen = false"></button>
+                </div>
+                <div class="modal-body p-4">
+                    <div class="p-3 mb-3 rounded bg-dark border border-secondary">
+                        <div class="d-flex justify-content-between mb-2">
+                            <span class="text-secondary small">@Prefs.T("السيرفر (Host):", "Host:")</span>
+                            <strong class="text-white font-monospace">127.0.0.1 / localhost</strong>
+                        </div>
+                        <div class="d-flex justify-content-between mb-2">
+                            <span class="text-secondary small">@Prefs.T("المنفذ (Port):", "Port:")</span>
+                            <strong class="text-info font-monospace">5432</strong>
+                        </div>
+                        <div class="d-flex justify-content-between mb-2">
+                            <span class="text-secondary small">@Prefs.T("قاعدة البيانات (Database):", "Database:")</span>
+                            <strong class="text-success font-monospace">lis_db</strong>
+                        </div>
+                        <div class="d-flex justify-content-between">
+                            <span class="text-secondary small">@Prefs.T("المستخدم (User):", "User:")</span>
+                            <strong class="text-white font-monospace">postgres</strong>
+                        </div>
+                    </div>
+
+                    <div class="alert alert-info py-2 px-3 small mb-0">
+                        <i class="fas fa-circle-info me-1"></i> @Prefs.T("يتم تكوين الاتصال عبر ملف الإعدادات appsettings.json ومحول التوصيل NpgsqlDbConnectionFactory للربط المباشر بين محطات العمل والسيرفر.", "Connection is configured via appsettings.json and NpgsqlDbConnectionFactory for direct integration between workstations and server.")
+                    </div>
+                </div>
+                <div class="modal-footer border-top border-secondary py-2">
+                    <button type="button" class="btn btn-outline-secondary btn-sm" data-mdb-ripple-init @onclick="() => IsServerModalOpen = false">@Prefs.T("إغلاق", "Close")</button>
+                </div>
+            </div>
+        </div>
+    </div>
+}
+
+<!-- ========================================================================= -->
+<!-- MODAL: Test Barcode Label Simulator (50x25mm)                             -->
+<!-- ========================================================================= -->
+@if (IsTestLabelModalOpen)
+{
+    <div class="modal fade show d-block" tabindex="-1" style="background: rgba(0,0,0,0.75); backdrop-filter: blur(4px); z-index: 1050;">
+        <div class="modal-dialog modal-dialog-centered" style="max-width: 440px;">
+            <div class="modal-content card border-0 shadow-3-strong" style="background: var(--bg-card);">
+                <div class="modal-header border-bottom border-secondary d-flex justify-content-between align-items-center py-2">
+                    <h6 class="modal-title text-white fw-bold mb-0 d-flex align-items-center gap-2">
+                        <i class="fas fa-barcode text-info"></i>
+                        <span>@Prefs.T("ملصق باركود تجريبي (50×25 مم)", "Sample Barcode Label (50×25mm)")</span>
+                    </h6>
+                    <button type="button" class="btn-close btn-close-white" @onclick="() => IsTestLabelModalOpen = false"></button>
+                </div>
+                <div class="modal-body p-4 text-center bg-dark">
+                    <!-- Thermal 50x25mm Label Box -->
+                    <div class="d-inline-block text-start p-3 bg-white text-dark rounded shadow"
+                         style="width: 300px; height: 155px; font-family: 'Segoe UI', Tahoma, sans-serif; border: 1px solid #ccc; line-height: 1.2;">
+                        <div class="d-flex justify-content-between align-items-center mb-1">
+                            <strong style="font-size: 13px;">علي أحمد كاظم</strong>
+                            <span style="font-size: 11px;">MRN: P-100015</span>
+                        </div>
+                        <div class="text-center my-1">
+                            <div style="font-family: monospace; font-size: 32px; letter-spacing: 2px; line-height: 1;">
+                                ||||||||||||||||||||||||
+                            </div>
+                            <strong style="font-size: 14px; letter-spacing: 3px;">*200586*</strong>
+                        </div>
+                        <div class="d-flex justify-content-between align-items-center mt-1" style="font-size: 10.5px;">
+                            <span>EDTA Whole Blood</span>
+                            <span>@DateTime.Now.ToString("dd/MM HH:mm")</span>
+                        </div>
+                        <div class="text-truncate fw-bold mt-1" style="font-size: 10.5px;">
+                            CBC, Lipid Profile, TSH
+                        </div>
+                    </div>
+                </div>
+                <div class="modal-footer border-top border-secondary d-flex justify-content-between py-2">
+                    <button type="button" class="btn btn-outline-secondary btn-sm" data-mdb-ripple-init @onclick="() => IsTestLabelModalOpen = false">@Prefs.T("إغلاق", "Close")</button>
+                    <button type="button" class="btn btn-success btn-sm fw-bold px-3 btn-action-animated" data-mdb-ripple-init onclick="window.print()">
+                        <i class="fas fa-print me-1"></i> @Prefs.T("طباعة الملصق الآن (Print)", "Print Label Now")
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+}
+
+<!-- ========================================================================= -->
+<!-- MODAL: Test 80mm Cashier Receipt Simulator                                -->
+<!-- ========================================================================= -->
+@if (IsTestReceiptModalOpen)
+{
+    <div class="modal fade show d-block" tabindex="-1" style="background: rgba(0,0,0,0.75); backdrop-filter: blur(4px); z-index: 1050;">
+        <div class="modal-dialog modal-dialog-centered" style="max-width: 400px;">
+            <div class="modal-content card border-0 shadow-3-strong" style="background: var(--bg-card);">
+                <div class="modal-header border-bottom border-secondary d-flex justify-content-between align-items-center py-2">
+                    <h6 class="modal-title text-white fw-bold mb-0 d-flex align-items-center gap-2">
+                        <i class="fas fa-receipt text-info"></i>
+                        <span>@Prefs.T("وصل كاشير تجريبي (80 مم)", "Sample Cashier Receipt (80mm)")</span>
+                    </h6>
+                    <button type="button" class="btn-close btn-close-white" @onclick="() => IsTestReceiptModalOpen = false"></button>
+                </div>
+                <div class="modal-body p-3 text-center bg-dark">
+                    <div class="d-inline-block text-start p-3 bg-white text-dark rounded shadow"
+                         style="width: 290px; font-family: 'Segoe UI', Tahoma, sans-serif; border: 1px solid #ccc; line-height: 1.3; font-size: 11px;">
+                        <div class="text-center mb-2 pb-2 border-bottom border-dark">
+                            <h6 class="fw-bold mb-0">@(SettingsModel?.LabNameAr ?? "مختبر التحليلات التخصصي")</h6>
+                            <div class="text-muted" style="font-size: 10px;">@(SettingsModel?.LabNameEn ?? "Specialized Medical Laboratory")</div>
+                            <div style="font-size: 10px; color: #444;" class="mt-1">
+                                @(SettingsModel?.Address ?? "") • @(SettingsModel?.Phones ?? "")
+                            </div>
+                        </div>
+
+                        <div class="mb-2 pb-2 border-bottom border-dark">
+                            <div class="d-flex justify-content-between">
+                                <span>@Prefs.T("فاتورة تجريبية:", "Test Invoice:") <strong>#TEST-01</strong></span>
+                                <span>@Prefs.T("التاريخ:", "Date:") @DateTime.Now.ToString("dd/MM/yyyy HH:mm")</span>
+                            </div>
+                            <div class="d-flex justify-content-between">
+                                <span>@Prefs.T("المريض:", "Patient:") <strong>علي أحمد كاظم</strong></span>
+                                <span>MRN: <strong>P-100015</strong></span>
+                            </div>
+                        </div>
+
+                        <table style="width: 100%; margin-bottom: 6px;">
+                            <tr style="border-bottom: 1px solid #000;">
+                                <th>@Prefs.T("الفحص", "Test")</th>
+                                <th style="text-align: left;">@Prefs.T("السعر", "Price")</th>
+                            </tr>
+                            <tr>
+                                <td>صورة الدم الكاملة (CBC)</td>
+                                <td style="text-align: left; font-weight: bold;">15,000</td>
+                            </tr>
+                            <tr>
+                                <td>فحص السكر العشوائي (RBS)</td>
+                                <td style="text-align: left; font-weight: bold;">5,000</td>
+                            </tr>
+                        </table>
+
+                        <div style="border-top: 1px dashed #000; padding-top: 4px;" class="mb-2">
+                            <div class="d-flex justify-content-between fw-bold">
+                                <span>@Prefs.T("الصافي المطلوب:", "Net Payable:")</span>
+                                <span>20,000 @Prefs.T("د.ع", "IQD")</span>
+                            </div>
+                            <div class="d-flex justify-content-between text-success">
+                                <span>@Prefs.T("المدفوع نقداً:", "Paid Cash:")</span>
+                                <span>20,000 @Prefs.T("د.ع", "IQD")</span>
+                            </div>
+                        </div>
+
+                        <div class="text-center pt-2 border-top border-dark">
+                            <strong style="letter-spacing: 2px;">*TEST-RECEIPT*</strong>
+                            <div style="font-size: 9.5px; color: #555; margin-top: 2px;">@Prefs.T("نشكركم لزيارتكم - نتمنى لكم السلامة", "Thank you for visiting - Wishing you good health")</div>
+                        </div>
+                    </div>
+                </div>
+                <div class="modal-footer border-top border-secondary d-flex justify-content-between py-2">
+                    <button type="button" class="btn btn-outline-secondary btn-sm" data-mdb-ripple-init @onclick="() => IsTestReceiptModalOpen = false">@Prefs.T("إغلاق", "Close")</button>
+                    <button type="button" class="btn btn-success btn-sm fw-bold px-3 btn-action-animated" data-mdb-ripple-init onclick="window.print()">
+                        <i class="fas fa-print me-1"></i> @Prefs.T("طباعة الوصل (Print)", "Print Receipt")
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+}
+
+@code {
+    private LabSettingsDto? SettingsModel;
+    private string StatusMessage = "";
+    private string StatusClass = "alert-success";
+    private bool IsSaving = false;
+
+    private void ClearStatusMessage() => StatusMessage = "";
+
+    // Modals
+    private bool IsServerModalOpen = false;
+    private bool IsTestLabelModalOpen = false;
+    private bool IsTestReceiptModalOpen = false;
+    private List<string> InstalledPrinters = new();
+
+    protected override async Task OnInitializedAsync()
+    {
+        Prefs.OnChange += OnPrefsChanged;
+        try
+        {
+            SettingsModel = await SettingsService.GetSettingsAsync();
+            DetectPrinters();
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"[Settings Load Error] {ex.Message}");
+        }
+    }
+
+    private void OnPrefsChanged() => InvokeAsync(StateHasChanged);
+
+    public void Dispose()
+    {
+        Prefs.OnChange -= OnPrefsChanged;
+    }
+
+    private void DetectPrinters()
+    {
+        InstalledPrinters = PrintService.GetInstalledPrinters();
+        StatusClass = "alert-info";
+        StatusMessage = Prefs.T($"🔄 تم كشف {InstalledPrinters.Count} طابعة مثبتة في النظام بنجاح ({string.Join(", ", InstalledPrinters)}).", $"🔄 Detected {InstalledPrinters.Count} installed printers successfully ({string.Join(", ", InstalledPrinters)}).");
+    }
+
+    private async Task AutoSavePrinters()
+    {
+        if (SettingsModel == null) return;
+        try
+        {
+            await SettingsService.SaveSettingsAsync(SettingsModel, currentUserId: 1);
+            StatusClass = "alert-success";
+            StatusMessage = Prefs.T("✅ تم حفظ وتحديث إعدادات الطابعات بنجاح في قاعدة البيانات!", "✅ Printer configurations saved successfully to database!");
+        }
+        catch (Exception ex)
+        {
+            StatusClass = "alert-danger";
+            StatusMessage = Prefs.T($"حدث خطأ أثناء حفظ الطابعة: {ex.Message}", $"Error saving printer: {ex.Message}");
+        }
+    }
+
+    private async Task PrintDirectTestLabel()
+    {
+        if (SettingsModel == null) return;
+        var testData = new SpecimenLabelData
+        {
+            AccessionNo = "200586",
+            Mrn = 100031,
+            PatientNameAr = "زينب حيدر",
+            DateOfBirth = new DateTime(1995, 3, 10),
+            SpecimenTypeName = "EDTA Whole Blood"
+        };
+
+        var res = await PrintService.PrintLabelDirectAsync(testData, SettingsModel.LabelPrinter, SettingsModel.BarcodeOffsetMm);
+        StatusClass = res.Success ? "alert-success" : "alert-danger";
+        StatusMessage = res.Message;
+    }
+
+    private async Task PrintDirectTestReceipt()
+    {
+        if (SettingsModel == null) return;
+        var testData = new ReceiptPrintData
+        {
+            LabNameAr = SettingsModel.LabNameAr,
+            LabNameEn = SettingsModel.LabNameEn,
+            Address = SettingsModel.Address,
+            Phones = SettingsModel.Phones,
+            InvoiceNo = 10001,
+            OrderId = 5001,
+            OrderDate = DateTime.Now,
+            PatientNameAr = "محمد عبد الله أحمد (تجريبي)",
+            Mrn = 100025,
+            PatientPhone = "07701234567",
+            Gender = "ذكر",
+            CashierName = "مدير النظام (Admin)",
+            PaymentMethod = "Cash",
+            TotalAmount = 50000,
+            Discount = 5000,
+            NetAmount = 45000,
+            PaidAmount = 45000,
+            BalanceDue = 0,
+            Items = new List<ReceiptItemData>
+            {
+                new ReceiptItemData { Code = "CBC", Name = "Complete Blood Count", Price = 15000 },
+                new ReceiptItemData { Code = "LIPID", Name = "Lipid Profile Panel", Price = 20000 },
+                new ReceiptItemData { Code = "TSH", Name = "Thyroid Stimulating Hormone", Price = 15000 }
+            }
+        };
+
+        var res = await PrintService.PrintReceiptDirectAsync(testData, SettingsModel.ReceiptPrinter);
+        StatusClass = res.Success ? "alert-success" : "alert-danger";
+        StatusMessage = res.Message;
+    }
+
+    private void PrintDirectTestReport()
+    {
+        if (SettingsModel == null) return;
+        StatusClass = "alert-info";
+        StatusMessage = Prefs.T($"⚡ طابعة التقارير الرسمية محددة على: [{SettingsModel.ReportPrinter ?? "طابعة A4 الافتراضية"}]. يمكنك تجربة طباعة تقرير نتائج من صفحة النتائج.", $"⚡ Official report printer set to: [{SettingsModel.ReportPrinter ?? "Default A4 Printer"}]. You can test printing from Results page.");
+    }
+
+    private async Task HandleLogoUpload(InputFileChangeEventArgs e)
+    {
+        if (SettingsModel == null || e.File == null) return;
+        try
+        {
+            // Max 5MB
+            const long maxFileSize = 5 * 1024 * 1024;
+            using var stream = e.File.OpenReadStream(maxAllowedSize: maxFileSize);
+            using var ms = new System.IO.MemoryStream();
+            await stream.CopyToAsync(ms);
+            SettingsModel.LogoData = ms.ToArray();
+            
+            // Auto-save immediately to database
+            await SettingsService.SaveSettingsAsync(SettingsModel, currentUserId: 1);
+
+            StatusClass = "alert-success";
+            StatusMessage = Prefs.T("✅ تم رفع وحفظ شعار المختبر بنجاح واعتماده في كافة التقارير الطبية الرسمية!", "✅ Laboratory logo uploaded and saved successfully to official medical reports!");
+        }
+        catch (Exception ex)
+        {
+            StatusClass = "alert-danger";
+            StatusMessage = Prefs.T($"فشل رفع الشعار: {ex.Message}", $"Failed to upload logo: {ex.Message}");
+        }
+    }
+
+    private async Task RemoveLogo()
+    {
+        if (SettingsModel == null) return;
+        try
+        {
+            SettingsModel.LogoData = null;
+            await SettingsService.SaveSettingsAsync(SettingsModel, currentUserId: 1);
+            StatusClass = "alert-warning";
+            StatusMessage = Prefs.T("🗑️ تم حذف شعار المختبر بنجاح.", "🗑️ Laboratory logo removed successfully.");
+        }
+        catch (Exception ex)
+        {
+            StatusClass = "alert-danger";
+            StatusMessage = Prefs.T($"فشل حذف الشعار: {ex.Message}", $"Failed to remove logo: {ex.Message}");
+        }
+    }
+
+    private async Task SaveSettings()
+    {
+        if (SettingsModel == null) return;
+        IsSaving = true;
+        StatusMessage = "";
+
+        try
+        {
+            await SettingsService.SaveSettingsAsync(SettingsModel, currentUserId: 1);
+            StatusClass = "alert-success";
+            StatusMessage = Prefs.T("✅ تم حفظ وتحديث كافة إعدادات المختبر والتقارير والطابعات بنجاح في قاعدة البيانات!", "✅ Laboratory settings, report headers, and printer configurations saved successfully!");
+        }
+        catch (Exception ex)
+        {
+            StatusClass = "alert-danger";
+            StatusMessage = Prefs.T($"حدث خطأ أثناء الحفظ: {ex.Message}", $"Error saving settings: {ex.Message}");
+        }
+        finally
+        {
+            IsSaving = false;
+        }
+    }
+}
