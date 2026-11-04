@@ -259,7 +259,8 @@ namespace Lis.Tests
                 new Phase2Tests(fixture),
                 new Phase3Tests(fixture),
                 new Phase4Tests(fixture),
-                new Phase5Tests(fixture)
+                new Phase5Tests(fixture),
+                new CaptureAndHexTests(fixture)
             };
 
             foreach (var testClass in testInstances)

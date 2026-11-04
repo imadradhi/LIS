@@ -12,6 +12,7 @@ using Lis.Core.Data;
 using Lis.Core.Models;
 using Lis.Core.Services;
 using Lis.Core.Transport;
+using Lis.Core.Utils;
 
 namespace Lis.Core.Drivers
 {
@@ -30,6 +31,7 @@ namespace Lis.Core.Drivers
         public string InstrumentCode => _instrument.Code;
         public bool IsConnected => _transport.IsConnected;
         public DateTime? LastActivity { get; private set; }
+        public bool CaptureMode { get; set; } = false;
 
         public event EventHandler<string>? StatusChanged;
 
@@ -74,18 +76,30 @@ namespace Lis.Core.Drivers
                     _inTransaction = true;
                     _inboundFrames.Clear();
                     _inboundBuffer.Clear();
+                    await LogMiddlewareMessageAsync("<ENQ>", "IN", CaptureMode ? "CAPTURED" : "OK", "05");
                     await _transport.SendByteAsync(AstmConstants.ACK);
+                    await LogMiddlewareMessageAsync("<ACK>", "OUT", CaptureMode ? "CAPTURED" : "OK", "06");
                 }
                 else if (b == AstmConstants.EOT)
                 {
                     // End of Transmission
                     _inTransaction = false;
+                    await LogMiddlewareMessageAsync("<EOT>", "IN", CaptureMode ? "CAPTURED" : "OK", "04");
                     string fullRawMessage = string.Join("\r\n", _inboundFrames);
 
                     if (!string.IsNullOrWhiteSpace(fullRawMessage))
                     {
-                        await HandleCompleteMessageAsync(fullRawMessage);
+                        if (CaptureMode)
+                        {
+                            // In Capture Mode: Save the full message without processing
+                            await LogMiddlewareMessageAsync(fullRawMessage, "IN", "CAPTURED");
+                        }
+                        else
+                        {
+                            await HandleCompleteMessageAsync(fullRawMessage);
+                        }
                     }
+                    _inboundFrames.Clear();
                 }
                 else
                 {
@@ -104,6 +118,30 @@ namespace Lis.Core.Drivers
                     {
                         string dimFrame = _inboundBuffer.ToString().TrimStart((char)DimensionProtocol.ACK);
                         _inboundBuffer.Clear();
+
+                        if (CaptureMode)
+                        {
+                            // Capture Mode: Unconditionally ACK frame and log without processing
+                            await _transport.SendByteAsync(DimensionProtocol.ACK);
+                            await LogMiddlewareMessageAsync(DimensionProtocol.ToReadableString(dimFrame), "IN", "CAPTURED");
+                            await LogMiddlewareMessageAsync("<ACK>", "OUT", "CAPTURED", "06");
+
+                            string trimmed = dimFrame.Trim('\x02', '\x03');
+                            string[] fields = trimmed.Split((char)DimensionProtocol.FS);
+                            string recordType = fields.Length > 0 ? fields[0].Trim() : string.Empty;
+
+                            if (recordType.StartsWith("P", StringComparison.OrdinalIgnoreCase) || recordType.StartsWith("I", StringComparison.OrdinalIgnoreCase))
+                            {
+                                await _transport.SendAsync(DimensionProtocol.BuildNoRequest());
+                                await LogMiddlewareMessageAsync("<STX>N<FS>6A<ETX>", "OUT", "CAPTURED");
+                            }
+                            else if (recordType.StartsWith("R", StringComparison.OrdinalIgnoreCase) || recordType.StartsWith("C", StringComparison.OrdinalIgnoreCase))
+                            {
+                                await _transport.SendAsync(DimensionProtocol.BuildAcceptance());
+                                await LogMiddlewareMessageAsync("<STX>M<FS>A<FS><FS>E2<ETX>", "OUT", "CAPTURED");
+                            }
+                            return;
+                        }
 
                         // Link-Layer Rule: Unconditionally send ACK (0x06) immediately if checksum is valid
                         bool isValid = DimensionProtocol.ValidateChecksum(dimFrame);
@@ -127,17 +165,35 @@ namespace Lis.Core.Drivers
                         string frameStr = _inboundBuffer.ToString();
                         _inboundBuffer.Clear();
 
-                        if (AstmFraming.TryParseFrame(frameStr, out var frame) && frame != null)
+                        if (CaptureMode)
                         {
-                            if (frame.IsChecksumValid)
+                            // Capture Mode: Unconditionally accept frame with ACK and save
+                            if (AstmFraming.TryParseFrame(frameStr, out var frame) && frame != null)
                             {
                                 _inboundFrames.Add(frame.Content);
-                                await _transport.SendByteAsync(AstmConstants.ACK);
                             }
                             else
                             {
-                                // Checksum failed
-                                await _transport.SendByteAsync(AstmConstants.NAK);
+                                _inboundFrames.Add(frameStr.Trim());
+                            }
+                            await _transport.SendByteAsync(AstmConstants.ACK);
+                            await LogMiddlewareMessageAsync(frameStr.Trim(), "IN", "CAPTURED");
+                            await LogMiddlewareMessageAsync("<ACK>", "OUT", "CAPTURED", "06");
+                        }
+                        else
+                        {
+                            if (AstmFraming.TryParseFrame(frameStr, out var frame) && frame != null)
+                            {
+                                if (frame.IsChecksumValid)
+                                {
+                                    _inboundFrames.Add(frame.Content);
+                                    await _transport.SendByteAsync(AstmConstants.ACK);
+                                }
+                                else
+                                {
+                                    // Checksum failed
+                                    await _transport.SendByteAsync(AstmConstants.NAK);
+                                }
                             }
                         }
                     }
@@ -284,6 +340,15 @@ namespace Lis.Core.Drivers
 
         public async Task ProcessInboundMessageAsync(string rawMessage, bool logMessage = false)
         {
+            if (CaptureMode)
+            {
+                if (logMessage)
+                {
+                    await LogMiddlewareMessageAsync(rawMessage, "IN", "CAPTURED");
+                }
+                return;
+            }
+
             if (logMessage)
             {
                 await LogMiddlewareMessageAsync(rawMessage, "IN", "OK");
@@ -605,17 +670,20 @@ namespace Lis.Core.Drivers
             await SendFramesWithHandshakeAsync(frames);
         }
 
-        private async Task LogMiddlewareMessageAsync(string rawMessage, string direction, string parseStatus)
+        private async Task LogMiddlewareMessageAsync(string rawMessage, string direction, string parseStatus, string? rawHex = null)
         {
             try
             {
+                rawHex ??= HexUtils.ToHexRepresentation(rawMessage);
+
                 using var conn = _connectionFactory.CreateConnection();
                 await conn.ExecuteAsync(@"
-                    INSERT INTO middleware_log (raw_message, instrument_id, direction, timestamp, parse_status)
-                    VALUES (@Raw, @InstId, @Dir, clock_timestamp(), @Status);
+                    INSERT INTO middleware_log (raw_message, raw_hex, instrument_id, direction, timestamp, parse_status)
+                    VALUES (@Raw, @RawHex, @InstId, @Dir, clock_timestamp(), @Status);
                 ", new
                 {
                     Raw = rawMessage,
+                    RawHex = rawHex,
                     InstId = _instrument.Id,
                     Dir = direction,
                     Status = parseStatus

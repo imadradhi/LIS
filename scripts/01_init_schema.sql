@@ -432,6 +432,7 @@ CREATE TABLE IF NOT EXISTS audit_log (
 CREATE TABLE IF NOT EXISTS middleware_log (
     id            BIGINT GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
     raw_message   TEXT NOT NULL,
+    raw_hex       TEXT,
     instrument_id BIGINT REFERENCES instruments(id) ON DELETE SET NULL,
     direction     TEXT NOT NULL CHECK (direction IN ('IN','OUT')),
     timestamp     TIMESTAMPTZ NOT NULL DEFAULT clock_timestamp(),

@@ -13,9 +13,11 @@
         <Grid.RowDefinitions>
             <!-- Row 0: Top Status & Control Header -->
             <RowDefinition Height="Auto"/>
-            <!-- Row 1: KPI Stats Cards Strip -->
+            <!-- Row 1: Capture Mode Active Alert Banner -->
             <RowDefinition Height="Auto"/>
-            <!-- Row 2: Main Working Area (Instruments + Live Logs) -->
+            <!-- Row 2: KPI Stats Cards Strip -->
+            <RowDefinition Height="Auto"/>
+            <!-- Row 3: Main Working Area (Instruments + Live Logs) -->
             <RowDefinition Height="*"/>
         </Grid.RowDefinitions>
 
@@ -32,6 +34,7 @@
                     </Border>
 
                     <!-- Control Buttons -->
+                    <Button x:Name="BtnToggleCapture" Content="🛡️ Capture Mode: OFF" Style="{DynamicResource SecondaryButtonStyle}" Margin="0,0,6,0" Padding="12,7" Click="BtnToggleCapture_Click" ToolTip="Capture Mode: Auto-ACK and record incoming frames without processing into patient results"/>
                     <Button x:Name="BtnToggleEngine" Content="⏹️ Stop Engine" Style="{DynamicResource SecondaryButtonStyle}" Margin="0,0,6,0" Padding="12,7" Click="BtnToggleEngine_Click"/>
                     <Button x:Name="BtnRestartEngine" Content="🔄 Restart Engine" Style="{DynamicResource SecondaryButtonStyle}" Margin="0,0,6,0" Padding="12,7" Click="BtnRestartEngine_Click"/>
                     <Button x:Name="BtnServerSettings" Content="⚙️ Server Settings" Style="{DynamicResource SecondaryButtonStyle}" Padding="12,7" Click="BtnServerSettings_Click"/>
@@ -54,9 +57,25 @@
         </Border>
 
         <!-- ═════════════════════════════════════════════════════════════════ -->
-        <!-- ROW 1: KPI STATS CARDS STRIP                                     -->
+        <!-- ROW 1: CAPTURE MODE ALERT BANNER (When Active)                     -->
         <!-- ═════════════════════════════════════════════════════════════════ -->
-        <Grid Grid.Row="1" Margin="0,0,0,12">
+        <Border Grid.Row="1" x:Name="BannerCaptureMode" Visibility="Collapsed"
+                Background="#1C1405" BorderBrush="#F59E0B" BorderThickness="1.5" CornerRadius="8"
+                Padding="14,10" Margin="0,0,0,12">
+            <DockPanel LastChildFill="True">
+                <Button DockPanel.Dock="Right" Content="✕ Stop Capture Mode" Style="{DynamicResource SecondaryButtonStyle}"
+                        Padding="10,5" Foreground="#F59E0B" FontWeight="Bold" Click="BtnDisableCapture_Click"/>
+                <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
+                    <TextBlock Text="🟡 CAPTURE / SNIFFER MODE ACTIVE" FontSize="12.5" FontWeight="Bold" Foreground="#F59E0B" VerticalAlignment="Center"/>
+                    <TextBlock Text="— Acknowledging frames with ACK and saving raw communication in ASCII &amp; HEX. Inbound results will NOT be posted to patients." FontSize="11.5" Foreground="#FDE68A" Margin="10,0,0,0" VerticalAlignment="Center"/>
+                </StackPanel>
+            </DockPanel>
+        </Border>
+
+        <!-- ═════════════════════════════════════════════════════════════════ -->
+        <!-- ROW 2: KPI STATS CARDS STRIP                                     -->
+        <!-- ═════════════════════════════════════════════════════════════════ -->
+        <Grid Grid.Row="2" Margin="0,0,0,12">
             <Grid.ColumnDefinitions>
                 <ColumnDefinition Width="*"/>
                 <ColumnDefinition Width="*"/>
@@ -119,9 +138,9 @@
         </Grid>
 
         <!-- ═════════════════════════════════════════════════════════════════ -->
-        <!-- ROW 2: MAIN DASHBOARD AREA (Instruments Left + Logs Right)        -->
+        <!-- ROW 3: MAIN DASHBOARD AREA (Instruments Left + Logs Right)        -->
         <!-- ═════════════════════════════════════════════════════════════════ -->
-        <Grid Grid.Row="2">
+        <Grid Grid.Row="3">
             <Grid.ColumnDefinitions>
                 <!-- Left Side: Instruments List (360px) -->
                 <ColumnDefinition Width="360" MinWidth="300"/>
@@ -237,18 +256,24 @@
                                          TextChanged="TxtSearchQuery_TextChanged"/>
                             </StackPanel>
 
-                            <!-- Filters: Instrument selector + Hide Idle Polls -->
+                            <!-- Filters: Instrument selector + Hide Idle Polls + Hex in Table -->
                             <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
                                 <TextBlock Text="Instrument:" FontSize="11.5" Foreground="{DynamicResource TextSecondaryBrush}" VerticalAlignment="Center" Margin="0,0,6,0"/>
-                                <ComboBox x:Name="CmbFilterInstrument" Width="150" Height="28" FontSize="11.5"
+                                <ComboBox x:Name="CmbFilterInstrument" Width="140" Height="28" FontSize="11.5"
                                           Background="#0C1527" Foreground="#F8FAFC" BorderBrush="#1E2B45"
                                           SelectionChanged="CmbFilterInstrument_SelectionChanged"/>
 
-                                <Border Width="1" Background="#1B263B" Margin="12,2" Height="18"/>
+                                <Border Width="1" Background="#1B263B" Margin="10,2" Height="18"/>
 
                                 <CheckBox x:Name="ChkHideIdlePolls" Content="Hide Idle Polls (POLL / NO-ORDER)" IsChecked="False"
                                           Foreground="{DynamicResource TextSecondaryBrush}" FontSize="11.5" VerticalAlignment="Center"
                                           Checked="ChkHideIdlePolls_Changed" Unchecked="ChkHideIdlePolls_Changed"/>
+
+                                <Border Width="1" Background="#1B263B" Margin="10,2" Height="18"/>
+
+                                <Button x:Name="BtnToggleGridMode" Content="🔢 Show Hex in Table" Style="{DynamicResource SecondaryButtonStyle}"
+                                        Padding="8,4" FontSize="11" Click="BtnToggleGridMode_Click"
+                                        ToolTip="Toggle table display between readable ASCII text and raw Hex byte string"/>
                             </StackPanel>
                         </DockPanel>
                     </Border>
@@ -314,7 +339,7 @@
                             </DataGridTemplateColumn>
 
                             <!-- Status (Pure Colored Text) -->
-                            <DataGridTemplateColumn Header="Status" Width="70">
+                            <DataGridTemplateColumn Header="Status" Width="75">
                                 <DataGridTemplateColumn.CellTemplate>
                                     <DataTemplate>
                                         <TextBlock Text="{Binding parse_status}" FontSize="11" FontWeight="Bold" Foreground="{Binding StatusFgBrush}" HorizontalAlignment="Center" VerticalAlignment="Center"/>
@@ -322,12 +347,12 @@
                                 </DataGridTemplateColumn.CellTemplate>
                             </DataGridTemplateColumn>
 
-                            <!-- Raw Payload Text (Phosphorescent Terminal Green) -->
-                            <DataGridTemplateColumn Header="Raw Payload" Width="*">
+                            <!-- Raw Payload Text / Hex (Phosphorescent Terminal Green / Sky Blue) -->
+                            <DataGridTemplateColumn Header="Raw Payload (ASCII / Hex)" Width="*">
                                 <DataGridTemplateColumn.CellTemplate>
                                     <DataTemplate>
-                                        <TextBlock Text="{Binding raw_message}" FontFamily="Consolas" FontSize="11.5"
-                                                   Foreground="#34D399" TextTrimming="CharacterEllipsis"
+                                        <TextBlock Text="{Binding display_payload}" FontFamily="Consolas" FontSize="11.5"
+                                                   Foreground="{Binding PayloadFgBrush}" TextTrimming="CharacterEllipsis"
                                                    VerticalAlignment="Center" Margin="8,0"/>
                                     </DataTemplate>
                                 </DataGridTemplateColumn.CellTemplate>
@@ -349,10 +374,13 @@
                             <!-- Inspector Header Bar -->
                             <DockPanel Grid.Row="0" Margin="0,0,0,8" LastChildFill="True">
                                 <StackPanel DockPanel.Dock="Right" Orientation="Horizontal" VerticalAlignment="Center">
-                                    <Button x:Name="BtnToggleHex" Content="🔠 Hex View" Style="{DynamicResource SecondaryButtonStyle}"
-                                            Margin="0,0,6,0" Padding="10,4" FontSize="11" Click="BtnToggleHex_Click"/>
-                                    <Button Content="📋 Copy Frame" Style="{DynamicResource SecondaryButtonStyle}"
-                                            Padding="10,4" FontSize="11" Click="BtnCopySelectedRaw_Click"/>
+                                    <Button x:Name="BtnToggleHex" Content="📜 Formatted Dump" Style="{DynamicResource SecondaryButtonStyle}"
+                                            Margin="0,0,6,0" Padding="10,4" FontSize="11" Click="BtnToggleHex_Click"
+                                            ToolTip="Cycle view: ASCII Text → Formatted Hex Dump → Raw Hex Bytes"/>
+                                    <Button Content="📋 Copy ASCII" Style="{DynamicResource SecondaryButtonStyle}"
+                                            Margin="0,0,6,0" Padding="10,4" FontSize="11" Click="BtnCopySelectedRaw_Click"/>
+                                    <Button Content="📋 Copy Hex" Style="{DynamicResource SecondaryButtonStyle}"
+                                            Padding="10,4" FontSize="11" Click="BtnCopySelectedHex_Click"/>
                                 </StackPanel>
                                 <TextBlock x:Name="TxtLogDetailHeader" Text="Selected Frame Details &amp; Protocol Inspector" FontSize="12.5"
                                            FontWeight="Bold" Foreground="{DynamicResource AccentBrush}" VerticalAlignment="Center"/>
@@ -366,7 +394,7 @@
                             <TextBox Grid.Row="2" x:Name="TxtLogDetailMessage" IsReadOnly="True"
                                      Background="#050811" Foreground="#34D399" BorderBrush="#1E2B45"
                                      BorderThickness="1" FontFamily="Consolas" FontSize="11.5"
-                                     TextWrapping="Wrap" MaxHeight="110" VerticalScrollBarVisibility="Auto" Padding="10"/>
+                                     TextWrapping="Wrap" MaxHeight="120" VerticalScrollBarVisibility="Auto" Padding="10"/>
                         </Grid>
                     </Border>
                 </Grid>

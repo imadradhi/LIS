@@ -12,6 +12,7 @@ using Dapper;
 using Lis.Core.Data;
 using Lis.Core.Models;
 using Lis.Core.Services;
+using Lis.Core.Utils;
 using Microsoft.Win32;
 
 namespace Lis.Middleware
@@ -23,7 +24,8 @@ namespace Lis.Middleware
         private readonly DispatcherTimer _pollTimer;
 
         private readonly List<LogDisplayItem> _allLoadedLogs = new();
-        private bool _isHexView = false;
+        private bool _isGridHexMode = false;
+        private int _inspectorHexMode = 0; // 0 = ASCII, 1 = Formatted Dump, 2 = Raw Hex Bytes
         private bool _isPopulatingInstrumentsCombo = false;
 
         public MainWindow()
@@ -43,6 +45,11 @@ namespace Lis.Middleware
                     UpdateEngineUi(isRunning);
                     await LoadInstrumentsAsync();
                 });
+            };
+
+            _middlewareEngine.CaptureModeChanged += (s, active) =>
+            {
+                UpdateCaptureModeUi(active);
             };
 
             _middlewareEngine.InstrumentStatusChanged += (s, ev) =>
@@ -71,12 +78,14 @@ namespace Lis.Middleware
                 try
                 {
                     await AutoPurgeOldLogsAsync(7);
+                    await EnsureSchemaUpdatedAsync();
                     await EnsureAdvia360ConfiguredAsync();
 
                     // Auto-start middleware engine FIRST
                     await _middlewareEngine.StartAsync();
 
                     UpdateEngineUi(_middlewareEngine.IsRunning);
+                    UpdateCaptureModeUi(_middlewareEngine.CaptureMode);
                     await LoadInstrumentsAsync();
                     await LoadLogsAsync();
                     await LoadStatsAsync();
@@ -159,6 +168,16 @@ namespace Lis.Middleware
             }
         }
 
+        private async Task EnsureSchemaUpdatedAsync()
+        {
+            try
+            {
+                using var conn = _connectionFactory.CreateConnection();
+                await conn.ExecuteAsync("ALTER TABLE middleware_log ADD COLUMN IF NOT EXISTS raw_hex TEXT;");
+            }
+            catch { }
+        }
+
         private async Task EnsureAdvia360ConfiguredAsync()
         {
             try
@@ -172,6 +191,37 @@ namespace Lis.Middleware
                 await conn.ExecuteAsync(sql);
             }
             catch { }
+        }
+
+        private void BtnToggleCapture_Click(object sender, RoutedEventArgs e)
+        {
+            _middlewareEngine.CaptureMode = !_middlewareEngine.CaptureMode;
+            UpdateCaptureModeUi(_middlewareEngine.CaptureMode);
+        }
+
+        private void BtnDisableCapture_Click(object sender, RoutedEventArgs e)
+        {
+            _middlewareEngine.CaptureMode = false;
+            UpdateCaptureModeUi(false);
+        }
+
+        private void UpdateCaptureModeUi(bool active)
+        {
+            Dispatcher.Invoke(() =>
+            {
+                if (active)
+                {
+                    BtnToggleCapture.Content = "🟡 Capture Mode: ACTIVE";
+                    BtnToggleCapture.Foreground = new SolidColorBrush((Color)ColorConverter.ConvertFromString("#F59E0B"));
+                    BannerCaptureMode.Visibility = Visibility.Visible;
+                }
+                else
+                {
+                    BtnToggleCapture.Content = "🛡️ Capture Mode: OFF";
+                    BtnToggleCapture.Foreground = (Brush)FindResource("TextPrimaryBrush");
+                    BannerCaptureMode.Visibility = Visibility.Collapsed;
+                }
+            });
         }
 
         private async Task AutoPurgeOldLogsAsync(int retentionDays = 7)
@@ -344,7 +394,7 @@ namespace Lis.Middleware
                 using var conn = _connectionFactory.CreateConnection();
                 var rows = (await conn.QueryAsync<dynamic>(@"
                     SELECT ml.id, ml.timestamp, COALESCE(i.code, 'Unknown') AS instrument_code,
-                           ml.direction, ml.parse_status, ml.raw_message
+                           ml.direction, ml.parse_status, ml.raw_message, ml.raw_hex
                     FROM middleware_log ml
                     LEFT JOIN instruments i ON i.id = ml.instrument_id
                     ORDER BY ml.id DESC
@@ -360,7 +410,9 @@ namespace Lis.Middleware
                         (string?)row.instrument_code ?? "Unknown",
                         (string?)row.direction ?? "IN",
                         (string?)row.parse_status ?? "OK",
-                        (string?)row.raw_message ?? ""
+                        (string?)row.raw_message ?? "",
+                        (string?)row.raw_hex,
+                        _isGridHexMode
                     ));
                 }
 
@@ -370,6 +422,17 @@ namespace Lis.Middleware
                 ApplyLogFilters();
             }
             catch { }
+        }
+
+        private void BtnToggleGridMode_Click(object sender, RoutedEventArgs e)
+        {
+            _isGridHexMode = !_isGridHexMode;
+            BtnToggleGridMode.Content = _isGridHexMode ? "📝 Show ASCII in Table" : "🔢 Show Hex in Table";
+            foreach (var item in _allLoadedLogs)
+            {
+                item.IsHexMode = _isGridHexMode;
+            }
+            ApplyLogFilters();
         }
 
         private void ApplyLogFilters()
@@ -389,12 +452,13 @@ namespace Lis.Middleware
                 filtered = filtered.Where(l => l.type_badge != "POLL" && l.type_badge != "NO-ORDER");
             }
 
-            // 3. Search Query (Barcode / Text)
+            // 3. Search Query (Barcode / Text / Hex)
             string query = TxtSearchQuery.Text.Trim();
             if (!string.IsNullOrEmpty(query))
             {
                 filtered = filtered.Where(l =>
                     l.raw_message.Contains(query, StringComparison.OrdinalIgnoreCase) ||
+                    l.raw_hex.Contains(query, StringComparison.OrdinalIgnoreCase) ||
                     l.description.Contains(query, StringComparison.OrdinalIgnoreCase) ||
                     l.instrument_code.Contains(query, StringComparison.OrdinalIgnoreCase));
             }
@@ -515,21 +579,48 @@ namespace Lis.Middleware
             item ??= GridMiddlewareLogs.SelectedItem as LogDisplayItem;
             if (item == null) return;
 
-            if (_isHexView)
+            switch (_inspectorHexMode)
             {
-                TxtLogDetailMessage.Text = ToHexDump(item.raw_message);
-            }
-            else
-            {
-                TxtLogDetailMessage.Text = item.raw_message;
+                case 1: // Formatted Dump
+                    TxtLogDetailMessage.Text = HexUtils.ToFormattedHexDump(item.raw_message);
+                    TxtLogDetailMessage.Foreground = new SolidColorBrush((Color)ColorConverter.ConvertFromString("#38BDF8"));
+                    break;
+                case 2: // Raw Hex Bytes
+                    TxtLogDetailMessage.Text = item.raw_hex;
+                    TxtLogDetailMessage.Foreground = new SolidColorBrush((Color)ColorConverter.ConvertFromString("#F59E0B"));
+                    break;
+                default: // ASCII Text
+                    TxtLogDetailMessage.Text = item.raw_message;
+                    TxtLogDetailMessage.Foreground = new SolidColorBrush((Color)ColorConverter.ConvertFromString("#34D399"));
+                    break;
             }
         }
 
         private void BtnToggleHex_Click(object sender, RoutedEventArgs e)
         {
-            _isHexView = !_isHexView;
-            BtnToggleHex.Content = _isHexView ? "📝 Text View" : "🔠 Hex View";
+            _inspectorHexMode = (_inspectorHexMode + 1) % 3;
+            switch (_inspectorHexMode)
+            {
+                case 0:
+                    BtnToggleHex.Content = "📜 Formatted Dump";
+                    break;
+                case 1:
+                    BtnToggleHex.Content = "🔢 Raw Hex Bytes";
+                    break;
+                case 2:
+                    BtnToggleHex.Content = "📝 ASCII Text";
+                    break;
+            }
             UpdateSelectedDetailMessage();
+        }
+
+        private void BtnCopySelectedHex_Click(object sender, RoutedEventArgs e)
+        {
+            if (GridMiddlewareLogs.SelectedItem is LogDisplayItem selected && !string.IsNullOrEmpty(selected.raw_hex))
+            {
+                Clipboard.SetText(selected.raw_hex);
+                MessageBox.Show("Raw hex bytes copied to clipboard.", "Hex Copied", MessageBoxButton.OK, MessageBoxImage.Information);
+            }
         }
 
         private void BtnCopyLogs_Click(object sender, RoutedEventArgs e)
@@ -550,7 +641,8 @@ namespace Lis.Middleware
                     {
                         sb.AppendLine($"[{item.timestamp_formatted}] [{item.instrument_code}] [{item.direction}] [{item.type_badge}] [{item.parse_status}]");
                         sb.AppendLine($"Meaning: {item.description}");
-                        sb.AppendLine($"Payload: {item.raw_message}");
+                        sb.AppendLine($"ASCII: {item.raw_message}");
+                        sb.AppendLine($"HEX:   {item.raw_hex}");
                         sb.AppendLine(new string('-', 60));
                     }
 
@@ -595,12 +687,13 @@ namespace Lis.Middleware
 
                     if (isCsv)
                     {
-                        sb.AppendLine("ID,Timestamp,Instrument,Direction,Type,Status,Interpretation,Payload");
+                        sb.AppendLine("ID,Timestamp,Instrument,Direction,Type,Status,Interpretation,Payload_ASCII,Payload_HEX");
                         foreach (var item in items)
                         {
                             string safePayload = item.raw_message?.Replace("\"", "\"\"") ?? "";
+                            string safeHex = item.raw_hex?.Replace("\"", "\"\"") ?? "";
                             string safeDesc = item.description?.Replace("\"", "\"\"") ?? "";
-                            sb.AppendLine($"{item.id},\"{item.timestamp_formatted}\",\"{item.instrument_code}\",\"{item.direction}\",\"{item.type_badge}\",\"{item.parse_status}\",\"{safeDesc}\",\"{safePayload}\"");
+                            sb.AppendLine($"{item.id},\"{item.timestamp_formatted}\",\"{item.instrument_code}\",\"{item.direction}\",\"{item.type_badge}\",\"{item.parse_status}\",\"{safeDesc}\",\"{safePayload}\",\"{safeHex}\"");
                         }
                     }
                     else
@@ -609,7 +702,8 @@ namespace Lis.Middleware
                         {
                             sb.AppendLine($"[{item.timestamp_formatted}] [{item.instrument_code}] [{item.direction}] [{item.type_badge}] [{item.parse_status}]");
                             sb.AppendLine($"Interpretation: {item.description}");
-                            sb.AppendLine($"Payload: {item.raw_message}");
+                            sb.AppendLine($"ASCII: {item.raw_message}");
+                            sb.AppendLine($"HEX:   {item.raw_hex}");
                             sb.AppendLine(new string('-', 70));
                         }
                     }
@@ -754,16 +848,29 @@ namespace Lis.Middleware
 
         public Brush StatusBgBrush => Brushes.Transparent;
 
-        public Brush StatusFgBrush => parse_status == "OK"
-            ? new SolidColorBrush((Color)ColorConverter.ConvertFromString("#34D399"))
-            : new SolidColorBrush((Color)ColorConverter.ConvertFromString("#EF4444"));
+        public Brush StatusFgBrush => parse_status switch
+        {
+            "OK" => new SolidColorBrush((Color)ColorConverter.ConvertFromString("#34D399")),
+            "CAPTURED" => new SolidColorBrush((Color)ColorConverter.ConvertFromString("#F59E0B")),
+            _ => new SolidColorBrush((Color)ColorConverter.ConvertFromString("#EF4444"))
+        };
 
         public Brush TypeBadgeBgBrush { get; set; } = Brushes.Transparent;
         public Brush TypeBadgeFgBrush { get; set; } = Brushes.White;
 
-        public static LogDisplayItem Create(long id, DateTime? time, string code, string dir, string status, string raw)
+        public string raw_hex { get; set; } = "";
+        public bool IsHexMode { get; set; } = false;
+
+        public string display_payload => IsHexMode ? raw_hex : raw_message;
+
+        public Brush PayloadFgBrush => IsHexMode
+            ? new SolidColorBrush((Color)ColorConverter.ConvertFromString("#38BDF8"))
+            : new SolidColorBrush((Color)ColorConverter.ConvertFromString("#34D399"));
+
+        public static LogDisplayItem Create(long id, DateTime? time, string code, string dir, string status, string raw, string? hex = null, bool isHexMode = false)
         {
             var localTime = time.HasValue ? (time.Value.Kind == DateTimeKind.Utc ? time.Value.ToLocalTime() : time.Value) : (DateTime?)null;
+            var hexVal = !string.IsNullOrWhiteSpace(hex) ? hex : HexUtils.ToHexRepresentation(raw);
             var item = new LogDisplayItem
             {
                 id = id,
@@ -771,7 +878,9 @@ namespace Lis.Middleware
                 instrument_code = code,
                 direction = dir,
                 parse_status = status,
-                raw_message = raw
+                raw_message = raw,
+                raw_hex = hexVal,
+                IsHexMode = isHexMode
             };
 
             var (type, desc, bg, fg) = DecodeFrame(raw, dir);

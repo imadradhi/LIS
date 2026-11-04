@@ -9,6 +9,7 @@ namespace Lis.Core.Drivers
         string InstrumentCode { get; }
         bool IsConnected { get; }
         DateTime? LastActivity { get; }
+        bool CaptureMode { get; set; }
         event EventHandler<string>? StatusChanged;
         Task StartAsync(CancellationToken cancellationToken = default);
         Task StopAsync();

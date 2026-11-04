@@ -1,5 +1,6 @@
 using System;
 using System.IO;
+using Dapper;
 using Lis.Core.Data;
 using Microsoft.Extensions.Configuration;
 
@@ -21,6 +22,13 @@ namespace Lis.Tests
                 ?? "Host=localhost;Port=5432;Database=lis_db;Username=postgres;Password=@Hig5udMz;";
 
             ConnectionFactory = new DbConnectionFactory(connStr);
+
+            try
+            {
+                using var conn = ConnectionFactory.CreateConnection();
+                conn.Execute("ALTER TABLE middleware_log ADD COLUMN IF NOT EXISTS raw_hex TEXT;");
+            }
+            catch { }
 
             // Locate catalog directory
             var current = Directory.GetCurrentDirectory();

@@ -20,6 +20,21 @@ namespace Lis.Core.Services
         public bool IsRunning => _cts != null && !_cts.IsCancellationRequested;
         public int ActiveDriversCount => _drivers.Count;
 
+        private bool _captureMode = false;
+        public bool CaptureMode
+        {
+            get => _captureMode;
+            set
+            {
+                _captureMode = value;
+                foreach (var driver in _drivers)
+                {
+                    driver.CaptureMode = value;
+                }
+                CaptureModeChanged?.Invoke(this, value);
+            }
+        }
+
         public DateTime? GetLastActivity(string instrumentCode)
         {
             var driver = _drivers.Find(d => string.Equals(d.InstrumentCode, instrumentCode, StringComparison.OrdinalIgnoreCase));
@@ -27,6 +42,7 @@ namespace Lis.Core.Services
         }
 
         public event EventHandler<bool>? StateChanged;
+        public event EventHandler<bool>? CaptureModeChanged;
         public event EventHandler<(string instCode, string status)>? InstrumentStatusChanged;
 
         public MiddlewareEngine(IDbConnectionFactory connectionFactory)
@@ -59,7 +75,10 @@ namespace Lis.Core.Services
                     try
                     {
                         var transport = TransportFactory.CreateTransport(inst);
-                        var driver = new AstmInstrumentDriver(inst, transport, _connectionFactory, _refRangeService);
+                        var driver = new AstmInstrumentDriver(inst, transport, _connectionFactory, _refRangeService)
+                        {
+                            CaptureMode = _captureMode
+                        };
 
                         driver.StatusChanged += (s, status) =>
                         {
