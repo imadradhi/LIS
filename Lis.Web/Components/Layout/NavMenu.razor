@@ -1,145 +1,69 @@
 @inject UserPreferencesService Prefs
+@inject AuthSessionService AuthSession
+@inject IJSRuntime JS
 @implements IDisposable
 
-<div class="px-3 py-3 border-bottom border-dark border-opacity-25 d-flex align-items-center justify-content-between nav-brand-container">
-    <div class="d-flex align-items-center gap-2">
-        <div style="width: 38px; height: 38px; min-width: 38px; background: linear-gradient(135deg, #2563EB 0%, #7C3AED 100%); border-radius: 10px; display: flex; align-items: center; justify-content: center; font-size: 19px; color: #FFFFFF; font-weight: bold; box-shadow: 0 4px 10px rgba(37,99,235,0.3);">
-            <i class="fas fa-microscope"></i>
-        </div>
-        <div class="nav-brand-text">
-            <div class="d-flex align-items-center gap-1">
-                <span class="mdb-logo-text" style="font-size: 19px;">LIS</span>
-                <span class="badge bg-primary bg-opacity-10 text-primary small fw-bold px-1" style="font-size: 10px;">PRO</span>
-            </div>
-            <small class="text-muted d-block" style="font-size: 10.5px; white-space: nowrap; line-height: 1;">@Prefs.T("نظام إدارة المختبرات الطبية", "Medical Laboratory System")</small>
-        </div>
+<div class="nav-medlab-container">
+    <!-- Brand Logo -->
+    <a href="" class="nav-medlab-brand" title="MedLab LIS">
+        <i class="fas fa-flask"></i>
+        <span>MedLab</span>
+    </a>
+
+    <!-- Nav Items -->
+    <div class="nav-medlab-list">
+        <NavLink class="nav-medlab-item" href="" Match="NavLinkMatch.All" title="@Prefs.T("لوحة المؤشرات", "Dashboard")">
+            <i class="fas fa-chart-line"></i>
+            <span>@Prefs.T("الرئيسية", "Dashboard")</span>
+        </NavLink>
+
+        <NavLink class="nav-medlab-item" href="orders" Match="NavLinkMatch.Prefix" title="@Prefs.T("المرضى والطلبات", "Patients")">
+            <i class="fas fa-user-friends"></i>
+            <span>@Prefs.T("المرضى", "Patients")</span>
+        </NavLink>
+
+        <NavLink class="nav-medlab-item" href="worklist" Match="NavLinkMatch.Prefix" title="@Prefs.T("العينات", "Samples")">
+            <i class="fas fa-tint"></i>
+            <span>@Prefs.T("العينات", "Samples")</span>
+        </NavLink>
+
+        <NavLink class="nav-medlab-item" href="catalog" Match="NavLinkMatch.Prefix" title="@Prefs.T("التحاليل", "Tests")">
+            <i class="fas fa-vial"></i>
+            <span>@Prefs.T("التحاليل", "Tests")</span>
+        </NavLink>
+
+        <NavLink class="nav-medlab-item" href="results" Match="NavLinkMatch.Prefix" title="@Prefs.T("النتائج والاعتماد", "Results")">
+            <i class="fas fa-check-circle"></i>
+            <span>@Prefs.T("النتائج", "Results")</span>
+        </NavLink>
+
+        <NavLink class="nav-medlab-item" href="instruments" Match="NavLinkMatch.Prefix" title="@Prefs.T("الأجهزة", "Instruments")">
+            <i class="fas fa-desktop"></i>
+            <span>@Prefs.T("الأجهزة", "Instruments")</span>
+        </NavLink>
+
+        <NavLink class="nav-medlab-item" href="billing" Match="NavLinkMatch.Prefix" title="@Prefs.T("التقارير والمالية", "Reports")">
+            <i class="fas fa-chart-bar"></i>
+            <span>@Prefs.T("التقارير", "Reports")</span>
+        </NavLink>
+
+        <NavLink class="nav-medlab-item" href="qc" Match="NavLinkMatch.Prefix" title="@Prefs.T("ضبط الجودة", "QC")">
+            <i class="fas fa-chart-area"></i>
+            <span>@Prefs.T("الجودة", "QC")</span>
+        </NavLink>
+
+        <NavLink class="nav-medlab-item" href="settings" Match="NavLinkMatch.Prefix" title="@Prefs.T("الإعدادات", "Settings")">
+            <i class="fas fa-cog"></i>
+            <span>@Prefs.T("الإعدادات", "Settings")</span>
+        </NavLink>
+
+        <button type="button" class="nav-medlab-item text-danger border-0 bg-transparent w-100 text-start mt-2" 
+                @onclick="HandleLogout" title="@Prefs.T("تسجيل الخروج من النظام", "Sign Out")" style="cursor: pointer;">
+            <i class="fas fa-arrow-right-from-bracket"></i>
+            <span>@Prefs.T("خروج", "Sign Out")</span>
+        </button>
     </div>
 </div>
-
-<!-- Sidenav Quick Search -->
-<div class="px-3 pt-3 pb-1 lis-sidenav-search">
-    <div class="input-group input-group-sm">
-        <span class="input-group-text bg-transparent border-0 text-muted ps-2 pe-1">
-            <i class="fas fa-search" style="font-size: 12px;"></i>
-        </span>
-        <input type="text" class="form-control rounded-pill border-0 shadow-none ps-1 text-muted" 
-               placeholder="@Prefs.T("بحث سريع...", "Quick search...")" style="font-size: 12px; height: 32px;" />
-    </div>
-</div>
-
-<div class="py-2 px-2 nav-items-container" style="overflow-y: auto;">
-    <nav class="nav flex-column gap-1">
-        <!-- CATEGORY: OVERVIEW -->
-        <span class="nav-category-header">@Prefs.T("نظرة عامة (OVERVIEW)", "OVERVIEW")</span>
-
-        <NavLink class="nav-link-lis" href="" Match="NavLinkMatch.All" title="@Prefs.T("لوحة المؤشرات العامة", "General Dashboard")" data-mdb-ripple-init>
-            <i class="fas fa-chart-pie lis-nav-icon"></i>
-            <span class="lis-nav-text">@Prefs.T("لوحة المؤشرات العامة", "General Dashboard")</span>
-        </NavLink>
-
-        <!-- CATEGORY: WORKFLOW -->
-        <span class="nav-category-header mt-2">@Prefs.T("دورة العمل (WORKFLOW)", "WORKFLOW")</span>
-
-        <NavLink class="nav-link-lis" href="orders" title="@Prefs.T("تسجيل الطلبات والمرضى", "Orders & Patients")" data-mdb-ripple-init>
-            <i class="fas fa-clipboard-list lis-nav-icon"></i>
-            <span class="lis-nav-text">@Prefs.T("تسجيل الطلبات والمرضى", "Orders & Patients")</span>
-        </NavLink>
-
-        <NavLink class="nav-link-lis" href="worklist" title="@Prefs.T("قائمة العمل والأنابيب", "Worklist & Tubes")" data-mdb-ripple-init>
-            <i class="fas fa-vial lis-nav-icon"></i>
-            <span class="lis-nav-text">@Prefs.T("قائمة العمل والأنابيب", "Worklist & Tubes")</span>
-        </NavLink>
-
-        <NavLink class="nav-link-lis" href="results" title="@Prefs.T("إدخال واعتماد النتائج", "Results & Validation")" data-mdb-ripple-init>
-            <i class="fas fa-file-medical-alt lis-nav-icon"></i>
-            <span class="lis-nav-text">@Prefs.T("إدخال واعتماد النتائج", "Results & Validation")</span>
-        </NavLink>
-
-        <!-- CATEGORY: LABORATORY -->
-        <span class="nav-category-header mt-2">@Prefs.T("إدارة المختبر (LABORATORY)", "LABORATORY")</span>
-
-        <NavLink class="nav-link-lis" href="catalog" title="@Prefs.T("دليل الفحوصات والأسعار", "Test Catalog & Pricing")" data-mdb-ripple-init>
-            <i class="fas fa-book-medical lis-nav-icon"></i>
-            <span class="lis-nav-text">@Prefs.T("دليل الفحوصات والأسعار", "Test Catalog & Pricing")</span>
-        </NavLink>
-
-        <NavLink class="nav-link-lis" href="billing" title="@Prefs.T("المالية والحسابات", "Billing & Invoices")" data-mdb-ripple-init>
-            <i class="fas fa-cash-register lis-nav-icon"></i>
-            <span class="lis-nav-text">@Prefs.T("المالية والحسابات", "Billing & Invoices")</span>
-        </NavLink>
-
-        <NavLink class="nav-link-lis" href="qc" title="@Prefs.T("ضبط الجودة (QC)", "Quality Control (QC)")" data-mdb-ripple-init>
-            <i class="fas fa-shield-halved lis-nav-icon"></i>
-            <span class="lis-nav-text">@Prefs.T("ضبط الجودة (QC)", "Quality Control (QC)")</span>
-        </NavLink>
-
-        <!-- CATEGORY: SYSTEM -->
-        <span class="nav-category-header mt-2">@Prefs.T("النظام والربط (SYSTEM)", "SYSTEM & MIDDLEWARE")</span>
-
-        <NavLink class="nav-link-lis" href="instruments" title="@Prefs.T("أجهزة التحليل (Middleware)", "Instruments (Middleware)")" data-mdb-ripple-init>
-            <i class="fas fa-network-wired lis-nav-icon"></i>
-            <span class="lis-nav-text">@Prefs.T("أجهزة التحليل (Middleware)", "Instruments (Middleware)")</span>
-        </NavLink>
-
-        <NavLink class="nav-link-lis" href="settings" title="@Prefs.T("إعدادات النظام والتقارير", "Settings & Reports")" data-mdb-ripple-init>
-            <i class="fas fa-sliders-h lis-nav-icon"></i>
-            <span class="lis-nav-text">@Prefs.T("إعدادات النظام والتقارير", "Settings & Reports")</span>
-        </NavLink>
-    </nav>
-</div>
-
-<style>
-    .nav-link-lis {
-        display: flex;
-        align-items: center;
-        gap: 12px;
-        padding: 9px 14px;
-        color: var(--text-secondary);
-        text-decoration: none;
-        border-radius: 8px;
-        font-weight: 600;
-        font-size: 13px;
-        transition: all 0.2s ease;
-        white-space: nowrap;
-    }
-    .nav-link-lis:hover {
-        background: var(--bg-card-hover);
-        color: var(--text-primary);
-    }
-    .nav-link-lis.active {
-        background: var(--accent);
-        color: #FFFFFF !important;
-        font-weight: 700;
-        box-shadow: 0 4px 12px rgba(37, 99, 235, 0.25);
-    }
-    .lis-nav-icon {
-        font-size: 15px;
-        min-width: 22px;
-        text-align: center;
-    }
-    .sidebar-collapsed .nav-brand-text,
-    .sidebar-collapsed .lis-nav-text,
-    .sidebar-collapsed .nav-category-header,
-    .sidebar-collapsed .lis-sidenav-search {
-        display: none !important;
-    }
-    .sidebar-collapsed .nav-brand-container {
-        justify-content: center;
-        padding-left: 0;
-        padding-right: 0;
-    }
-    .sidebar-collapsed .nav-link-lis {
-        justify-content: center;
-        padding: 10px 0;
-    }
-    .sidebar-collapsed .lis-sidebar {
-        width: 68px !important;
-        min-width: 68px !important;
-    }
-    .sidebar-collapsed .lis-main-content {
-        margin-left: 68px !important;
-    }
-</style>
 
 @code {
     protected override void OnInitialized()
@@ -150,6 +74,15 @@
     private void OnPrefsChanged()
     {
         InvokeAsync(StateHasChanged);
+    }
+
+    private async Task HandleLogout()
+    {
+        bool confirmed = await JS.InvokeAsync<bool>("lisConfirm", Prefs.T("هل أنت متأكد من رغبتك في تسجيل الخروج من النظام السريري؟", "Are you sure you want to sign out from the clinical system?"));
+        if (confirmed)
+        {
+            await AuthSession.LogoutAsync();
+        }
     }
 
     public void Dispose()

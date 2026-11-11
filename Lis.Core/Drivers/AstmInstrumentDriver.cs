@@ -22,10 +22,14 @@ namespace Lis.Core.Drivers
         private readonly ITransport _transport;
         private readonly IDbConnectionFactory _connectionFactory;
         private readonly IReferenceRangeService _referenceRangeService;
+        private string _lastHeaderPassword = "DPC";
 
         private readonly StringBuilder _inboundBuffer = new StringBuilder();
         private readonly List<string> _inboundFrames = new List<string>();
         private bool _inTransaction = false;
+
+        private TaskCompletionSource<byte>? _ackAwaiter;
+        private readonly object _ackLock = new object();
 
         public bool InTransaction => _inTransaction;
         public string InstrumentCode => _instrument.Code;
@@ -55,6 +59,17 @@ namespace Lis.Core.Drivers
 
         public async Task StartAsync(CancellationToken cancellationToken = default)
         {
+            // Pre-warm database connection pool so first query doesn't experience cold-start latency
+            _ = Task.Run(async () =>
+            {
+                try
+                {
+                    using var conn = _connectionFactory.CreateConnection();
+                    await conn.ExecuteScalarAsync("SELECT 1;");
+                }
+                catch { }
+            });
+
             await _transport.StartAsync(cancellationToken);
         }
 
@@ -69,6 +84,15 @@ namespace Lis.Core.Drivers
             for (int i = 0; i < bytes.Length; i++)
             {
                 byte b = bytes[i];
+
+                lock (_ackLock)
+                {
+                    if (_ackAwaiter != null && (b == AstmConstants.ACK || b == AstmConstants.NAK || b == AstmConstants.EOT || b == AstmConstants.ENQ))
+                    {
+                        _ackAwaiter.TrySetResult(b);
+                        if (b != AstmConstants.ENQ) continue;
+                    }
+                }
 
                 if (b == AstmConstants.ENQ)
                 {
@@ -260,7 +284,11 @@ namespace Lis.Core.Drivers
             }
             else if (recordType.StartsWith("I", StringComparison.OrdinalIgnoreCase))
             {
-                await LogMiddlewareMessageAsync(readable, "IN", "OK");
+                // Background log to eliminate query turnaround latency
+                _ = Task.Run(async () =>
+                {
+                    try { await LogMiddlewareMessageAsync(readable, "IN", "OK"); } catch { }
+                });
 
                 string accessionNo = fields.Length > 1 ? fields[1].Trim() : string.Empty;
                 if (!string.IsNullOrWhiteSpace(accessionNo))
@@ -268,51 +296,56 @@ namespace Lis.Core.Drivers
                     try
                     {
                         using var conn = _connectionFactory.CreateConnection();
-                        var specimen = await conn.QueryFirstOrDefaultAsync<dynamic>(@"
-                            SELECT s.id AS specimen_id, s.order_id, p.full_name_ar, p.mrn
+
+                        // Single unified high-performance query for specimen, MRN & mapped test codes
+                        const string lookupQuerySql = @"
+                            SELECT s.id AS specimen_id, s.order_id, p.full_name_ar, p.mrn,
+                                   it.instrument_test_code
                             FROM specimens s
                             JOIN orders o ON o.id = s.order_id
                             JOIN patients p ON p.id = o.patient_id
+                            LEFT JOIN order_tests ot ON ot.specimen_id = s.id
+                            LEFT JOIN instrument_tests it ON it.test_id = ot.test_id AND it.instrument_id = @InstrumentId
                             WHERE (
                                 s.accession_no = @AccessionNo
                                 OR s.accession_no = LPAD(@AccessionNo, 6, '0')
                                 OR LPAD(s.accession_no, 6, '0') = LPAD(@AccessionNo, 6, '0')
                                 OR TRIM(LEADING '0' FROM s.accession_no) = TRIM(LEADING '0' FROM @AccessionNo)
                             ) AND s.archived = FALSE
-                            ORDER BY s.id DESC
-                            LIMIT 1;
-                        ", new { AccessionNo = accessionNo });
+                            ORDER BY s.id DESC;
+                        ";
 
-                        if (specimen != null)
+                        var rows = (await conn.QueryAsync<dynamic>(lookupQuerySql, new
                         {
-                            var testCodes = (await conn.QueryAsync<string>(@"
-                                SELECT DISTINCT it.instrument_test_code
-                                FROM order_tests ot
-                                JOIN instrument_tests it ON it.test_id = ot.test_id
-                                WHERE ot.specimen_id = @SpecimenId 
-                                  AND it.instrument_id = @InstrumentId;
-                            ", new
-                            {
-                                SpecimenId = (long)specimen.specimen_id,
-                                InstrumentId = _instrument.Id
-                            })).ToList();
+                            AccessionNo = accessionNo,
+                            InstrumentId = _instrument.Id
+                        })).ToList();
+
+                        if (rows.Count > 0)
+                        {
+                            var firstRow = rows[0];
+                            var testCodes = rows
+                                .Where(r => r.instrument_test_code != null)
+                                .Select(r => (string)r.instrument_test_code)
+                                .Distinct()
+                                .ToList();
 
                             if (testCodes.Count > 0)
                             {
                                 // Download Work Order via Sample Request Message (D)
-                                string safePatientId = specimen.mrn != null ? specimen.mrn.ToString() : accessionNo;
+                                string safePatientId = firstRow.mrn != null ? firstRow.mrn.ToString() : accessionNo;
                                 byte[] downloadPacket = DimensionProtocol.BuildSampleRequest(
                                     accessionNo,
                                     safePatientId,
                                     testCodes);
 
-                                await Task.Delay(50);
+                                await Task.Delay(20);
                                 await _transport.SendAsync(downloadPacket);
                                 await LogMiddlewareMessageAsync(DimensionProtocol.ToReadableString(Encoding.ASCII.GetString(downloadPacket)), "OUT", "OK");
 
                                 await conn.ExecuteAsync(
                                     "UPDATE specimens SET status = 'InProgress', updated_at = clock_timestamp() WHERE id = @Id AND status IN ('Ordered','Collected');",
-                                    new { Id = (long)specimen.specimen_id });
+                                    new { Id = (long)firstRow.specimen_id });
 
                                 return;
                             }
@@ -324,8 +357,8 @@ namespace Lis.Core.Drivers
                     }
                 }
 
-                // If no tests found or unknown barcode, send No-Request
-                await Task.Delay(50);
+                // If no tests found or unknown barcode, send No-Request immediately
+                await Task.Delay(20);
                 await _transport.SendAsync(DimensionProtocol.BuildNoRequest());
                 await LogMiddlewareMessageAsync("<STX>N<FS>6A<ETX>", "OUT", "OK");
             }
@@ -355,6 +388,11 @@ namespace Lis.Core.Drivers
             }
 
             var parsed = AstmMessageParser.ParseMessage(rawMessage);
+            if (parsed.Header != null && !string.IsNullOrWhiteSpace(parsed.Header.AccessPassword))
+            {
+                _lastHeaderPassword = parsed.Header.AccessPassword;
+            }
+
             if (parsed.IsQuery && string.Equals(_instrument.OperatingMode, "Bidirectional", StringComparison.OrdinalIgnoreCase))
             {
                 await HandleHostQueryAsync(parsed.Query!);
@@ -367,10 +405,13 @@ namespace Lis.Core.Drivers
 
         private async Task HandleCompleteMessageAsync(string rawMessage)
         {
-            // 1. Log inbound raw message
-            await LogMiddlewareMessageAsync(rawMessage, "IN", "OK");
+            // 1. Log inbound raw message in background so urgent ASTM query turnarounds are never delayed
+            _ = Task.Run(async () =>
+            {
+                try { await LogMiddlewareMessageAsync(rawMessage, "IN", "OK"); } catch { }
+            });
 
-            // 2. Parse and handle ASTM message
+            // 2. Parse and handle ASTM message immediately
             await ProcessInboundMessageAsync(rawMessage, logMessage: false);
         }
 
@@ -381,48 +422,46 @@ namespace Lis.Core.Drivers
 
             using var conn = _connectionFactory.CreateConnection();
 
-            // Find active non-archived specimen matching accession (supports flexible accession / padding)
-            const string lookupSpecimenSql = @"
+            // Single unified high-performance query for specimen, patient & mapped test codes
+            const string lookupQuerySql = @"
                 SELECT s.id AS specimen_id, s.order_id, s.status AS specimen_status,
                        st.name_en AS specimen_type_name,
-                       p.mrn, p.full_name_ar, p.sex, p.date_of_birth
+                       p.mrn, p.full_name_ar, p.sex, p.date_of_birth,
+                       it.instrument_test_code
                 FROM specimens s
                 JOIN orders o ON o.id = s.order_id
                 JOIN patients p ON p.id = o.patient_id
                 JOIN specimen_types st ON st.id = s.specimen_type_id
+                LEFT JOIN order_tests ot ON ot.specimen_id = s.id
+                LEFT JOIN instrument_tests it ON it.test_id = ot.test_id AND it.instrument_id = @InstrumentId
                 WHERE (
                     s.accession_no = @AccessionNo
                     OR s.accession_no = LPAD(@AccessionNo, 6, '0')
                     OR LPAD(s.accession_no, 6, '0') = LPAD(@AccessionNo, 6, '0')
                     OR TRIM(LEADING '0' FROM s.accession_no) = TRIM(LEADING '0' FROM @AccessionNo)
                 ) AND s.archived = FALSE
-                ORDER BY s.id DESC
-                LIMIT 1;
+                ORDER BY s.id DESC;
             ";
 
-            var specimen = await conn.QueryFirstOrDefaultAsync<dynamic>(lookupSpecimenSql, new { AccessionNo = accessionNo });
+            var rows = (await conn.QueryAsync<dynamic>(lookupQuerySql, new
+            {
+                AccessionNo = accessionNo,
+                InstrumentId = _instrument.Id
+            })).ToList();
 
-            if (specimen == null)
+            if (rows.Count == 0)
             {
                 // Unknown barcode query - send empty terminator
                 await SendTerminatorOnlyAsync();
                 return;
             }
 
-            // Find tests for this specimen that are mapped to THIS instrument in instrument_tests
-            const string lookupTestsSql = @"
-                SELECT DISTINCT it.instrument_test_code
-                FROM order_tests ot
-                JOIN instrument_tests it ON it.test_id = ot.test_id
-                WHERE ot.specimen_id = @SpecimenId 
-                  AND it.instrument_id = @InstrumentId;
-            ";
-
-            var testCodes = (await conn.QueryAsync<string>(lookupTestsSql, new
-            {
-                SpecimenId = (long)specimen.specimen_id,
-                InstrumentId = _instrument.Id
-            })).ToList();
+            var firstRow = rows[0];
+            var testCodes = rows
+                .Where(r => r.instrument_test_code != null)
+                .Select(r => (string)r.instrument_test_code)
+                .Distinct()
+                .ToList();
 
             if (testCodes.Count == 0)
             {
@@ -432,21 +471,29 @@ namespace Lis.Core.Drivers
             }
 
             // Build worklist reply frames
-            string safePatientName = (specimen.mrn != null) ? $"Patient_{specimen.mrn}" : "Patient";
+            string safePatientName = (firstRow.mrn != null) ? $"Patient_{firstRow.mrn}" : "Patient";
+            long safeMrn = firstRow.mrn != null ? (long)firstRow.mrn : 1;
             var frames = AstmMessageParser.BuildWorklistFrames(
                 accessionNo,
-                (long)specimen.mrn,
+                safeMrn,
                 safePatientName,
                 testCodes,
-                (string)specimen.specimen_type_name);
+                (string)(firstRow.specimen_type_name ?? "Serum"),
+                string.IsNullOrWhiteSpace(_lastHeaderPassword) ? "DPC" : _lastHeaderPassword,
+                "LIS",
+                "LIS",
+                "N");
 
-            // Update specimen status to InProgress before sending worklist
-            await conn.ExecuteAsync(
-                "UPDATE specimens SET status = 'InProgress', updated_at = clock_timestamp() WHERE id = @Id AND status IN ('Ordered','Collected');",
-                new { Id = (long)specimen.specimen_id });
+            // 1. Send reply via ASTM Handshake (ENQ -> wait ACK -> frames -> wait ACKs -> EOT)
+            bool sent = await SendFramesWithHandshakeAsync(frames);
 
-            // Send reply via ASTM Handshake (ENQ -> wait ACK -> frames -> wait ACKs -> EOT)
-            await SendFramesWithHandshakeAsync(frames);
+            // 2. Update specimen status to InProgress after sending worklist
+            if (sent)
+            {
+                await conn.ExecuteAsync(
+                    "UPDATE specimens SET status = 'InProgress', updated_at = clock_timestamp() WHERE id = @Id AND status IN ('Ordered','Collected');",
+                    new { Id = (long)firstRow.specimen_id });
+            }
         }
 
         private async Task HandleResultsAsync(ParsedAstmMessage msg)
@@ -476,6 +523,21 @@ namespace Lis.Core.Drivers
                     ) AND s.archived = FALSE
                     ORDER BY s.id DESC LIMIT 1;
                 ", new { AccessionNo = accessionNo }, trans);
+
+                // Fallback: If not found by exact accession (e.g. user entered rack/pos or secondary barcode on instrument),
+                // match the currently active InProgress specimen
+                if (specimen == null && !isQc)
+                {
+                    specimen = await conn.QueryFirstOrDefaultAsync<dynamic>(@"
+                        SELECT s.id AS specimen_id, s.order_id, o.order_datetime,
+                               p.sex, p.date_of_birth
+                        FROM specimens s
+                        JOIN orders o ON o.id = s.order_id
+                        JOIN patients p ON p.id = o.patient_id
+                        WHERE s.status = 'InProgress' AND s.archived = FALSE
+                        ORDER BY s.id DESC LIMIT 1;
+                    ", null, trans);
+                }
 
                 if (isQc || specimen == null)
                 {
@@ -635,37 +697,133 @@ namespace Lis.Core.Drivers
             }
         }
 
-        private async Task SendFramesWithHandshakeAsync(List<string> frames)
+        private async Task<byte> WaitForAckAsync(int timeoutMs = 3000)
         {
-            // 1. Send ENQ
-            await _transport.SendByteAsync(AstmConstants.ENQ);
-
-            // Wait a brief moment or ACK
-            await Task.Delay(50);
-
-            // 2. Send each frame
-            var fullOutbound = new StringBuilder();
-            foreach (var frame in frames)
+            TaskCompletionSource<byte> tcs;
+            lock (_ackLock)
             {
-                byte[] data = Encoding.ASCII.GetBytes(frame);
-                await _transport.SendAsync(data);
-                fullOutbound.Append(frame);
-                await Task.Delay(50);
+                _ackAwaiter = new TaskCompletionSource<byte>(TaskCreationOptions.RunContinuationsAsynchronously);
+                tcs = _ackAwaiter;
             }
 
-            // 3. Send EOT
-            await _transport.SendByteAsync(AstmConstants.EOT);
+            using var cts = new CancellationTokenSource(timeoutMs);
+            using (cts.Token.Register(() => tcs.TrySetResult(0), useSynchronizationContext: false))
+            {
+                try
+                {
+                    return await tcs.Task;
+                }
+                finally
+                {
+                    lock (_ackLock)
+                    {
+                        if (_ackAwaiter == tcs) _ackAwaiter = null;
+                    }
+                }
+            }
+        }
 
-            // Log outbound message
-            await LogMiddlewareMessageAsync(fullOutbound.ToString(), "OUT", "OK");
+        private async Task<bool> SendFramesWithHandshakeAsync(List<string> frames)
+        {
+            try
+            {
+                // Brief pause (20ms) after instrument session before sending ENQ
+                await Task.Delay(20);
+
+                // 1. Send ENQ to analyzer
+                await _transport.SendByteAsync(AstmConstants.ENQ);
+                await LogMiddlewareMessageAsync("<ENQ>", "OUT", "OK", "05");
+
+                // Wait for ACK from analyzer (up to 3.5 seconds)
+                byte ack = await WaitForAckAsync(3500);
+                if (ack != AstmConstants.ACK)
+                {
+                    if (ack == AstmConstants.ENQ)
+                    {
+                        await LogMiddlewareMessageAsync("Contention detected (analyzer sent ENQ). Host yielded.", "IN", "OK");
+                    }
+                    else
+                    {
+                        await LogMiddlewareMessageAsync(
+                            ack == 0 ? "Timeout waiting for ACK after ENQ" : $"Received 0x{ack:X2} instead of ACK after ENQ",
+                            "IN",
+                            "ERROR");
+                    }
+                    await _transport.SendByteAsync(AstmConstants.EOT);
+                    return false;
+                }
+
+                await LogMiddlewareMessageAsync("<ACK>", "IN", "OK", "06");
+
+                // 2. Transmit each frame with lock-step ACK validation
+                var fullOutbound = new StringBuilder();
+                for (int idx = 0; idx < frames.Count; idx++)
+                {
+                    string frame = frames[idx];
+                    byte[] data = Encoding.ASCII.GetBytes(frame);
+                    bool frameAcked = false;
+
+                    for (int attempt = 0; attempt < 3 && !frameAcked; attempt++)
+                    {
+                        await _transport.SendAsync(data);
+                        await LogMiddlewareMessageAsync(frame.Trim(), "OUT", "OK");
+
+                        byte frameAck = await WaitForAckAsync(3500);
+                        if (frameAck == AstmConstants.ACK)
+                        {
+                            await LogMiddlewareMessageAsync("<ACK>", "IN", "OK", "06");
+                            frameAcked = true;
+                            fullOutbound.Append(frame);
+                        }
+                        else if (frameAck == AstmConstants.NAK)
+                        {
+                            await LogMiddlewareMessageAsync("<NAK>", "IN", "RETRY", "15");
+                            await Task.Delay(150);
+                        }
+                        else
+                        {
+                            await LogMiddlewareMessageAsync(
+                                frameAck == 0 ? $"Timeout waiting for ACK on Frame {idx + 1}" : $"Unexpected byte 0x{frameAck:X2} on Frame {idx + 1}",
+                                "IN",
+                                "ERROR");
+                            break;
+                        }
+                    }
+
+                    if (!frameAcked)
+                    {
+                        await _transport.SendByteAsync(AstmConstants.EOT);
+                        await LogMiddlewareMessageAsync("<EOT>", "OUT", "ABORTED", "04");
+                        return false;
+                    }
+                }
+
+                // 3. Send EOT to terminate session normally
+                await _transport.SendByteAsync(AstmConstants.EOT);
+                await LogMiddlewareMessageAsync("<EOT>", "OUT", "OK", "04");
+                return true;
+            }
+            catch (Exception ex)
+            {
+                await LogMiddlewareMessageAsync($"SendFramesWithHandshake exception: {ex.Message}", "SYS", "ERROR");
+                try { await _transport.SendByteAsync(AstmConstants.EOT); } catch { }
+                return false;
+            }
         }
 
         private async Task SendTerminatorOnlyAsync()
         {
+            var header = new AstmHeaderRecord
+            {
+                SenderId = "LIS",
+                ReceiverId = "LIS",
+                AccessPassword = string.IsNullOrWhiteSpace(_lastHeaderPassword) ? "DPC" : _lastHeaderPassword,
+                Timestamp = DateTime.Now
+            };
             var frames = new List<string>
             {
-                AstmFraming.BuildFrame(1, new AstmHeaderRecord().ToAstmString()),
-                AstmFraming.BuildFrame(2, new AstmTerminatorRecord { TerminationCode = "N" }.ToAstmString())
+                AstmFraming.BuildFrame(1, header.ToAstmString()),
+                AstmFraming.BuildFrame(2, new AstmTerminatorRecord { SequenceNumber = 1, TerminationCode = "N" }.ToAstmString())
             };
             await SendFramesWithHandshakeAsync(frames);
         }

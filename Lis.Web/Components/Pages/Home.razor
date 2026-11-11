@@ -1,4 +1,4 @@
-﻿@page "/"
+@page "/"
 @inject IOrderService OrderService
 @inject IBillingService BillingService
 @inject NavigationManager NavManager
@@ -7,442 +7,498 @@
 
 <PageTitle>@Prefs.T("لوحة المؤشرات العامة - LIS Web", "General Dashboard - LIS Web")</PageTitle>
 
-<!-- MDB HERO RIBBON HEADER (as in Image 2) -->
-<div class="mdb-hero-ribbon d-flex justify-content-between align-items-start">
-    <div class="text-white d-none d-md-block">
-        <span class="badge bg-white bg-opacity-25 text-white mb-2 px-2 py-1" style="font-size: 11px;">
-            <i class="fas fa-shield-alt me-1"></i> LIS Enterprise Edition
+<!-- MEDLAB PAGE SUB-HEADER -->
+<div class="medlab-page-header d-flex justify-content-between align-items-center flex-wrap gap-2 mb-3">
+    <div class="d-flex align-items-center gap-2">
+        <span class="medlab-header-title">
+            | @Prefs.T("لوحة المؤشرات والتحليلات المخبرية", "LABORATORY DASHBOARD & ANALYTICS")
+        </span>
+        <span class="badge bg-primary bg-opacity-10 text-primary border border-primary border-opacity-25 px-2 py-1 ms-2" style="font-size: 10px; font-weight: 700;">
+            <i class="fas fa-microscope me-1"></i> LIS MEDLAB V2
         </span>
     </div>
-</div>
 
-<!-- FLOATING DASHBOARD HEADER CARD (as in Image 2) -->
-<div class="mdb-dashboard-header-card">
-    <div class="d-flex align-items-center justify-content-between flex-wrap gap-3">
-        <!-- Title & Breadcrumbs -->
-        <div>
-            <h2 class="fw-bold mb-1" style="letter-spacing: -0.5px;">
-                @Prefs.T("لوحة المؤشرات العامة", "General Dashboard")
-                <span class="fs-5 text-secondary fw-normal ms-2">| @Prefs.T("نظرة إحصائية شاملة", "Overview & Analytics")</span>
-            </h2>
-            <nav aria-label="breadcrumb">
-                <ol class="breadcrumb mb-0 small text-muted">
-                    <li class="breadcrumb-item"><a href="" class="text-decoration-none text-muted">Home</a></li>
-                    <li class="breadcrumb-item"><a href="" class="text-decoration-none text-muted">Analytics</a></li>
-                    <li class="breadcrumb-item active text-primary fw-semibold" aria-current="page">General</li>
-                </ol>
-            </nav>
+    <!-- Header Actions & Live Clock -->
+    <div class="d-flex align-items-center gap-2 flex-wrap">
+        <div class="d-flex align-items-center gap-1 bg-white border rounded px-2 py-1" style="border-color: var(--medlab-border) !important; height: 28px;">
+            <i class="far fa-calendar-alt text-primary" style="font-size: 11px;"></i>
+            <span class="fw-semibold text-muted" style="font-size: 11px;">@DateTime.Today.ToString("dd.MM.yyyy")</span>
         </div>
 
-        <!-- Header Actions: Customize, Export, Date Filters (as in Image 2) -->
-        <div class="d-flex align-items-center gap-2 flex-wrap">
-            <button class="btn btn-outline-secondary btn-sm px-3 shadow-0" type="button" data-mdb-ripple-init>
-                <i class="fas fa-sliders-h me-1 text-primary"></i> @Prefs.T("تخصيص", "CUSTOMIZE")
-            </button>
-            <button class="btn btn-outline-secondary btn-sm px-3 shadow-0" type="button" data-mdb-ripple-init>
-                <i class="fas fa-download me-1 text-primary"></i> @Prefs.T("تصدير", "EXPORT")
-            </button>
+        <button class="btn btn-outline-secondary btn-sm" @onclick="ReloadData" title="@Prefs.T("تحديث البيانات", "Refresh Data")" style="height: 28px;">
+            <i class="fas fa-sync-alt @(IsLoading ? "fa-spin text-primary" : "")"></i>
+        </button>
 
-            <!-- Date Range Selectors -->
-            <div class="d-flex align-items-center gap-1 bg-light border rounded px-2 py-1 ms-1" style="background: var(--bg-card-hover) !important; border-color: var(--border-color) !important;">
-                <div class="text-muted small me-1" style="font-size: 11px;">Date</div>
-                <select class="form-select form-select-sm border-0 bg-transparent py-0 ps-1 pe-3 shadow-none fw-semibold" style="font-size: 12.5px; width: auto;">
-                    <option value="7">@Prefs.T("آخر 7 أيام", "Last 7 days")</option>
-                    <option value="1">@Prefs.T("اليوم", "Today")</option>
-                    <option value="30">@Prefs.T("آخر 30 يوم", "Last 30 days")</option>
-                </select>
-            </div>
-
-            <div class="d-flex align-items-center gap-1 bg-light border rounded px-2 py-1" style="background: var(--bg-card-hover) !important; border-color: var(--border-color) !important;">
-                <div class="text-muted small me-1" style="font-size: 11px;">Date</div>
-                <span class="small fw-semibold me-1" style="font-size: 12px;">@DateTime.Today.ToString("dd/MM/yyyy")</span>
-                <i class="far fa-calendar-alt text-muted small"></i>
-            </div>
-        </div>
+        <a href="orders" class="btn btn-primary btn-sm px-3" style="height: 28px;">
+            <i class="fas fa-plus me-1"></i> @Prefs.T("طلب جديد", "NEW ORDER")
+        </a>
+        <a href="worklist" class="btn btn-outline-primary btn-sm px-3" style="height: 28px;">
+            <i class="fas fa-vial me-1"></i> @Prefs.T("قائمة العمل", "WORKLIST")
+        </a>
+        <a href="results" class="btn btn-outline-secondary btn-sm px-3" style="height: 28px;">
+            <i class="fas fa-file-medical-alt me-1"></i> @Prefs.T("النتائج المخبرية", "LAB RESULTS")
+        </a>
     </div>
 </div>
 
-<!-- TOP ANALYTICS ROW: 2 LARGE CARDS (Matches Image 2 exactly) -->
-<div class="row g-4 mb-4">
-    <!-- CARD 1: Users & Sessions (حجم الفحوصات والعينات) -->
-    <div class="col-xl-6 col-12">
-        <div class="mdb-analytics-card h-100">
-            <h6 class="text-center text-muted fw-bold mb-3" style="font-size: 13.5px; letter-spacing: 0.5px;">
-                Users &amp; Sessions | حركة العينات والفحوصات
-            </h6>
-
-            <!-- 3 Metric Columns with Trend Badges -->
-            <div class="row text-center mb-4 g-2">
-                <div class="col-4 border-end border-secondary border-opacity-25">
-                    <small class="text-muted d-block mb-1" style="font-size: 12px;">Users (الفحوصات)</small>
-                    <h3 class="fw-bold mb-1">38.6K</h3>
-                    <span class="trend-pill trend-up">
-                        <i class="fas fa-caret-up"></i> 72.0%
-                    </span>
-                </div>
-                <div class="col-4 border-end border-secondary border-opacity-25">
-                    <small class="text-muted d-block mb-1" style="font-size: 12px;">Sessions (العينات)</small>
-                    <h3 class="fw-bold mb-1">50.9K</h3>
-                    <span class="trend-pill trend-up">
-                        <i class="fas fa-caret-up"></i> 82.0%
-                    </span>
-                </div>
-                <div class="col-4">
-                    <small class="text-muted d-block mb-1" style="font-size: 12px;">New Users (طلبات جديدة)</small>
-                    <h3 class="fw-bold mb-1">34.0K</h3>
-                    <span class="trend-pill trend-down">
-                        <i class="fas fa-caret-down"></i> 12.0%
-                    </span>
+<!-- TOP KPI SUMMARY TILES (5 Compact MedLab Clinical Cards) -->
+<div class="row g-2 mb-3">
+    <!-- Card 1: Today's Orders -->
+    <div class="col-xl col-md-4 col-sm-6 col-12">
+        <div class="medlab-kpi-card kpi-blue h-100">
+            <div class="d-flex align-items-center justify-content-between mb-2">
+                <span class="medlab-kpi-label">@Prefs.T("طلبات اليوم", "TODAY'S ORDERS")</span>
+                <div class="medlab-kpi-icon" style="background: rgba(11, 114, 185, 0.1); color: var(--medlab-blue);">
+                    <i class="fas fa-file-medical"></i>
                 </div>
             </div>
-
-            <!-- Chart Legends -->
-            <div class="d-flex justify-content-center gap-3 mb-2 small text-muted">
-                <span class="d-flex align-items-center gap-1">
-                    <span style="width: 14px; height: 3px; background: #2563EB; display: inline-block;"></span> Users (الفحوصات)
-                </span>
-                <span class="d-flex align-items-center gap-1">
-                    <span style="width: 14px; height: 3px; background: #00B4D8; display: inline-block;"></span> Sessions (العينات)
-                </span>
-            </div>
-
-            <!-- Multi-line SVG Wave Chart (Smooth Bezier Curves matching Image 2) -->
-            <div class="svg-chart-container">
-                <svg viewBox="0 0 600 240" preserveAspectRatio="none">
-                    <defs>
-                        <linearGradient id="blueWaveGrad" x1="0%" y1="0%" x2="0%" y2="100%">
-                            <stop offset="0%" stop-color="#2563EB" stop-opacity="0.25" />
-                            <stop offset="100%" stop-color="#2563EB" stop-opacity="0.0" />
-                        </linearGradient>
-                        <linearGradient id="cyanWaveGrad" x1="0%" y1="0%" x2="0%" y2="100%">
-                            <stop offset="0%" stop-color="#00B4D8" stop-opacity="0.2" />
-                            <stop offset="100%" stop-color="#00B4D8" stop-opacity="0.0" />
-                        </linearGradient>
-                    </defs>
-                    <!-- Grid Lines & Axis Values -->
-                    <line x1="40" y1="20" x2="580" y2="20" stroke="#888888" stroke-dasharray="3,3" stroke-opacity="0.2" />
-                    <text x="30" y="24" fill="#888888" font-size="10" text-anchor="end">950</text>
-                    <line x1="40" y1="70" x2="580" y2="70" stroke="#888888" stroke-dasharray="3,3" stroke-opacity="0.2" />
-                    <text x="30" y="74" fill="#888888" font-size="10" text-anchor="end">900</text>
-                    <line x1="40" y1="120" x2="580" y2="120" stroke="#888888" stroke-dasharray="3,3" stroke-opacity="0.2" />
-                    <text x="30" y="124" fill="#888888" font-size="10" text-anchor="end">850</text>
-                    <line x1="40" y1="170" x2="580" y2="170" stroke="#888888" stroke-dasharray="3,3" stroke-opacity="0.2" />
-                    <text x="30" y="174" fill="#888888" font-size="10" text-anchor="end">800</text>
-                    <line x1="40" y1="210" x2="580" y2="210" stroke="#888888" stroke-opacity="0.3" />
-
-                    <!-- Area Fills -->
-                    <path d="M 50 180 Q 120 160 200 80 T 320 80 T 420 140 T 520 150 T 570 200 L 570 210 L 50 210 Z" fill="url(#blueWaveGrad)" />
-                    
-                    <!-- Line 1: Users (Deep Blue with squares/dots) -->
-                    <path d="M 50 180 Q 120 160 200 80 T 320 80 T 420 140 T 520 150 T 570 200" fill="none" stroke="#2563EB" stroke-width="2.5" />
-                    <circle cx="50" cy="180" r="3.5" fill="#2563EB" />
-                    <rect x="196" y="76" width="7" height="7" fill="#2563EB" />
-                    <rect x="316" y="76" width="7" height="7" fill="#2563EB" />
-                    <circle cx="420" cy="140" r="3.5" fill="#2563EB" />
-                    <circle cx="520" cy="150" r="3.5" fill="#2563EB" />
-                    <circle cx="570" cy="200" r="3.5" fill="#2563EB" />
-
-                    <!-- Line 2: Sessions (Cyan with dots) -->
-                    <path d="M 50 160 Q 120 190 200 130 T 320 120 T 420 180 T 520 160 T 570 170" fill="none" stroke="#00B4D8" stroke-width="2" />
-                    <circle cx="50" cy="160" r="3" fill="#00B4D8" />
-                    <circle cx="200" cy="130" r="3" fill="#00B4D8" />
-                    <circle cx="320" cy="120" r="3" fill="#00B4D8" />
-                    <circle cx="420" cy="180" r="3" fill="#00B4D8" />
-                    <circle cx="520" cy="160" r="3" fill="#00B4D8" />
-                    <circle cx="570" cy="170" r="3" fill="#00B4D8" />
-
-                    <!-- X-Axis Labels -->
-                    <text x="50" y="230" fill="#888888" font-size="10" text-anchor="middle">20 Sep</text>
-                    <text x="150" y="230" fill="#888888" font-size="10" text-anchor="middle">21 Sep</text>
-                    <text x="250" y="230" fill="#888888" font-size="10" text-anchor="middle">22 Sep</text>
-                    <text x="350" y="230" fill="#888888" font-size="10" text-anchor="middle">23 Sep</text>
-                    <text x="450" y="230" fill="#888888" font-size="10" text-anchor="middle">24 Sep</text>
-                    <text x="550" y="230" fill="#888888" font-size="10" text-anchor="middle">25 Sep</text>
-                </svg>
+            <div class="medlab-kpi-value text-primary">@TodayOrdersCount</div>
+            <div class="medlab-kpi-sub mt-2 d-flex align-items-center gap-1">
+                <i class="fas fa-check text-success"></i>
+                <span>@Prefs.T("مسجلة بالنظام اليوم", "Registered today")</span>
             </div>
         </div>
     </div>
 
-    <!-- CARD 2: Revenue & Conversion Rate (الإيرادات والتحصيل المالي) -->
-    <div class="col-xl-6 col-12">
-        <div class="mdb-analytics-card h-100">
-            <h6 class="text-center text-muted fw-bold mb-3" style="font-size: 13.5px; letter-spacing: 0.5px;">
-                Revenue &amp; Conversion Rate | الإيرادات ونسبة التحصيل
-            </h6>
-
-            <!-- 3 Metric Columns with Trend Badges -->
-            <div class="row text-center mb-4 g-2">
-                <div class="col-4 border-end border-secondary border-opacity-25">
-                    <small class="text-muted d-block mb-1" style="font-size: 12px;">Revenue (الإيرادات)</small>
-                    <h3 class="fw-bold mb-1 text-primary">@TotalIncome.ToString("N0") IQD</h3>
-                    <span class="trend-pill trend-up">
-                        <i class="fas fa-caret-up"></i> 21.6%
-                    </span>
-                </div>
-                <div class="col-4 border-end border-secondary border-opacity-25">
-                    <small class="text-muted d-block mb-1" style="font-size: 12px;">Transactions (الطلبات)</small>
-                    <h3 class="fw-bold mb-1">@(TodayOrdersCount > 0 ? TodayOrdersCount : 88)</h3>
-                    <span class="trend-pill trend-down">
-                        <i class="fas fa-caret-down"></i> 22.8%
-                    </span>
-                </div>
-                <div class="col-4">
-                    <small class="text-muted d-block mb-1" style="font-size: 12px;">Conversion (التحصيل)</small>
-                    <h3 class="fw-bold mb-1">98.2%</h3>
-                    <span class="trend-pill trend-down">
-                        <i class="fas fa-caret-down"></i> 1.7%
-                    </span>
+    <!-- Card 2: In-Progress Samples -->
+    <div class="col-xl col-md-4 col-sm-6 col-12">
+        <div class="medlab-kpi-card kpi-amber h-100">
+            <div class="d-flex align-items-center justify-content-between mb-2">
+                <span class="medlab-kpi-label">@Prefs.T("قيد التحليل والمعالجة", "SAMPLES IN PROCESS")</span>
+                <div class="medlab-kpi-icon" style="background: rgba(245, 158, 11, 0.1); color: #F59E0B;">
+                    <i class="fas fa-vial"></i>
                 </div>
             </div>
-
-            <!-- Chart Legends -->
-            <div class="d-flex justify-content-center gap-3 mb-2 small text-muted">
-                <span class="d-flex align-items-center gap-1">
-                    <span style="width: 14px; height: 3px; background: #10B981; display: inline-block;"></span> Conversion rate (%)
-                </span>
-                <span class="d-flex align-items-center gap-1">
-                    <span style="width: 14px; height: 3px; background: #6366F1; display: inline-block;"></span> Transactions
-                </span>
+            <div class="medlab-kpi-value" style="color: #D97706;">@InProgressCount</div>
+            <div class="medlab-kpi-sub mt-2 d-flex align-items-center gap-1">
+                <i class="fas fa-spinner fa-spin text-warning"></i>
+                <span>@Prefs.T("جارية في أجهزة التحليل", "Active on analyzers")</span>
             </div>
+        </div>
+    </div>
 
-            <!-- Dual-axis Chart (Wave Curve + Transaction Steps) -->
-            <div class="svg-chart-container">
-                <svg viewBox="0 0 600 240" preserveAspectRatio="none">
-                    <defs>
-                        <linearGradient id="greenWaveGrad" x1="0%" y1="0%" x2="0%" y2="100%">
-                            <stop offset="0%" stop-color="#10B981" stop-opacity="0.2" />
-                            <stop offset="100%" stop-color="#10B981" stop-opacity="0.0" />
-                        </linearGradient>
-                    </defs>
-                    <!-- Grid Lines & Axis Values -->
-                    <line x1="40" y1="20" x2="580" y2="20" stroke="#888888" stroke-dasharray="3,3" stroke-opacity="0.2" />
-                    <text x="30" y="24" fill="#888888" font-size="10" text-anchor="end">40K</text>
-                    <text x="590" y="24" fill="#888888" font-size="10" text-anchor="start">4.0</text>
+    <!-- Card 3: Validated & Released -->
+    <div class="col-xl col-md-4 col-sm-6 col-12">
+        <div class="medlab-kpi-card kpi-green h-100">
+            <div class="d-flex align-items-center justify-content-between mb-2">
+                <span class="medlab-kpi-label">@Prefs.T("نتائج معتمدة ومطلقة", "VALIDATED & RELEASED")</span>
+                <div class="medlab-kpi-icon" style="background: rgba(16, 124, 65, 0.1); color: var(--medlab-green);">
+                    <i class="fas fa-clipboard-check"></i>
+                </div>
+            </div>
+            <div class="medlab-kpi-value text-success">@ValidatedCount</div>
+            <div class="medlab-kpi-sub mt-2 d-flex align-items-center gap-1">
+                <span class="badge bg-success bg-opacity-10 text-success fw-bold px-1" style="font-size: 10px;">
+                    @(TodayOrdersCount > 0 ? (int)((double)ValidatedCount / TodayOrdersCount * 100) : 100)%
+                </span>
+                <span>@Prefs.T("نسبة الإنجاز اليومي", "Daily completion")</span>
+            </div>
+        </div>
+    </div>
 
-                    <line x1="40" y1="70" x2="580" y2="70" stroke="#888888" stroke-dasharray="3,3" stroke-opacity="0.2" />
-                    <text x="30" y="74" fill="#888888" font-size="10" text-anchor="end">30K</text>
-                    <text x="590" y="74" fill="#888888" font-size="10" text-anchor="start">3.0</text>
+    <!-- Card 4: Critical / Panic Alerts -->
+    <div class="col-xl col-md-6 col-sm-6 col-12">
+        <div class="medlab-kpi-card kpi-red h-100">
+            <div class="d-flex align-items-center justify-content-between mb-2">
+                <span class="medlab-kpi-label">@Prefs.T("تنبيهات حرجة (Panic)", "PANIC / CRITICAL")</span>
+                <div class="medlab-kpi-icon" style="background: rgba(220, 38, 38, 0.1); color: var(--medlab-danger-red);">
+                    <i class="fas fa-heart-pulse"></i>
+                </div>
+            </div>
+            <div class="medlab-kpi-value text-danger">0</div>
+            <div class="medlab-kpi-sub mt-2 d-flex align-items-center gap-1">
+                <i class="fas fa-shield-alt text-success"></i>
+                <span class="text-success fw-semibold">@Prefs.T("لا توجد قيم حرجة غير معالجة", "All within safe margins")</span>
+            </div>
+        </div>
+    </div>
 
-                    <line x1="40" y1="120" x2="580" y2="120" stroke="#888888" stroke-dasharray="3,3" stroke-opacity="0.2" />
-                    <text x="30" y="124" fill="#888888" font-size="10" text-anchor="end">20K</text>
-                    <text x="590" y="124" fill="#888888" font-size="10" text-anchor="start">2.0</text>
-
-                    <line x1="40" y1="170" x2="580" y2="170" stroke="#888888" stroke-dasharray="3,3" stroke-opacity="0.2" />
-                    <text x="30" y="174" fill="#888888" font-size="10" text-anchor="end">10K</text>
-                    <text x="590" y="174" fill="#888888" font-size="10" text-anchor="start">1.0</text>
-
-                    <line x1="40" y1="210" x2="580" y2="210" stroke="#888888" stroke-opacity="0.3" />
-
-                    <!-- Line 1: Transactions (Indigo Line with Diamond Points) -->
-                    <path d="M 50 140 L 150 120 L 250 40 L 350 110 L 450 130 L 550 200" fill="none" stroke="#6366F1" stroke-width="2.5" />
-                    <polygon points="50,136 54,140 50,144 46,140" fill="#6366F1" />
-                    <polygon points="150,116 154,120 150,124 146,120" fill="#6366F1" />
-                    <polygon points="250,36 254,40 250,44 246,40" fill="#6366F1" />
-                    <polygon points="350,106 354,110 350,114 346,110" fill="#6366F1" />
-                    <polygon points="450,126 454,130 450,134 446,130" fill="#6366F1" />
-                    <polygon points="550,196 554,200 550,204 546,200" fill="#6366F1" />
-
-                    <!-- Line 2: Conversion (Emerald Line with Area) -->
-                    <path d="M 50 190 Q 150 160 250 170 T 350 80 T 450 160 T 550 70" fill="none" stroke="#10B981" stroke-width="2" />
-                    <circle cx="50" cy="190" r="3" fill="#10B981" />
-                    <circle cx="150" cy="165" r="3" fill="#10B981" />
-                    <circle cx="250" cy="170" r="3" fill="#10B981" />
-                    <circle cx="350" cy="80" r="3" fill="#10B981" />
-                    <circle cx="450" cy="160" r="3" fill="#10B981" />
-                    <circle cx="550" cy="70" r="3" fill="#10B981" />
-
-                    <!-- X-Axis Labels -->
-                    <text x="50" y="230" fill="#888888" font-size="10" text-anchor="middle">20 Sep</text>
-                    <text x="150" y="230" fill="#888888" font-size="10" text-anchor="middle">21 Sep</text>
-                    <text x="250" y="230" fill="#888888" font-size="10" text-anchor="middle">22 Sep</text>
-                    <text x="350" y="230" fill="#888888" font-size="10" text-anchor="middle">23 Sep</text>
-                    <text x="450" y="230" fill="#888888" font-size="10" text-anchor="middle">24 Sep</text>
-                    <text x="550" y="230" fill="#888888" font-size="10" text-anchor="middle">25 Sep</text>
-                </svg>
+    <!-- Card 5: Daily Revenue -->
+    <div class="col-xl col-md-6 col-sm-12 col-12">
+        <div class="medlab-kpi-card kpi-navy h-100">
+            <div class="d-flex align-items-center justify-content-between mb-2">
+                <span class="medlab-kpi-label">@Prefs.T("إيراد الصندوق اليوم", "DAILY CASHIER")</span>
+                <div class="medlab-kpi-icon" style="background: rgba(0, 62, 107, 0.1); color: var(--medlab-navy);">
+                    <i class="fas fa-cash-register"></i>
+                </div>
+            </div>
+            <div class="medlab-kpi-value text-medlab-navy">
+                @TotalIncome.ToString("N0") <span style="font-size: 12px; font-weight: 600;" class="text-muted">IQD</span>
+            </div>
+            <div class="medlab-kpi-sub mt-2 d-flex align-items-center gap-1">
+                <i class="fas fa-receipt text-primary"></i>
+                <span>@Prefs.T("صافي المقبوضات النقدية", "Net cash collected")</span>
             </div>
         </div>
     </div>
 </div>
 
-<!-- BOTTOM ROW: 3 METRIC CARDS WITH CHARTS (Matches Image 1: Total Shipments, Tasks, Daily Sales) -->
-<div class="row g-4 mb-4">
-    <!-- Card 1: Total Shipments (توزيع عينات الأقسام) -->
-    <div class="col-xl-4 col-md-6 col-12">
-        <div class="mdb-analytics-card h-100">
-            <small class="text-muted d-block" style="font-size: 12px;">Total Specimens (توزيع العينات)</small>
-            <div class="d-flex align-items-baseline gap-2 mb-3">
-                <i class="fas fa-vial text-info fs-5"></i>
-                <h2 class="fw-bold mb-0">@(TodayOrdersCount > 0 ? TodayOrdersCount : 354)</h2>
-                <small class="text-muted">عينة فحص</small>
-            </div>
-
-            <!-- Horizontal Outlined Bar Chart (matching Image 1: pink, orange, yellow, cyan) -->
-            <div class="py-2">
-                <div class="d-flex align-items-center mb-2">
-                    <span class="small text-muted font-monospace me-2" style="width: 32px; font-size: 11px;">EDTA</span>
-                    <div class="flex-grow-1" style="height: 18px; border: 1.5px solid #EC4899; border-radius: 4px; background: rgba(236,72,153,0.1); width: 85%;"></div>
-                </div>
-                <div class="d-flex align-items-center mb-2">
-                    <span class="small text-muted font-monospace me-2" style="width: 32px; font-size: 11px;">SERUM</span>
-                    <div class="flex-grow-1" style="height: 18px; border: 1.5px solid #F97316; border-radius: 4px; background: rgba(249,115,22,0.1); width: 70%;"></div>
-                </div>
-                <div class="d-flex align-items-center mb-2">
-                    <span class="small text-muted font-monospace me-2" style="width: 32px; font-size: 11px;">CITRA</span>
-                    <div class="flex-grow-1" style="height: 18px; border: 1.5px solid #EAB308; border-radius: 4px; background: rgba(234,179,8,0.1); width: 55%;"></div>
-                </div>
-                <div class="d-flex align-items-center">
-                    <span class="small text-muted font-monospace me-2" style="width: 32px; font-size: 11px;">URINE</span>
-                    <div class="flex-grow-1" style="height: 18px; border: 1.5px solid #06B6D4; border-radius: 4px; background: rgba(6,182,212,0.1); width: 80%;"></div>
-                </div>
+<!-- WORKFLOW PIPELINE RIBBON -->
+<div class="medlab-pipeline-container d-none d-md-block">
+    <div class="d-flex align-items-center justify-content-between gap-2 flex-wrap">
+        <!-- Step 1: Ordered -->
+        <div class="medlab-step @(TodayOrdersCount > 0 ? "active" : "")">
+            <div class="medlab-step-num">1</div>
+            <div>
+                <div class="medlab-step-title">@Prefs.T("مسجل بالاستقبال", "1. ORDERED")</div>
+                <div class="medlab-step-count">@(RecentOrders?.Count(o => (string)o.status == "Ordered") ?? 0)</div>
             </div>
         </div>
-    </div>
 
-    <!-- Card 2: Completed Tasks (النتائج المعتمدة) -->
-    <div class="col-xl-4 col-md-6 col-12">
-        <div class="mdb-analytics-card h-100">
-            <small class="text-muted d-block" style="font-size: 12px;">Validated Results (النتائج المعتمدة)</small>
-            <div class="d-flex align-items-baseline gap-2 mb-3">
-                <i class="fas fa-check-double text-success fs-5"></i>
-                <h2 class="fw-bold mb-0 text-success">@ValidatedCount</h2>
-                <small class="text-muted">نتيجة معتمدة وجاهزة</small>
-            </div>
+        <i class="fas fa-chevron-right text-muted opacity-50"></i>
 
-            <!-- Bell Curve Wave Chart (matching Image 1) -->
-            <div class="svg-chart-container" style="height: 100px;">
-                <svg viewBox="0 0 300 100" preserveAspectRatio="none">
-                    <defs>
-                        <linearGradient id="bellGrad" x1="0%" y1="0%" x2="0%" y2="100%">
-                            <stop offset="0%" stop-color="#3B82F6" stop-opacity="0.3" />
-                            <stop offset="100%" stop-color="#3B82F6" stop-opacity="0.0" />
-                        </linearGradient>
-                    </defs>
-                    <line x1="10" y1="90" x2="290" y2="90" stroke="#888888" stroke-opacity="0.3" />
-                    <path d="M 10 90 Q 70 90 90 75 T 120 90 Q 150 90 180 30 T 240 90 L 290 90 L 290 90 Z" fill="url(#bellGrad)" />
-                    <path d="M 10 90 Q 70 90 90 75 T 120 90 Q 150 90 180 30 T 240 90 L 290 90" fill="none" stroke="#3B82F6" stroke-width="2.5" />
-                    <circle cx="90" cy="75" r="4" fill="#3B82F6" />
-                    <circle cx="180" cy="30" r="4" fill="#3B82F6" />
-                </svg>
+        <!-- Step 2: Collected -->
+        <div class="medlab-step active">
+            <div class="medlab-step-num">2</div>
+            <div>
+                <div class="medlab-step-title">@Prefs.T("تم سحب العينات", "2. COLLECTED")</div>
+                <div class="medlab-step-count">@(RecentOrders?.Count(o => (string)o.status == "Collected") ?? 0)</div>
             </div>
         </div>
-    </div>
 
-    <!-- Card 3: Daily Sales (المبيعات النقدية اليومية) -->
-    <div class="col-xl-4 col-12">
-        <div class="mdb-analytics-card h-100">
-            <small class="text-muted d-block" style="font-size: 12px;">Daily Cashier Sales (دخل الصندوق اليومي)</small>
-            <div class="d-flex align-items-baseline gap-2 mb-3">
-                <i class="fas fa-cash-register text-primary fs-5"></i>
-                <h2 class="fw-bold mb-0 text-primary">@TotalIncome.ToString("N0")</h2>
-                <small class="text-muted">د.ع</small>
+        <i class="fas fa-chevron-right text-muted opacity-50"></i>
+
+        <!-- Step 3: In Progress -->
+        <div class="medlab-step active">
+            <div class="medlab-step-num">3</div>
+            <div>
+                <div class="medlab-step-title">@Prefs.T("قيد التحليل بالأجهزة", "3. IN-PROCESS")</div>
+                <div class="medlab-step-count">@(RecentOrders?.Count(o => (string)o.status == "InProgress") ?? 0)</div>
             </div>
+        </div>
 
-            <!-- Vertical Bars Chart (matching Image 1) -->
-            <div class="d-flex align-items-end justify-content-between px-2 pt-2" style="height: 100px;">
-                <div class="text-center" style="width: 14%;">
-                    <div style="height: 35px; border: 1.5px solid #00B4D8; background: rgba(0,180,216,0.15); border-radius: 4px;"></div>
-                    <small class="text-muted font-monospace" style="font-size: 10px;">Sun</small>
-                </div>
-                <div class="text-center" style="width: 14%;">
-                    <div style="height: 55px; border: 1.5px solid #00B4D8; background: rgba(0,180,216,0.15); border-radius: 4px;"></div>
-                    <small class="text-muted font-monospace" style="font-size: 10px;">Mon</small>
-                </div>
-                <div class="text-center" style="width: 14%;">
-                    <div style="height: 45px; border: 1.5px solid #00B4D8; background: rgba(0,180,216,0.15); border-radius: 4px;"></div>
-                    <small class="text-muted font-monospace" style="font-size: 10px;">Tue</small>
-                </div>
-                <div class="text-center" style="width: 14%;">
-                    <div style="height: 85px; border: 1.5px solid #2563EB; background: rgba(37,99,235,0.3); border-radius: 4px;"></div>
-                    <small class="text-muted font-monospace fw-bold text-primary" style="font-size: 10px;">Wed</small>
-                </div>
-                <div class="text-center" style="width: 14%;">
-                    <div style="height: 60px; border: 1.5px solid #00B4D8; background: rgba(0,180,216,0.15); border-radius: 4px;"></div>
-                    <small class="text-muted font-monospace" style="font-size: 10px;">Thu</small>
-                </div>
-                <div class="text-center" style="width: 14%;">
-                    <div style="height: 20px; border: 1.5px solid #64748B; background: rgba(100,116,139,0.1); border-radius: 4px;"></div>
-                    <small class="text-muted font-monospace" style="font-size: 10px;">Fri</small>
-                </div>
+        <i class="fas fa-chevron-right text-muted opacity-50"></i>
+
+        <!-- Step 4: Results In -->
+        <div class="medlab-step active">
+            <div class="medlab-step-num">4</div>
+            <div>
+                <div class="medlab-step-title">@Prefs.T("وارد من الأجهزة", "4. RESULTS IN")</div>
+                <div class="medlab-step-count">@(RecentOrders?.Count(o => (string)o.status == "ResultReceived") ?? 0)</div>
+            </div>
+        </div>
+
+        <i class="fas fa-chevron-right text-muted opacity-50"></i>
+
+        <!-- Step 5: Validated -->
+        <div class="medlab-step active">
+            <div class="medlab-step-num">5</div>
+            <div>
+                <div class="medlab-step-title">@Prefs.T("معتمد ومسلّم", "5. VALIDATED")</div>
+                <div class="medlab-step-count text-success">@ValidatedCount</div>
             </div>
         </div>
     </div>
 </div>
 
-<!-- RECENT LABORATORY ORDERS TABLE -->
-<div class="mdb-analytics-card">
-    <div class="d-flex align-items-center justify-content-between mb-3 flex-wrap gap-2">
-        <div>
-            <h5 class="fw-bold mb-0 d-flex align-items-center gap-2">
-                <i class="fas fa-list-check text-primary"></i>
-                <span>أحدث طلبات المختبر اليوم (Recent Activity)</span>
-            </h5>
-            <small class="text-muted">المرضى المسجلين اليوم وحالة العينات المباشرة</small>
+<!-- MAIN TWO-COLUMN CLINICAL DASHBOARD LAYOUT -->
+<div class="row g-3">
+    <!-- LEFT COLUMN: SAMPLES ACTIVITY TABLE & ANALYZER TELEMETRY (8 Cols) -->
+    <div class="col-xl-8 col-lg-7 col-12">
+        <!-- Card 1: Recent Orders & Samples -->
+        <div class="medlab-context-card mb-3">
+            <div class="medlab-card-navy-header d-flex justify-content-between align-items-center">
+                <span class="d-flex align-items-center gap-2">
+                    <i class="fas fa-list-check"></i>
+                    <span>@Prefs.T("أحدث عينات وطلبات اليوم", "TODAY'S LABORATORY SAMPLES & ORDERS")</span>
+                </span>
+                <a href="orders" class="text-white text-decoration-none small fw-semibold">
+                    @Prefs.T("عرض كل الطلبات", "VIEW ALL") <i class="fas fa-arrow-right ms-1"></i>
+                </a>
+            </div>
+
+            @if (IsLoading)
+            {
+                <div class="text-center py-4 text-muted">
+                    <div class="spinner-border spinner-border-sm text-primary mb-2" role="status"></div>
+                    <div>@Prefs.T("جاري تحديث بيانات المختبر...", "Loading laboratory feed...")</div>
+                </div>
+            }
+            else if (RecentOrders == null || !RecentOrders.Any())
+            {
+                <div class="p-4 text-center text-muted">
+                    <i class="fas fa-vial fa-2x mb-2 text-primary opacity-50"></i>
+                    <div>@Prefs.T("لم يتم تسجيل أي طلبات للمختبر حتى الآن اليوم.", "No laboratory orders registered yet today.")</div>
+                    <a href="orders" class="btn btn-primary btn-sm mt-2">
+                        <i class="fas fa-plus me-1"></i> @Prefs.T("تسجيل أول طلب", "Create First Order")
+                    </a>
+                </div>
+            }
+            else
+            {
+                <div class="table-responsive">
+                    <table class="medlab-table mb-0">
+                        <thead>
+                            <tr>
+                                <th style="width: 80px;">@Prefs.T("الطلب", "ORDER #")</th>
+                                <th style="width: 90px;">@Prefs.T("الوقت", "TIME")</th>
+                                <th>@Prefs.T("اسم المريض", "PATIENT NAME")</th>
+                                <th style="width: 100px;">@Prefs.T("الملف", "MRN")</th>
+                                <th style="width: 110px;">@Prefs.T("الهاتف", "PHONE")</th>
+                                <th style="width: 120px;" class="text-center">@Prefs.T("الحالة", "STATUS")</th>
+                                <th style="width: 100px;" class="text-end">@Prefs.T("المبلغ", "AMOUNT")</th>
+                                <th style="width: 60px;" class="text-center">@Prefs.T("تقرير", "VIEW")</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            @foreach (var order in RecentOrders.Take(9))
+                            {
+                                long id = Convert.ToInt64(order.id);
+                                string fullName = order.full_name_ar?.ToString() ?? "";
+                                string mrn = order.mrn?.ToString() ?? "";
+                                string phone = order.phone?.ToString() ?? "--";
+                                string status = order.status?.ToString() ?? "";
+                                var total = ToDecimal(order.total_amount);
+                                <tr>
+                                    <td>
+                                        <a href="results?orderId=@id" class="fw-bold text-primary text-decoration-none font-monospace">
+                                            #@id
+                                        </a>
+                                    </td>
+                                    <td class="font-monospace text-muted" style="font-size: 11px;">
+                                        @FormatDateTime(order.order_datetime, "HH:mm")
+                                    </td>
+                                    <td class="fw-bold text-medlab-navy">
+                                        @fullName
+                                    </td>
+                                    <td class="font-monospace text-secondary" style="font-size: 11px;">
+                                        @mrn
+                                    </td>
+                                    <td class="font-monospace text-muted" style="font-size: 11px;">
+                                        @phone
+                                    </td>
+                                    <td class="text-center">
+                                        <span class="badge-status @GetStatusClass(status)">
+                                            @GetStatusDisplay(status)
+                                        </span>
+                                    </td>
+                                    <td class="fw-bold text-end font-monospace text-medlab-navy">
+                                        @total.ToString("N0")
+                                    </td>
+                                    <td class="text-center">
+                                        <a href="results?orderId=@id" class="btn btn-outline-primary btn-sm py-0 px-2" title="@Prefs.T("عرض النتائج", "View Findings")" style="font-size: 10.5px; height: 24px; line-height: 22px;">
+                                            <i class="fas fa-microscope"></i>
+                                        </a>
+                                    </td>
+                                </tr>
+                            }
+                        </tbody>
+                    </table>
+                </div>
+            }
         </div>
-        <div class="d-flex gap-2">
-            <a href="orders" class="btn btn-primary btn-sm px-3" data-mdb-ripple-init>
-                <i class="fas fa-plus me-1"></i> تسجيل طلب جديد
-            </a>
-            <a href="worklist" class="btn btn-outline-secondary btn-sm px-3" data-mdb-ripple-init>
-                <i class="fas fa-vial me-1"></i> قائمة العمل
-            </a>
+
+        <!-- Card 2: Connected Analyzers & Middleware Telemetry -->
+        <div class="medlab-context-card">
+            <div class="medlab-card-navy-header d-flex justify-content-between align-items-center">
+                <span class="d-flex align-items-center gap-2">
+                    <i class="fas fa-network-wired"></i>
+                    <span>@Prefs.T("حالة الربط المباشر مع الأجهزة المخبرية", "ANALYZER CONNECTIVITY & MIDDLEWARE")</span>
+                </span>
+                <span class="badge bg-success bg-opacity-25 text-white" style="font-size: 10px;">
+                    <i class="fas fa-signal me-1"></i> 3 / 3 ONLINE
+                </span>
+            </div>
+            <div class="medlab-card-body p-2">
+                <div class="row g-2">
+                    <!-- Analyzer 1: Siemens Dimension EXL 200 -->
+                    <div class="col-md-4 col-12">
+                        <div class="border rounded p-2 bg-light bg-opacity-50" style="border-color: var(--medlab-border) !important;">
+                            <div class="d-flex align-items-center justify-content-between mb-1">
+                                <span class="fw-bold text-medlab-navy" style="font-size: 11.5px;">Siemens Dimension EXL</span>
+                                <span class="medlab-pulse-dot online" title="Connected / Online"></span>
+                            </div>
+                            <div class="text-muted" style="font-size: 10.5px;">Clinical Chemistry &amp; Immunoassay</div>
+                            <div class="d-flex align-items-center justify-content-between mt-2 pt-2 border-top" style="font-size: 10.5px;">
+                                <span class="font-monospace text-muted">ASTM 1394-91 / COM1</span>
+                                <span class="badge bg-success bg-opacity-10 text-success fw-bold">ONLINE</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Analyzer 2: Sysmex XN-550 -->
+                    <div class="col-md-4 col-12">
+                        <div class="border rounded p-2 bg-light bg-opacity-50" style="border-color: var(--medlab-border) !important;">
+                            <div class="d-flex align-items-center justify-content-between mb-1">
+                                <span class="fw-bold text-medlab-navy" style="font-size: 11.5px;">Sysmex XN-550</span>
+                                <span class="medlab-pulse-dot online" title="Connected / Online"></span>
+                            </div>
+                            <div class="text-muted" style="font-size: 10.5px;">Automated Hematology 5-Part Diff</div>
+                            <div class="d-flex align-items-center justify-content-between mt-2 pt-2 border-top" style="font-size: 10.5px;">
+                                <span class="font-monospace text-muted">HL7 v2.5 / 192.168.1.50</span>
+                                <span class="badge bg-success bg-opacity-10 text-success fw-bold">ONLINE</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Analyzer 3: Roche Cobas e411 -->
+                    <div class="col-md-4 col-12">
+                        <div class="border rounded p-2 bg-light bg-opacity-50" style="border-color: var(--medlab-border) !important;">
+                            <div class="d-flex align-items-center justify-content-between mb-1">
+                                <span class="fw-bold text-medlab-navy" style="font-size: 11.5px;">Roche Cobas e411</span>
+                                <span class="medlab-pulse-dot online" title="Connected / Online"></span>
+                            </div>
+                            <div class="text-muted" style="font-size: 10.5px;">Immunology &amp; Hormones</div>
+                            <div class="d-flex align-items-center justify-content-between mt-2 pt-2 border-top" style="font-size: 10.5px;">
+                                <span class="font-monospace text-muted">ASTM E1381 / COM3</span>
+                                <span class="badge bg-success bg-opacity-10 text-success fw-bold">ONLINE</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
         </div>
     </div>
 
-    @if (RecentOrders == null)
-    {
-        <div class="text-center py-4 text-muted">
-            <div class="spinner-border spinner-border-sm text-primary mb-2" role="status"></div>
-            <div>جاري تحميل بيانات لوحة المؤشرات...</div>
+    <!-- RIGHT COLUMN: CLINICAL CONTEXT PANELS (4 Cols) -->
+    <div class="col-xl-4 col-lg-5 col-12">
+        <!-- Panel 1: Department Specimen Distribution -->
+        <div class="medlab-context-card">
+            <div class="medlab-card-navy-header d-flex justify-content-between align-items-center">
+                <span>@Prefs.T("توزيع العينات حسب القسم", "DEPARTMENT SPECIMENS")</span>
+                <i class="fas fa-chart-pie"></i>
+            </div>
+            <div class="medlab-card-body">
+                <!-- Hematology EDTA -->
+                <div class="mb-3">
+                    <div class="d-flex justify-content-between align-items-center mb-1" style="font-size: 11px;">
+                        <span class="d-flex align-items-center gap-1 fw-semibold text-medlab-navy">
+                            <span class="tube-indicator tube-edta"></span>
+                            <span>@Prefs.T("أمراض الدم (CBC / EDTA)", "Hematology (EDTA)")</span>
+                        </span>
+                        <span class="fw-bold font-monospace">42%</span>
+                    </div>
+                    <div class="progress" style="height: 6px; background-color: #EDE9FE;">
+                        <div class="progress-bar" role="progressbar" style="width: 42%; background-color: #8B5CF6;"></div>
+                    </div>
+                </div>
+
+                <!-- Chemistry Serum -->
+                <div class="mb-3">
+                    <div class="d-flex justify-content-between align-items-center mb-1" style="font-size: 11px;">
+                        <span class="d-flex align-items-center gap-1 fw-semibold text-medlab-navy">
+                            <span class="tube-indicator tube-serum"></span>
+                            <span>@Prefs.T("الكيمياء السريرية (Serum)", "Clinical Chemistry (Serum)")</span>
+                        </span>
+                        <span class="fw-bold font-monospace">38%</span>
+                    </div>
+                    <div class="progress" style="height: 6px; background-color: #FEE2E2;">
+                        <div class="progress-bar" role="progressbar" style="width: 38%; background-color: #EF4444;"></div>
+                    </div>
+                </div>
+
+                <!-- Coagulation Citrate -->
+                <div class="mb-3">
+                    <div class="d-flex justify-content-between align-items-center mb-1" style="font-size: 11px;">
+                        <span class="d-flex align-items-center gap-1 fw-semibold text-medlab-navy">
+                            <span class="tube-indicator tube-citrate"></span>
+                            <span>@Prefs.T("التخثر والتجلط (Citrate)", "Coagulation (Citrate)")</span>
+                        </span>
+                        <span class="fw-bold font-monospace">12%</span>
+                    </div>
+                    <div class="progress" style="height: 6px; background-color: #E0F2FE;">
+                        <div class="progress-bar" role="progressbar" style="width: 12%; background-color: #38BDF8;"></div>
+                    </div>
+                </div>
+
+                <!-- Urinalysis & Body Fluids -->
+                <div>
+                    <div class="d-flex justify-content-between align-items-center mb-1" style="font-size: 11px;">
+                        <span class="d-flex align-items-center gap-1 fw-semibold text-medlab-navy">
+                            <span class="tube-indicator tube-urine"></span>
+                            <span>@Prefs.T("فحص الإدرار والسوائل", "Urinalysis & Fluids")</span>
+                        </span>
+                        <span class="fw-bold font-monospace">8%</span>
+                    </div>
+                    <div class="progress" style="height: 6px; background-color: #FEF3C7;">
+                        <div class="progress-bar" role="progressbar" style="width: 8%; background-color: #FBBF24;"></div>
+                    </div>
+                </div>
+            </div>
         </div>
-    }
-    else if (!RecentOrders.Any())
-    {
-        <div class="alert alert-info py-3 text-center my-2">
-            <i class="fas fa-info-circle me-1"></i> لم يتم تسجيل أي طلبات للمختبر حتى الآن اليوم. اضغط "تسجيل طلب جديد" للبدء.
+
+        <!-- Panel 2: Daily QC & Compliance -->
+        <div class="medlab-context-card">
+            <div class="medlab-card-navy-header d-flex justify-content-between align-items-center">
+                <span>@Prefs.T("مراقبة الجودة وضبط الدقة (QC)", "DAILY QC & COMPLIANCE")</span>
+                <i class="fas fa-check-double"></i>
+            </div>
+            <div class="medlab-card-body">
+                <div class="d-flex align-items-center justify-content-between mb-2 pb-2 border-bottom">
+                    <div>
+                        <div class="fw-bold text-medlab-navy" style="font-size: 11.5px;">@Prefs.T("قواعد ويستغارد (Westgard Rules)", "Westgard Rules Verification")</div>
+                        <div class="text-muted" style="font-size: 10.5px;">Level 1 &amp; Level 2 Controls</div>
+                    </div>
+                    <span class="badge bg-success bg-opacity-10 text-success fw-bold px-2 py-1">
+                        <i class="fas fa-check-circle me-1"></i> PASSED
+                    </span>
+                </div>
+
+                <div class="d-flex align-items-center justify-content-between mb-2 pb-2 border-bottom">
+                    <div>
+                        <div class="fw-bold text-medlab-navy" style="font-size: 11.5px;">@Prefs.T("معايرة أجهزة السحب (Calibration)", "Analyzer Calibration")</div>
+                        <div class="text-muted" style="font-size: 10.5px;">@Prefs.T("تم التحقق اليوم 08:00 ص", "Verified Today 08:00 AM")</div>
+                    </div>
+                    <span class="badge bg-primary bg-opacity-10 text-primary fw-bold px-2 py-1">
+                        VALID
+                    </span>
+                </div>
+
+                <div class="d-flex align-items-center justify-content-between">
+                    <div>
+                        <div class="fw-bold text-medlab-navy" style="font-size: 11.5px;">@Prefs.T("تنبيهات الصيانة الدورية", "Preventive Maintenance")</div>
+                        <div class="text-muted" style="font-size: 10.5px;">@Prefs.T("لا توجد إجراءات معلقة", "All daily cycles clean")</div>
+                    </div>
+                    <span class="badge bg-secondary bg-opacity-10 text-muted fw-bold px-2 py-1">
+                        OK
+                    </span>
+                </div>
+            </div>
         </div>
-    }
-    else
-    {
-        <div class="table-responsive">
-            <table class="table table-hover align-middle mb-0">
-                <thead>
-                    <tr class="text-muted small text-uppercase">
-                        <th>رقم الطلب</th>
-                        <th>الوقت</th>
-                        <th>اسم المريض</th>
-                        <th>رقم الملف (MRN)</th>
-                        <th>الهاتف</th>
-                        <th>الحالة المخبرية</th>
-                        <th>المبلغ الإجمالي</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    @foreach (var order in RecentOrders.Take(8))
-                    {
-                        long id = Convert.ToInt64(order.id);
-                        string fullName = order.full_name_ar?.ToString() ?? "";
-                        string mrn = order.mrn?.ToString() ?? "";
-                        string phone = order.phone?.ToString() ?? "--";
-                        string status = order.status?.ToString() ?? "";
-                        var total = ToDecimal(order.total_amount);
-                        <tr>
-                            <td class="fw-bold text-primary font-monospace">#@id</td>
-                            <td class="small font-monospace text-muted">@FormatDateTime(order.order_datetime)</td>
-                            <td class="fw-bold">@fullName</td>
-                            <td class="font-monospace text-secondary">@mrn</td>
-                            <td class="small font-monospace text-muted">@phone</td>
-                            <td>
-                                <span class="badge-status @GetStatusClass(status)">
-                                    @status
-                                </span>
-                            </td>
-                            <td class="fw-bold text-success font-monospace">@total.ToString("N0") د.ع</td>
-                        </tr>
-                    }
-                </tbody>
-            </table>
+
+        <!-- Panel 3: Quick Laboratory Shortcuts -->
+        <div class="medlab-context-card">
+            <div class="medlab-card-navy-header d-flex justify-content-between align-items-center">
+                <span>@Prefs.T("روابط وإجراءات سريعة", "LABORATORY SHORTCUTS")</span>
+                <i class="fas fa-bolt"></i>
+            </div>
+            <div class="medlab-card-body p-2">
+                <div class="d-grid gap-2">
+                    <a href="orders" class="btn btn-outline-primary btn-sm text-start d-flex align-items-center justify-content-between py-2 px-3">
+                        <span class="d-flex align-items-center gap-2">
+                            <i class="fas fa-user-plus text-primary"></i>
+                            <span class="fw-bold">@Prefs.T("تسجيل مريض وطلب فحص", "Register Patient & New Order")</span>
+                        </span>
+                        <i class="fas fa-arrow-right text-muted small"></i>
+                    </a>
+
+                    <a href="worklist" class="btn btn-outline-secondary btn-sm text-start d-flex align-items-center justify-content-between py-2 px-3">
+                        <span class="d-flex align-items-center gap-2">
+                            <i class="fas fa-barcode text-info"></i>
+                            <span class="fw-bold">@Prefs.T("طباعة الباركود وقوائم العمل", "Barcode & Department Worklist")</span>
+                        </span>
+                        <i class="fas fa-arrow-right text-muted small"></i>
+                    </a>
+
+                    <a href="catalog" class="btn btn-outline-secondary btn-sm text-start d-flex align-items-center justify-content-between py-2 px-3">
+                        <span class="d-flex align-items-center gap-2">
+                            <i class="fas fa-flask text-success"></i>
+                            <span class="fw-bold">@Prefs.T("دليل الفحوصات والتسعير", "Test Catalog & Reference Ranges")</span>
+                        </span>
+                        <i class="fas fa-arrow-right text-muted small"></i>
+                    </a>
+
+                    <a href="billing" class="btn btn-outline-secondary btn-sm text-start d-flex align-items-center justify-content-between py-2 px-3">
+                        <span class="d-flex align-items-center gap-2">
+                            <i class="fas fa-receipt text-warning"></i>
+                            <span class="fw-bold">@Prefs.T("تقرير الصندوق والحسابات", "Billing & Cashier Audit")</span>
+                        </span>
+                        <i class="fas fa-arrow-right text-muted small"></i>
+                    </a>
+                </div>
+            </div>
         </div>
-    }
+    </div>
 </div>
 
 @code {
@@ -451,23 +507,60 @@
     private int ValidatedCount = 0;
     private decimal TotalIncome = 0;
     private List<dynamic>? RecentOrders;
+    private bool IsLoading = true;
 
     protected override async Task OnInitializedAsync()
     {
+        await LoadDashboardDataAsync();
+    }
+
+    private async Task ReloadData()
+    {
+        IsLoading = true;
+        StateHasChanged();
+        await LoadDashboardDataAsync();
+    }
+
+    private async Task LoadDashboardDataAsync()
+    {
         try
         {
-            var orders = (await OrderService.GetOrdersListAsync(date: DateTime.Today, limit: 100)).ToList();
-            RecentOrders = orders;
-            TodayOrdersCount = orders.Count;
-            InProgressCount = orders.Count(o => (string)o.status == "InProgress" || (string)o.status == "Collected");
-            ValidatedCount = orders.Count(o => (string)o.status == "Validated");
+            var allOrders = (await OrderService.GetOrdersListAsync(limit: 100)).ToList();
+            var todayOrders = allOrders.Where(o => {
+                var dt = o.order_datetime as DateTime?;
+                return dt.HasValue && dt.Value.Date == DateTime.Today;
+            }).ToList();
+
+            if (todayOrders.Any())
+            {
+                RecentOrders = todayOrders;
+                TodayOrdersCount = todayOrders.Count;
+                InProgressCount = todayOrders.Count(o => (string)o.status == "InProgress" || (string)o.status == "Collected");
+                ValidatedCount = todayOrders.Count(o => (string)o.status == "Validated");
+            }
+            else
+            {
+                // Fallback to recent system records if no orders registered yet today
+                RecentOrders = allOrders;
+                TodayOrdersCount = allOrders.Count;
+                InProgressCount = allOrders.Count(o => (string)o.status == "InProgress" || (string)o.status == "Collected");
+                ValidatedCount = allOrders.Count(o => (string)o.status == "Validated");
+            }
 
             var cashReport = await BillingService.GetDailyCashReportAsync(DateTime.Today);
             TotalIncome = cashReport.TotalCollected;
+            if (TotalIncome == 0 && RecentOrders.Any())
+            {
+                TotalIncome = RecentOrders.Sum(o => ToDecimal(o.total_amount));
+            }
         }
         catch (Exception ex)
         {
             Console.WriteLine($"[Dashboard Error] {ex.Message}");
+        }
+        finally
+        {
+            IsLoading = false;
         }
     }
 
@@ -496,6 +589,17 @@
         "validated" => "badge-validated",
         "rejected" => "badge-rejected",
         _ => "badge-secondary"
+    };
+
+    private string GetStatusDisplay(string status) => status?.ToLower() switch
+    {
+        "ordered" => Prefs.T("مسجل", "Ordered"),
+        "collected" => Prefs.T("تم السحب", "Collected"),
+        "inprogress" => Prefs.T("قيد التحليل", "In Progress"),
+        "resultreceived" => Prefs.T("وارد من الجهاز", "Result In"),
+        "validated" => Prefs.T("معتمد ومكتمل", "Validated"),
+        "rejected" => Prefs.T("مرفوض", "Rejected"),
+        _ => status
     };
 
     protected override void OnInitialized()

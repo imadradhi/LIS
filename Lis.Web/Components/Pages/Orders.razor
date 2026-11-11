@@ -4,35 +4,38 @@
 @inject ITestCatalogService CatalogService
 @inject IBillingService BillingService
 @inject ILabSettingsService LabSettingsService
+@inject IDbConnectionFactory DbConnectionFactory
 @inject NavigationManager NavManager
 @inject DirectPrintService PrintService
+@inject IJSRuntime JS
 @inject UserPreferencesService Prefs
+@inject AuthSessionService AuthSession
 @implements IDisposable
 
 <PageTitle>@Prefs.T("سجل المراجعين والطلبات - LIS Web", "Orders & Patients Registry - LIS Web")</PageTitle>
 
-<!-- Top Bar Title & Actions -->
-<div class="d-flex align-items-center justify-content-between mb-4 flex-wrap gap-2">
+<!-- MedLab Page Header -->
+<div class="medlab-page-header">
     <div>
-        <h3 class="fw-bold text-white mb-1 d-flex align-items-center gap-2">
-            <i class="fas fa-clipboard-list text-info"></i>
+        <h3 class="d-flex align-items-center gap-2">
+            <i class="fas fa-clipboard-list" style="color: var(--medlab-blue);"></i>
             <span>@Prefs.T("إدارة المراجعين والطلبات (Orders & Patients)", "Orders & Patient Registration")</span>
         </h3>
-        <p class="text-secondary mb-0 small">@Prefs.T("تسجيل مراجع جديد، إنشاء طلبات الفحوصات، إدارة الفواتير والباركود", "Patient registration, lab order creation, billing & barcode printing.")</p>
+        <p>@Prefs.T("تسجيل مراجع جديد، إنشاء طلبات الفحوصات، إدارة الفواتير والباركود", "Patient registration, lab order creation, billing & barcode printing.")</p>
     </div>
     <div class="d-flex gap-2">
-        <button class="btn btn-success fw-bold px-4" data-mdb-ripple-init @onclick="StartNewOrderFlow">
-            <i class="fas fa-user-plus me-1"></i> @Prefs.T("مراجع جديد (طلب فحص)", "New Patient Order")
+        <button class="btn btn-primary fw-semibold px-3" data-mdb-ripple-init @onclick="StartNewOrderFlow">
+            <i class="fas fa-user-plus me-1"></i> @Prefs.T("مراجع جديد (طلب فحص)", "+ NEW PATIENT ORDER")
         </button>
     </div>
 </div>
 
-<!-- Filters & Search Bar (MDB Card) -->
-<div class="card p-3 mb-4 border-0 shadow-2-strong" style="background: var(--bg-card);">
+<!-- Filters & Search Bar (MedLab Card) -->
+<div class="card p-2 mb-3">
     <div class="row g-2 align-items-center">
         <div class="col-xxl-4 col-xl-4 col-lg-5 col-md-6 col-12">
             <div class="input-group">
-                <span class="input-group-text bg-dark border-secondary text-secondary">
+                <span class="input-group-text">
                     <i class="fas fa-search"></i>
                 </span>
                 <input type="text" class="form-control" placeholder="@Prefs.T("ابحث باسم المريض، رقم الطلب، الهاتف أو MRN...", "Search patient, order #, phone or MRN...")" 
@@ -42,7 +45,7 @@
 
         <div class="col-xxl-3 col-xl-3 col-lg-3 col-md-6 col-12">
             <div class="d-flex align-items-center gap-2">
-                <span class="text-secondary fw-semibold text-nowrap small">@Prefs.T("الحالة:", "Status:")</span>
+                <span class="text-muted fw-semibold text-nowrap small" style="font-size: 11px;">@Prefs.T("الحالة:", "Status:")</span>
                 <select class="form-select" @bind="SelectedStatus" @bind:after="FilterOrders">
                     <option value="">@Prefs.T("جميع الحالات (All)", "All Statuses")</option>
                     <option value="Ordered">Ordered (مطلوبة)</option>
@@ -56,7 +59,7 @@
 
         <div class="col-xxl-3 col-xl-3 col-lg-4 col-md-6 col-12">
             <div class="d-flex align-items-center gap-2">
-                <span class="text-secondary fw-semibold text-nowrap small">@Prefs.T("التاريخ:", "Date:")</span>
+                <span class="text-muted fw-semibold text-nowrap small" style="font-size: 11px;">@Prefs.T("التاريخ:", "Date:")</span>
                 <input type="date" class="form-control" @bind="SelectedDate" @bind:after="FilterOrders" />
             </div>
         </div>
@@ -69,8 +72,8 @@
     </div>
 </div>
 
-<!-- Orders Full Data Table (MDB Card & Table) -->
-<div class="card p-0 border-0 shadow-2-strong overflow-hidden mb-4" style="background: var(--bg-card);">
+<!-- Orders Full Data Table (MedLab Card & Table) -->
+<div class="card p-0 overflow-hidden mb-3">
     @if (OrdersList == null)
     {
         <div class="text-center py-5 text-secondary">
@@ -180,123 +183,268 @@
 <!-- ========================================================================= -->
 @if (IsStep1PatientModalOpen)
 {
-    <div class="modal fade show d-block" tabindex="-1" style="background: rgba(0,0,0,0.75); backdrop-filter: blur(4px);">
+    <div class="modal fade show d-block" tabindex="-1" style="background: rgba(15, 23, 42, 0.7); backdrop-filter: blur(4px); z-index: 1060;">
         <div class="modal-dialog modal-lg modal-dialog-centered">
-            <div class="modal-content card border-0 shadow-5-strong" style="background: var(--bg-card);">
-                <div class="modal-header border-bottom border-secondary d-flex justify-content-between align-items-center">
-                    <div>
-                        <h5 class="modal-title text-white fw-bold mb-0 d-flex align-items-center gap-2">
-                            <i class="fas fa-user-plus text-info"></i>
-                            <span>@Prefs.T("الخطوة 1: بيانات المراجع (Patient Demographics)", "Step 1: Patient Demographics")</span>
-                        </h5>
-                        <small class="text-info">@Prefs.T("ابحث عن مريض سابق برقم الملف/الهاتف، أو سجل مراجعاً جديداً", "Search previous patient by MRN/phone, or register a new patient")</small>
-                    </div>
-                    <button type="button" class="btn-close btn-close-white" @onclick="CloseModals"></button>
-                </div>
-                <div class="modal-body p-4">
-                    <!-- Search Existing Patient Box -->
-                    <div class="mb-4 p-3 rounded" style="background: rgba(11, 19, 43, 0.7); border: 1px dashed var(--accent);">
-                        <label class="form-label text-info fw-bold small mb-1 d-flex align-items-center gap-1">
-                            <i class="fas fa-search"></i>
-                            <span>@Prefs.T("بحث عن مراجع مسجل سابقاً (Search Existing Patient):", "Search Existing Patient:")</span>
-                        </label>
-                        <div class="input-group">
-                            <input type="text" class="form-control" placeholder="@Prefs.T("اكتب اسم المريض أو رقم الهاتف أو رقم الملف MRN...", "Type patient name, phone, or MRN...")" 
-                                   @bind="PatientSearchQuery" @bind:event="oninput" @onkeyup="HandlePatientSearch" />
-                            @if (!string.IsNullOrEmpty(PatientSearchQuery))
-                            {
-                                <button class="btn btn-outline-secondary" data-mdb-ripple-init @onclick="ClearPatientSearch">
-                                    <i class="fas fa-times me-1"></i> @Prefs.T("مسح", "Clear")
-                                </button>
-                            }
+            <div class="modal-content border-0 shadow-lg medlab-modal-content" style="border-radius: 6px; overflow: hidden; border: 1px solid var(--medlab-border) !important;">
+                <!-- Modal Header -->
+                <div class="modal-header py-2 px-3 border-bottom d-flex justify-content-between align-items-center medlab-modal-header" style="border-color: var(--medlab-border) !important;">
+                    <div class="d-flex align-items-center gap-2">
+                        <div class="d-flex align-items-center justify-content-center rounded-2" style="width: 32px; height: 32px; background: rgba(0, 62, 107, 0.1); color: var(--medlab-navy);">
+                            <i class="fas fa-user-plus" style="font-size: 14px;"></i>
                         </div>
+                        <div>
+                            <div class="d-flex align-items-center gap-2">
+                                <h6 class="fw-bold mb-0 text-medlab-navy" style="font-size: 13.5px;">
+                                    | @Prefs.T("الخطوة 1: بيانات المراجع وتسجيل الطلب", "Step 1: Patient Demographics")
+                                </h6>
+                                <span class="badge font-monospace" style="background: var(--medlab-navy); color: #fff; font-size: 10px;">1 / 2</span>
+                            </div>
+                            <div class="text-muted" style="font-size: 11px;">
+                                @Prefs.T("ابحث عن مريض سابق برقم الملف أو الهاتف، أو سجل مراجعاً جديداً", "Search previous patient by MRN/phone, or register a new patient")
+                            </div>
+                        </div>
+                    </div>
+                    <button type="button" class="btn-close" @onclick="CloseModalsSafe"></button>
+                </div>
 
-                        <!-- Dropdown Search Suggestions -->
-                        @if (PatientSearchResults != null && PatientSearchResults.Any())
-                        {
-                            <div class="list-group mt-2 border border-info rounded shadow-lg" style="max-height: 180px; overflow-y: auto;">
-                                @foreach (var p in PatientSearchResults)
+                <div class="modal-body p-3">
+                    <!-- ═══════════════════════════════════════════════════════════════ -->
+                    <!-- 1. SMART CLINICAL PATIENT LOOKUP PANEL                          -->
+                    <!-- ═══════════════════════════════════════════════════════════════ -->
+                    @if (SelectedExistingPatient == null)
+                    {
+                        <div class="medlab-patient-finder-panel mb-3">
+                            <div class="d-flex justify-content-between align-items-center mb-2 flex-wrap gap-1">
+                                <div class="d-flex align-items-center gap-2">
+                                    <div class="d-inline-flex align-items-center justify-content-center rounded-circle" style="width: 26px; height: 26px; background: rgba(2, 132, 199, 0.15); color: #0284C7; font-size: 12px;">
+                                        <i class="fas fa-magnifying-glass"></i>
+                                    </div>
+                                    <span class="fw-bold" style="font-size: 12px; color: var(--medlab-text-navy);">
+                                        @Prefs.T("البحث في سجل المراجعين السابقين (Smart Patient Lookup)", "Search Existing Patient Records")
+                                    </span>
+                                </div>
+                                <div class="d-flex align-items-center gap-1">
+                                    <span class="badge bg-light text-secondary border font-monospace" style="font-size: 9.5px;">@Prefs.T("بالاسم", "Name")</span>
+                                    <span class="badge bg-light text-secondary border font-monospace" style="font-size: 9.5px;">@Prefs.T("الهاتف", "Phone")</span>
+                                    <span class="badge bg-light text-secondary border font-monospace" style="font-size: 9.5px;">@Prefs.T("MRN", "MRN")</span>
+                                </div>
+                            </div>
+
+                            <div class="position-relative">
+                                <div class="input-group input-group-sm">
+                                    <span class="input-group-text bg-transparent border-end-0 text-primary px-3">
+                                        <i class="fas fa-search"></i>
+                                    </span>
+                                    <input type="text" class="form-control border-start-0 medlab-patient-finder-input" 
+                                           placeholder="@Prefs.T("اكتب اسم المراجع، رقم الهاتف، أو رقم الملف الطبي MRN...", "Type patient name, phone, or MRN to search...")" 
+                                           @bind="PatientSearchQuery" @bind:event="oninput" @onkeyup="HandlePatientSearch" />
+                                    @if (!string.IsNullOrEmpty(PatientSearchQuery))
+                                    {
+                                        <button class="btn btn-outline-secondary px-3" type="button" @onclick="ClearPatientSearch" title="@Prefs.T("مسح البحث", "Clear search")">
+                                            <i class="fas fa-times"></i>
+                                        </button>
+                                    }
+                                </div>
+
+                                <!-- Floating Autocomplete Suggestions Dropdown -->
+                                @if (PatientSearchResults != null && PatientSearchResults.Any())
                                 {
-                                    <button type="button" class="list-group-item list-group-item-action bg-dark text-white d-flex justify-content-between align-items-center"
-                                            data-mdb-ripple-init
-                                            @onclick="() => SelectExistingPatient(p)">
-                                        <div>
-                                            <strong class="text-info">@p.FullNameAr</strong>
-                                            <span class="text-secondary small ms-2">MRN: @p.Mrn | @(p.Sex == "F" ? "أنثى" : "ذكر") | هاتف: @(p.Phone ?? "--")</span>
+                                    <div class="medlab-patient-suggestion-dropdown">
+                                        <div class="px-3 py-2 border-bottom d-flex justify-content-between align-items-center" style="background: rgba(0,0,0,0.02); font-size: 11px;">
+                                            <span class="fw-bold text-primary">
+                                                <i class="fas fa-users me-1"></i>
+                                                @Prefs.T($"تم العثور على ({PatientSearchResults.Count}) مراجعين مسجلين:", $"Found ({PatientSearchResults.Count}) matching patients:")
+                                            </span>
+                                            <span class="text-muted small">@Prefs.T("انقر لاختيار المراجع وتعبئة بياناته", "Click to auto-fill details")</span>
                                         </div>
-                                        <span class="badge bg-primary">@Prefs.T("اختيار ➔", "Select ➔")</span>
-                                    </button>
+
+                                        @foreach (var p in PatientSearchResults)
+                                        {
+                                            var ageInfo = PatientService.CalculateAge(p.DateOfBirth);
+                                            <div class="medlab-patient-suggestion-item d-flex justify-content-between align-items-center"
+                                                 @onclick="() => SelectExistingPatient(p)">
+                                                <div class="d-flex align-items-center gap-3">
+                                                    <div class="rounded-circle d-flex align-items-center justify-content-center fw-bold"
+                                                         style="width: 36px; height: 36px; min-width: 36px; font-size: 14px; background: @(p.Sex == "F" ? "rgba(236, 72, 153, 0.12)" : "rgba(2, 132, 199, 0.12)"); color: @(p.Sex == "F" ? "#DB2777" : "#0284C7");">
+                                                        <i class="fas @(p.Sex == "F" ? "fa-female" : "fa-male")"></i>
+                                                    </div>
+                                                    <div>
+                                                        <div class="d-flex align-items-center gap-2">
+                                                            <strong class="text-medlab-navy" style="font-size: 12.5px;">@p.FullNameAr</strong>
+                                                            @if (!string.IsNullOrWhiteSpace(p.FullNameEn))
+                                                            {
+                                                                <span class="text-muted small">(@p.FullNameEn)</span>
+                                                            }
+                                                            <span class="badge font-monospace" style="background: rgba(2, 132, 199, 0.1); color: #0284C7; font-size: 9.5px; border: 1px solid rgba(2, 132, 199, 0.2);">
+                                                                MRN: @p.Mrn
+                                                            </span>
+                                                        </div>
+                                                        <div class="text-muted small d-flex align-items-center gap-2 mt-1" style="font-size: 11px;">
+                                                            <span><i class="fas fa-venus-mars me-1 text-secondary"></i>@(p.Sex == "F" ? Prefs.T("أنثى", "Female") : Prefs.T("ذكر", "Male"))</span>
+                                                            <span>•</span>
+                                                            <span><i class="fas fa-cake-candles me-1 text-secondary"></i>@ageInfo.FormattedText</span>
+                                                            @if (!string.IsNullOrWhiteSpace(p.Phone))
+                                                            {
+                                                                <span>•</span>
+                                                                <span class="font-monospace"><i class="fas fa-phone me-1 text-success"></i>@p.Phone</span>
+                                                            }
+                                                        </div>
+                                                    </div>
+                                                </div>
+                                                <button type="button" class="btn btn-sm btn-primary rounded-pill px-3 py-1 fw-bold d-flex align-items-center gap-1 shadow-sm" style="font-size: 10.5px; height: 26px;">
+                                                    <span>@Prefs.T("اختيار المراجع", "Select")</span>
+                                                    <i class="fas @(Prefs.IsArabic ? "fa-arrow-left" : "fa-arrow-right") ms-1"></i>
+                                                </button>
+                                            </div>
+                                        }
+                                    </div>
+                                }
+                                else if (!string.IsNullOrWhiteSpace(PatientSearchQuery) && PatientSearchQuery.Trim().Length >= 2 && PatientSearchResults != null && !PatientSearchResults.Any())
+                                {
+                                    <div class="medlab-patient-suggestion-dropdown p-3 text-center text-muted" style="font-size: 11.5px;">
+                                        <i class="fas fa-user-xmark fs-4 text-secondary opacity-50 mb-1 d-block"></i>
+                                        <span>@Prefs.T("لم يتم العثور على مراجع سابق بهذه البيانات.", "No existing patient found matching this query.")</span>
+                                        <div class="small text-primary mt-1">@Prefs.T("يمكنك المتابعة مباشرة وتعبئة النموذج أدناه لتسجيله كمراجع جديد في النظام.", "You can proceed to fill the form below to register as a new patient.")</div>
+                                    </div>
                                 }
                             </div>
-                        }
-                    </div>
-
-                    @if (SelectedExistingPatient != null)
+                        </div>
+                    }
+                    else
                     {
-                        <div class="alert alert-success d-flex justify-content-between align-items-center py-2 px-3 mb-3">
-                            <div class="d-flex align-items-center gap-2">
-                                <i class="fas fa-check-circle fs-5"></i>
-                                <span><strong>@Prefs.T("تم تحديد المراجع المسجل:", "Selected Patient:")</strong> @SelectedExistingPatient.FullNameAr (MRN: @SelectedExistingPatient.Mrn)</span>
+                        <!-- ═══════════════════════════════════════════════════════════ -->
+                        <!-- 2. VERIFIED PATIENT IDENTITY CARD (When Selected)           -->
+                        <!-- ═══════════════════════════════════════════════════════════ -->
+                        <div class="medlab-verified-patient-card mb-3">
+                            <div class="d-flex justify-content-between align-items-center flex-wrap gap-2">
+                                <div class="d-flex align-items-center gap-3">
+                                    <div class="rounded-circle d-flex align-items-center justify-content-center shadow-sm"
+                                         style="width: 44px; height: 44px; min-width: 44px; background: rgba(16, 185, 129, 0.15); color: #10B981; font-size: 20px;">
+                                        <i class="fas fa-user-check"></i>
+                                    </div>
+                                    <div>
+                                        <div class="d-flex align-items-center gap-2 flex-wrap">
+                                            <h6 class="fw-bold mb-0 text-medlab-navy" style="font-size: 14px;">
+                                                @SelectedExistingPatient.FullNameAr
+                                            </h6>
+                                            <span class="badge bg-success text-white px-2 py-1" style="font-size: 10px;">
+                                                <i class="fas fa-check-circle me-1"></i> @Prefs.T("مراجع مسجل ومعتمد", "Verified Existing Patient")
+                                            </span>
+                                            <span class="badge font-monospace bg-light text-primary border" style="font-size: 10.5px;">
+                                                MRN: #@SelectedExistingPatient.Mrn
+                                            </span>
+                                        </div>
+                                        <div class="text-secondary small d-flex align-items-center gap-3 mt-1 flex-wrap" style="font-size: 11.5px;">
+                                            <span><strong>@Prefs.T("الجنس والعمر", "Gender & Age"):</strong> @(SelectedExistingPatient.Sex == "F" ? Prefs.T("أنثى", "Female") : Prefs.T("ذكر", "Male")) • @CalculatedAgeText</span>
+                                            <span><strong>@Prefs.T("الهاتف", "Phone"):</strong> <span class="font-monospace">@(SelectedExistingPatient.Phone ?? Prefs.T("غير متوفر", "N/A"))</span></span>
+                                            <span><strong>@Prefs.T("تاريخ الميلاد", "DOB"):</strong> <span class="font-monospace">@SelectedExistingPatient.DateOfBirth.ToString("dd/MM/yyyy")</span></span>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <div class="d-flex align-items-center gap-2">
+                                    <button type="button" class="btn btn-sm btn-outline-secondary px-2 py-1 d-flex align-items-center gap-1" style="font-size: 11px; height: 28px;" @onclick="ClearPatientSearch" title="@Prefs.T("البحث عن مراجع آخر", "Search another patient")">
+                                        <i class="fas fa-magnifying-glass"></i>
+                                        <span>@Prefs.T("بحث عن آخر", "Search Another")</span>
+                                    </button>
+                                    <button type="button" class="btn btn-sm btn-outline-danger px-2 py-1 d-flex align-items-center gap-1" style="font-size: 11px; height: 28px;" @onclick="ResetToNewPatient" title="@Prefs.T("تفريغ وتسجيل مراجع جديد", "Register new patient instead")">
+                                        <i class="fas fa-user-plus"></i>
+                                        <span>@Prefs.T("تسجيل مراجع جديد", "New Patient")</span>
+                                    </button>
+                                </div>
                             </div>
-                            <button class="btn btn-sm btn-outline-danger" data-mdb-ripple-init @onclick="ResetToNewPatient">
-                                <i class="fas fa-rotate-left me-1"></i> @Prefs.T("تفريغ وإلغاء", "Reset")
-                            </button>
                         </div>
                     }
 
-                    <!-- Demographics Form -->
-                    <div class="row g-3">
-                        <div class="col-md-12">
-                            <label class="form-label text-secondary fw-semibold">@Prefs.T("الاسم الكامل بالعربية", "Full Name (Ar)") <span class="text-danger">*</span>:</label>
-                            <input type="text" class="form-control" @bind="PatientFullName" placeholder="@Prefs.T("الاسم الثلاثي أو الرباعي...", "Full patient name...")" />
+                    <!-- ═══════════════════════════════════════════════════════════════ -->
+                    <!-- 3. PATIENT DEMOGRAPHICS REGISTRATION FORM                       -->
+                    <!-- ═══════════════════════════════════════════════════════════════ -->
+                    <div class="medlab-demographics-section">
+                        <div class="d-flex justify-content-between align-items-center mb-2 pb-1 border-bottom" style="border-color: var(--medlab-border) !important;">
+                            <div class="fw-bold d-flex align-items-center gap-2" style="font-size: 12px; color: var(--medlab-text-navy);">
+                                <i class="fas fa-id-card-clip text-primary"></i>
+                                <span>@(SelectedExistingPatient != null 
+                                    ? Prefs.T("بيانات المراجع المسترجعة (قابلة للتعديل والتدقيق لهذا الطلب)", "Retrieved Patient Data (Editable for this order)") 
+                                    : Prefs.T("بيانات المراجع الأساسية (أو اكتب الاسم مباشرة للبدء)", "Patient Demographics & Registration"))</span>
+                            </div>
+                            @if (SelectedExistingPatient != null)
+                            {
+                                <span class="badge bg-light text-muted border font-monospace" style="font-size: 9.5px;">
+                                    @Prefs.T("مسترجع من السجل الطبي", "Loaded from EMR")
+                                </span>
+                            }
                         </div>
 
-                        <div class="col-md-4">
-                            <label class="form-label text-secondary fw-semibold">@Prefs.T("الجنس:", "Gender:")</label>
-                            <select class="form-select" @bind="PatientSex">
-                                <option value="M">@Prefs.T("ذكر (Male)", "Male")</option>
-                                <option value="F">@Prefs.T("أنثى (Female)", "Female")</option>
-                            </select>
-                        </div>
+                        <div class="row g-2">
+                            <div class="col-md-12">
+                                <label class="medlab-form-label">
+                                    <i class="fas fa-user text-primary me-1"></i>
+                                    <span>@Prefs.T("الاسم الكامل للمريض", "Patient Full Name")</span>
+                                    <span class="text-danger fw-bold">*</span>
+                                </label>
+                                <input type="text" class="form-control form-control-sm" @bind="PatientFullName" placeholder="@Prefs.T("ادخل الاسم الثلاثي أو الرباعي للمريض...", "Type full patient name...")" style="height: 34px; font-size: 13px;" />
+                            </div>
 
-                        <div class="col-md-4">
-                            <label class="form-label text-secondary fw-semibold">@Prefs.T("تاريخ الميلاد", "Date of Birth") <span class="text-danger">*</span>:</label>
-                            <input type="date" class="form-control" @bind="PatientDob" @bind:after="UpdateCalculatedAge" />
-                        </div>
+                            <div class="col-md-4">
+                                <label class="medlab-form-label">
+                                    <i class="fas fa-venus-mars text-primary me-1"></i>
+                                    <span>@Prefs.T("الجنس", "Gender")</span>
+                                </label>
+                                <select class="form-select form-select-sm" @bind="PatientSex" style="height: 34px; font-size: 12.5px;">
+                                    <option value="M">@Prefs.T("ذكر (Male)", "Male")</option>
+                                    <option value="F">@Prefs.T("أنثى (Female)", "Female")</option>
+                                </select>
+                            </div>
 
-                        <div class="col-md-4">
-                            <label class="form-label text-secondary fw-semibold">@Prefs.T("العمر المحسوب:", "Calculated Age:")</label>
-                            <input type="text" class="form-control text-center fw-bold text-success" value="@CalculatedAgeText" readonly />
-                        </div>
+                            <div class="col-md-4">
+                                <label class="medlab-form-label">
+                                    <i class="fas fa-calendar-day text-primary me-1"></i>
+                                    <span>@Prefs.T("تاريخ الميلاد", "Date of Birth")</span>
+                                    <span class="text-danger fw-bold">*</span>
+                                </label>
+                                <input type="date" class="form-control form-control-sm" @bind="PatientDob" @bind:after="UpdateCalculatedAge" style="height: 34px; font-size: 12.5px;" />
+                            </div>
 
-                        <div class="col-md-6">
-                            <label class="form-label text-secondary fw-semibold">@Prefs.T("رقم الهاتف:", "Phone Number:")</label>
-                            <input type="text" class="form-control" @bind="PatientPhone" placeholder="07XXXXXXXXX" />
-                        </div>
+                            <div class="col-md-4">
+                                <label class="medlab-form-label">
+                                    <i class="fas fa-clock text-primary me-1"></i>
+                                    <span>@Prefs.T("العمر المحسوب", "Calculated Age")</span>
+                                </label>
+                                <input type="text" class="form-control form-control-sm text-center fw-bold text-success font-monospace" value="@CalculatedAgeText" readonly style="height: 34px; font-size: 12.5px; background: rgba(16, 185, 129, 0.08); border-color: rgba(16, 185, 129, 0.3);" />
+                            </div>
 
-                        <div class="col-md-6">
-                            <label class="form-label text-secondary fw-semibold">الطبيب أو العيادة المحولة:</label>
-                            <input type="text" class="form-control" @bind="ReferringDoctor" placeholder="د. فلان / المستشفى..." />
-                        </div>
+                            <div class="col-md-6">
+                                <label class="medlab-form-label">
+                                    <i class="fas fa-phone text-primary me-1"></i>
+                                    <span>@Prefs.T("رقم الهاتف", "Phone Number")</span>
+                                </label>
+                                <input type="text" class="form-control form-control-sm font-monospace" @bind="PatientPhone" placeholder="07XXXXXXXXX" style="height: 34px; font-size: 12.5px;" />
+                            </div>
 
-                        <div class="col-md-12">
-                            <label class="form-label text-secondary fw-semibold">ملاحظات سريرية أو تشخيص أولي:</label>
-                            <input type="text" class="form-control" @bind="ClinicalNotes" placeholder="ملاحظات اختيارية عن حالة المريض..." />
+                            <div class="col-md-6">
+                                <label class="medlab-form-label">
+                                    <i class="fas fa-user-doctor text-primary me-1"></i>
+                                    <span>@Prefs.T("الطبيب أو العيادة المحولة", "Referring Doctor / Clinic")</span>
+                                </label>
+                                <input type="text" class="form-control form-control-sm" @bind="ReferringDoctor" placeholder="@Prefs.T("د. فلان / المستشفى المحول منها...", "Doctor name or hospital...")" style="height: 34px; font-size: 12.5px;" />
+                            </div>
                         </div>
                     </div>
 
                     @if (!string.IsNullOrEmpty(PatientStepError))
                     {
-                        <div class="alert alert-danger py-2 px-3 mt-3 mb-0">@PatientStepError</div>
+                        <div class="alert alert-danger py-2 px-3 mt-3 mb-0" style="font-size: 12px;">@PatientStepError</div>
                     }
                 </div>
-                <div class="modal-footer border-top border-secondary d-flex justify-content-between">
-                    <button type="button" class="btn btn-outline-secondary" data-mdb-ripple-init @onclick="CloseModals">
-                        <i class="fas fa-times me-1"></i> إلغاء
+
+                <!-- Modal Footer -->
+                <div class="modal-footer medlab-modal-footer d-flex justify-content-between align-items-center">
+                    <button type="button" class="btn btn-sm btn-outline-secondary px-3" style="height: 28px;" @onclick="CloseModalsSafe">
+                        <i class="fas fa-times me-1"></i> @Prefs.T("إلغاء", "Cancel")
                     </button>
-                    <button type="button" class="btn btn-success fw-bold px-4" data-mdb-ripple-init @onclick="ProceedToStep2TestSelection">
-                        <span>متابعة واختيار التحاليل المطلوبة</span>
-                        <i class="fas fa-arrow-left ms-1"></i>
+                    <button type="button" class="btn btn-sm btn-primary fw-bold px-4 d-flex align-items-center gap-1" style="background: var(--medlab-green); border-color: var(--medlab-green); height: 28px;" @onclick="ProceedToStep2TestSelection">
+                        <span>@Prefs.T("متابعة واختيار التحاليل المطلوبة", "Proceed to Test Selection")</span>
+                        <i class="fas @(Prefs.IsArabic ? "fa-arrow-left" : "fa-arrow-right") ms-1"></i>
                     </button>
                 </div>
             </div>
@@ -309,41 +457,51 @@
 <!-- ========================================================================= -->
 @if (IsStep2TestsModalOpen)
 {
-    <div class="modal fade show d-block" tabindex="-1" style="background: rgba(0,0,0,0.8); backdrop-filter: blur(5px);">
+    <div class="modal fade show d-block" tabindex="-1" style="background: rgba(15, 23, 42, 0.7); backdrop-filter: blur(4px); z-index: 1060;">
         <div class="modal-dialog modal-xl modal-dialog-centered">
-            <div class="modal-content card border-0 shadow-5-strong" style="background: var(--bg-card); max-height: 90vh; display: flex; flex-direction: column;">
-                <div class="modal-header border-bottom border-secondary d-flex justify-content-between align-items-center">
-                    <div>
-                        <h5 class="modal-title text-white fw-bold mb-0 d-flex align-items-center gap-2">
-                            <i class="fas fa-flask text-info"></i>
-                            <span>@Prefs.T("الخطوة 2: اختيار الفحوصات والفوترة الطبية", "Step 2: Test Selection & Medical Billing")</span>
-                        </h5>
-                        <small class="text-info">المريض: <strong>@PatientFullName</strong> | الجنس: @(PatientSex == "F" ? "أنثى" : "ذكر") | العمر: @CalculatedAgeText</small>
+            <div class="modal-content border-0 shadow-lg medlab-modal-content" style="border-radius: 6px; overflow: hidden; border: 1px solid var(--medlab-border) !important; max-height: 90vh; display: flex; flex-direction: column;">
+                <!-- Header -->
+                <div class="modal-header py-2 px-3 border-bottom d-flex justify-content-between align-items-center medlab-modal-header" style="border-color: var(--medlab-border) !important;">
+                    <div class="d-flex align-items-center gap-2">
+                        <div class="d-flex align-items-center justify-content-center rounded-2" style="width: 32px; height: 32px; background: rgba(0, 62, 107, 0.1); color: var(--medlab-navy);">
+                            <i class="fas fa-flask" style="font-size: 14px;"></i>
+                        </div>
+                        <div>
+                            <div class="d-flex align-items-center gap-2">
+                                <h6 class="fw-bold mb-0 text-medlab-navy" style="font-size: 13.5px;">
+                                    | @Prefs.T("الخطوة 2: اختيار الفحوصات والفوترة الطبية", "Step 2: Test Selection & Medical Billing")
+                                </h6>
+                                <span class="badge font-monospace" style="background: var(--medlab-navy); color: #fff; font-size: 10px;">2 / 2</span>
+                            </div>
+                            <div class="text-muted" style="font-size: 11px;">
+                                @Prefs.T("المريض:", "Patient:") <strong>@PatientFullName</strong> | @(PatientSex == "F" ? Prefs.T("أنثى", "Female") : Prefs.T("ذكر", "Male")) | @CalculatedAgeText
+                            </div>
+                        </div>
                     </div>
-                    <button type="button" class="btn-close btn-close-white" @onclick="CloseModals"></button>
+                    <button type="button" class="btn-close" @onclick="CloseModalsSafe"></button>
                 </div>
 
-                <div class="modal-body p-4 overflow-auto" style="flex: 1;">
-                    <div class="row g-4">
+                <div class="modal-body p-3 overflow-auto" style="flex: 1;">
+                    <div class="row g-3">
                         <!-- Left: Available Tests Catalog (col-md-7) -->
-                        <div class="col-md-7 border-end border-secondary">
-                            <h6 class="fw-bold text-white mb-2 d-flex align-items-center gap-2">
-                                <i class="fas fa-list-check text-info"></i>
-                                <span>@Prefs.T("قائمة الفحوصات المتاحة للاختيار:", "Available Tests Catalog:")</span>
+                        <div class="col-md-7 border-end" style="border-color: var(--medlab-border) !important;">
+                            <h6 class="fw-bold text-medlab-navy mb-2 d-flex align-items-center gap-2" style="font-size: 12px;">
+                                <i class="fas fa-list-check text-primary"></i>
+                                <span>@Prefs.T("دليل الفحوصات الطبية المتاحة للاختيار:", "Available Tests Catalog:")</span>
                             </h6>
-                            <div class="row g-2 mb-3">
+                            <div class="row g-2 mb-2">
                                 <div class="col-md-8">
-                                    <div class="input-group">
-                                        <span class="input-group-text bg-dark border-secondary text-secondary">
+                                    <div class="input-group input-group-sm">
+                                        <span class="input-group-text bg-white border-end-0 text-muted">
                                             <i class="fas fa-search"></i>
                                         </span>
-                                        <input type="text" class="form-control" placeholder="@Prefs.T("ابحث باسم التحليل أو الكود (CBC, Lipid, TSH...)", "Search by test name or code (CBC, Lipid...)...")" 
-                                               @bind="TestSearchFilter" @bind:event="oninput" @onkeyup="FilterAvailableTests" />
+                                        <input type="text" class="form-control border-start-0" placeholder="@Prefs.T("ابحث باسم التحليل أو الكود (CBC, Lipid, TSH...)", "Search by test name or code (CBC, Lipid...)...")" 
+                                               @bind="TestSearchFilter" @bind:event="oninput" @onkeyup="FilterAvailableTests" style="height: 30px; font-size: 12px;" />
                                     </div>
                                 </div>
                                 <div class="col-md-4">
-                                    <select class="form-select" @bind="DepartmentFilter" @bind:after="FilterAvailableTests">
-                                        <option value="">جميع الأقسام</option>
+                                    <select class="form-select form-select-sm" @bind="DepartmentFilter" @bind:after="FilterAvailableTests" style="height: 30px; font-size: 12px;">
+                                        <option value="">@Prefs.T("جميع الأقسام", "All Departments")</option>
                                         @if (Departments != null)
                                         {
                                             @foreach (var d in Departments)
@@ -356,10 +514,10 @@
                             </div>
 
                             <!-- Tests Catalog Grid -->
-                            <div style="max-height: 380px; overflow-y: auto;" class="border border-secondary rounded p-2 bg-dark">
+                            <div class="border rounded p-2 bg-light bg-opacity-25" style="max-height: 380px; overflow-y: auto; border-color: var(--medlab-border) !important;">
                                 @if (FilteredCatalogTests == null || !FilteredCatalogTests.Any())
                                 {
-                                    <div class="text-center py-4 text-secondary">لا توجد فحوصات مطابقة للبحث.</div>
+                                    <div class="text-center py-4 text-muted small">@Prefs.T("لا توجد فحوصات مطابقة للبحث.", "No matching tests found.")</div>
                                 }
                                 else
                                 {
@@ -368,18 +526,17 @@
                                         {
                                             bool isSelected = SelectedTestIds.Contains(test.Id);
                                             <div class="col-md-6">
-                                                <div class="p-2 rounded border cursor-pointer d-flex justify-content-between align-items-center transition-all @(isSelected ? "bg-primary bg-opacity-25 border-info" : "border-secondary")"
-                                                     style="cursor: pointer; @(!isSelected ? "background: var(--bg-hover);" : "")"
+                                                <div class="medlab-catalog-item-card @(isSelected ? "selected" : "") d-flex justify-content-between align-items-center"
                                                      @onclick="() => ToggleTestSelection(test)">
                                                     <div>
-                                                        <div class="fw-bold text-white fs-6">@test.TestCode</div>
-                                                        <div class="small text-truncate text-secondary" style="max-width: 170px;">@(test.NameAr ?? test.NameEn)</div>
-                                                        <span class="badge bg-dark border border-secondary text-info small">@test.SpecimenTypeName</span>
+                                                        <div class="fw-bold text-medlab-navy font-monospace" style="font-size: 12px;">@test.TestCode</div>
+                                                        <div class="small text-truncate text-secondary" style="max-width: 170px; font-size: 11px;">@(test.NameAr ?? test.NameEn)</div>
+                                                        <span class="badge bg-light text-muted border font-monospace" style="font-size: 9.5px;">@test.SpecimenTypeName</span>
                                                     </div>
                                                     <div class="text-end">
-                                                        <div class="fw-bold text-success small">@test.FormattedPrice</div>
-                                                        <span class="badge @(isSelected ? "bg-info text-dark" : "bg-secondary") mt-1">
-                                                            @(isSelected ? "محدد ✓" : "+ إضافة")
+                                                        <div class="fw-bold text-medlab-navy small font-monospace">@test.FormattedPrice</div>
+                                                        <span class="badge @(isSelected ? "bg-primary text-white" : "bg-light text-secondary border") mt-1" style="font-size: 9.5px;">
+                                                            @(isSelected ? "✓ " + Prefs.T("محدد", "Selected") : "+ " + Prefs.T("إضافة", "Add"))
                                                         </span>
                                                     </div>
                                                 </div>
@@ -392,30 +549,30 @@
 
                         <!-- Right: Selected Tests Cart & Financials (col-md-5) -->
                         <div class="col-md-5">
-                            <h6 class="fw-bold text-white mb-2 d-flex align-items-center gap-2">
-                                <i class="fas fa-cart-shopping text-info"></i>
+                            <h6 class="fw-bold text-medlab-navy mb-2 d-flex align-items-center gap-2" style="font-size: 12px;">
+                                <i class="fas fa-cart-shopping text-primary"></i>
                                 <span>@Prefs.T("الفحوصات المحددة للطلب", "Selected Tests") (@SelectedTests.Count):</span>
                             </h6>
 
                             <!-- Selected List -->
-                            <div style="max-height: 200px; overflow-y: auto;" class="border border-secondary rounded p-2 mb-3 bg-dark">
+                            <div class="border rounded p-2 mb-2 bg-white" style="max-height: 180px; overflow-y: auto; border-color: var(--medlab-border) !important;">
                                 @if (!SelectedTests.Any())
                                 {
-                                    <div class="text-center py-4 text-secondary">@Prefs.T("لم يتم اختيار أي فحص بعد. انقر على الفحوصات في اليسار للإضافة.", "No tests selected yet. Click tests on the left to add.")</div>
+                                    <div class="text-center py-4 text-muted small">@Prefs.T("لم يتم اختيار أي فحص بعد. انقر على الفحوصات في اليسار للإضافة.", "No tests selected yet. Click tests on the left to add.")</div>
                                 }
                                 else
                                 {
                                     <ul class="list-group list-group-flush">
                                         @foreach (var st in SelectedTests)
                                         {
-                                            <li class="list-group-item bg-transparent text-white d-flex justify-content-between align-items-center p-2 border-secondary">
+                                            <li class="list-group-item bg-transparent d-flex justify-content-between align-items-center p-1 border-bottom">
                                                 <div>
-                                                    <strong class="text-info">@st.TestCode</strong> - @(st.NameAr ?? st.NameEn)
-                                                    <div class="small text-muted">@st.SpecimenTypeName</div>
+                                                    <strong class="text-medlab-navy font-monospace" style="font-size: 11.5px;">@st.TestCode</strong> - <span style="font-size: 11px;">@(st.NameAr ?? st.NameEn)</span>
+                                                    <div class="text-muted" style="font-size: 9.5px;">@st.SpecimenTypeName</div>
                                                 </div>
                                                 <div class="d-flex align-items-center gap-2">
-                                                    <span class="fw-bold text-success small">@st.FormattedPrice</span>
-                                                    <button class="btn btn-sm btn-outline-danger py-0 px-2" data-mdb-ripple-init @onclick="() => RemoveSelectedTest(st.Id)">
+                                                    <span class="fw-bold font-monospace text-medlab-navy small">@st.FormattedPrice</span>
+                                                    <button class="btn btn-sm btn-outline-danger py-0 px-1" style="font-size: 10px; height: 20px; line-height: 18px;" @onclick="() => RemoveSelectedTest(st.Id)">
                                                         <i class="fas fa-trash-can"></i>
                                                     </button>
                                                 </div>
@@ -428,58 +585,64 @@
                             <!-- Specimen Tubes Auto-Grouping Preview -->
                             @if (EstimatedTubes.Any())
                             {
-                                <div class="mb-3 p-2 rounded bg-dark border border-secondary">
-                                    <small class="text-secondary fw-bold d-block mb-1 d-flex align-items-center gap-1">
-                                        <i class="fas fa-vial text-info"></i>
+                                <div class="mb-2 p-2 rounded bg-light border" style="border-color: var(--medlab-border) !important;">
+                                    <small class="medlab-form-label d-block mb-1 d-flex align-items-center gap-1">
+                                        <i class="fas fa-vial text-primary"></i>
                                         <span>@Prefs.T("الأنابيب والعينات المطلوبة للسحب:", "Required Specimen Tubes:")</span>
                                     </small>
-                                    <div class="d-flex flex-wrap gap-2">
+                                    <div class="d-flex flex-wrap gap-1">
                                         @foreach (var tube in EstimatedTubes)
                                         {
-                                            <span class="badge bg-secondary p-2">
-                                                @tube.SpecimenTypeName (@tube.TestsCount تحليل)
+                                            <span class="badge bg-white text-medlab-navy border px-2 py-1" style="font-size: 10px;">
+                                                @tube.SpecimenTypeName (@tube.TestsCount @Prefs.T("تحليل", "Tests"))
                                             </span>
                                         }
                                     </div>
                                 </div>
                             }
 
-                            <!-- Financial Breakdown Box (MDB Card) -->
-                            <div class="card p-3 mb-0 border-0 shadow-2-strong" style="background: rgba(11, 19, 43, 0.9);">
-                                <div class="d-flex justify-content-between mb-2">
-                                    <span class="text-secondary">@Prefs.T("المبلغ الإجمالي (Total):", "Total Amount:")</span>
-                                    <strong class="text-white fs-5">@TotalPrice.ToString("N0") د.ع</strong>
+                            <!-- Financial Breakdown Box -->
+                            <div class="medlab-cart-box">
+                                <div class="d-flex justify-content-between mb-1" style="font-size: 12px;">
+                                    <span class="text-muted">@Prefs.T("المبلغ الإجمالي (Total):", "Total Amount:")</span>
+                                    <strong class="text-medlab-navy font-monospace">@TotalPrice.ToString("N0") د.ع</strong>
+                                </div>
+
+                                <div class="d-flex justify-content-between align-items-center mb-1">
+                                    <span class="text-muted small">@Prefs.T("الخصم (Discount):", "Discount:")</span>
+                                    <input type="number" class="form-control form-control-sm text-end fw-bold font-monospace" style="width: 100px; height: 26px; font-size: 11.5px;" 
+                                           @bind="DiscountAmount" @bind:after="OnDiscountChanged" min="0" />
+                                </div>
+
+                                <div class="d-flex justify-content-between mb-1 pt-1 border-top" style="border-color: var(--medlab-border) !important; font-size: 12px;">
+                                    <span class="text-primary fw-bold">@Prefs.T("الصافي المطلوب (Net):", "Net Amount:")</span>
+                                    <strong class="text-primary font-monospace fs-6">@NetAmount.ToString("N0") د.ع</strong>
+                                </div>
+
+                                <div class="d-flex justify-content-between align-items-center mb-1">
+                                    <div class="d-flex align-items-center gap-1">
+                                        <span class="text-muted small">@Prefs.T("المبلغ المدفوع:", "Paid Amount:")</span>
+                                        <button type="button" class="btn btn-outline-success py-0 px-1" style="font-size: 9px; height: 18px; line-height: 16px;" 
+                                                @onclick="ResetPaidToFull" title="@Prefs.T("دفع كامل المبلغ", "Pay Full Amount")">
+                                            @Prefs.T("كامل المبلغ", "Full")
+                                        </button>
+                                    </div>
+                                    <input type="number" class="form-control form-control-sm text-end fw-bold text-success font-monospace" style="width: 100px; height: 26px; font-size: 11.5px;" 
+                                           @bind="PaidAmount" @bind:after="OnPaidAmountChanged" min="0" />
                                 </div>
 
                                 <div class="d-flex justify-content-between align-items-center mb-2">
-                                    <span class="text-secondary">@Prefs.T("الخصم (Discount):", "Discount:")</span>
-                                    <input type="number" class="form-control form-control-sm text-end fw-bold" style="width: 120px;" 
-                                           @bind="DiscountAmount" @bind:after="RecalculateFinancials" min="0" />
-                                </div>
-
-                                <div class="d-flex justify-content-between mb-2 pt-2 border-top border-secondary">
-                                    <span class="text-info fw-bold">@Prefs.T("الصافي المطلوب (Net):", "Net Amount:")</span>
-                                    <strong class="text-info fs-5">@NetAmount.ToString("N0") د.ع</strong>
-                                </div>
-
-                                <div class="d-flex justify-content-between align-items-center mb-2">
-                                    <span class="text-secondary">@Prefs.T("الدفعة الواصلة الآن:", "Paid Amount:")</span>
-                                    <input type="number" class="form-control form-control-sm text-end fw-bold text-success" style="width: 120px;" 
-                                           @bind="PaidAmount" @bind:after="RecalculateFinancials" min="0" />
-                                </div>
-
-                                <div class="d-flex justify-content-between align-items-center mb-3">
-                                    <span class="text-secondary">@Prefs.T("طريقة الدفع:", "Payment Method:")</span>
-                                    <select class="form-select form-select-sm" style="width: 120px;" @bind="PaymentMethod">
+                                    <span class="text-muted small">@Prefs.T("طريقة الدفع:", "Payment Method:")</span>
+                                    <select class="form-select form-select-sm" style="width: 110px; height: 26px; font-size: 11px;" @bind="PaymentMethod">
                                         <option value="Cash">@Prefs.T("نقداً (Cash)", "Cash")</option>
                                         <option value="Card">@Prefs.T("كارت / زين كاش", "Card / E-Payment")</option>
                                     </select>
                                 </div>
 
-                                <div class="d-flex justify-content-between pt-2 border-top border-secondary">
-                                    <span class="text-secondary">@Prefs.T("المتبقي (Balance):", "Remaining Balance:")</span>
-                                    <strong class="@(RemainingBalance > 0 ? "text-danger" : "text-muted")">
-                                        @RemainingBalance.ToString("N0") د.ع
+                                <div class="d-flex justify-content-between pt-1 border-top" style="border-color: var(--medlab-border) !important; font-size: 12px;">
+                                    <span class="text-muted">@Prefs.T("المتبقي (Balance):", "Remaining Balance:")</span>
+                                    <strong class="font-monospace @(RemainingBalance > 0 ? "text-danger" : "text-success")">
+                                        @(RemainingBalance > 0 ? $"{RemainingBalance:N0} د.ع" : Prefs.T("مسدد بالكامل ✓", "Paid in Full ✓"))
                                     </strong>
                                 </div>
                             </div>
@@ -488,23 +651,24 @@
 
                     @if (!string.IsNullOrEmpty(OrderStepError))
                     {
-                        <div class="alert alert-danger py-2 px-3 mt-3 mb-0">@OrderStepError</div>
+                        <div class="alert alert-danger py-2 px-3 mt-3 mb-0" style="font-size: 12px;">@OrderStepError</div>
                     }
                 </div>
 
-                <div class="modal-footer border-top border-secondary d-flex justify-content-between">
-                    <button type="button" class="btn btn-outline-secondary" data-mdb-ripple-init @onclick="BackToStep1">
-                        <i class="fas fa-arrow-right me-1"></i> @Prefs.T("رجوع لبيانات المراجع", "Back to Patient Info")
+                <div class="modal-footer medlab-modal-footer d-flex justify-content-between align-items-center">
+                    <button type="button" class="btn btn-sm btn-outline-secondary px-3" style="height: 28px;" @onclick="BackToStep1">
+                        <i class="fas @(Prefs.IsArabic ? "fa-arrow-right" : "fa-arrow-left") me-1"></i> @Prefs.T("رجوع لبيانات المراجع", "Back to Patient Info")
                     </button>
-                    <button type="button" class="btn btn-success fw-bold px-4 fs-6" data-mdb-ripple-init @onclick="FinalizeAndSaveOrder" disabled="@(!SelectedTests.Any() || IsSubmittingOrder)">
+                    <button type="button" class="btn btn-sm btn-primary fw-bold px-4 d-flex align-items-center gap-2" style="background: var(--medlab-navy); border-color: var(--medlab-navy); height: 32px;" @onclick="FinalizeAndSaveOrder" disabled="@(!SelectedTests.Any() || IsSubmittingOrder)">
                         @if (IsSubmittingOrder)
                         {
                             <span class="spinner-border spinner-border-sm me-1"></span>
-                            <span>جاري الحفظ وإصدار الباركود...</span>
+                            <span>@Prefs.T("جاري المتابعة...", "Continuing...")</span>
                         }
                         else
                         {
-                            <span><i class="fas fa-floppy-disk me-1"></i> @Prefs.T("حفظ الطلب وإصدار الباركود", "Save Order & Barcodes")</span>
+                            <span>@Prefs.T("متابعة", "Continue")</span>
+                            <i class="fas @(Prefs.IsArabic ? "fa-arrow-left" : "fa-arrow-right") ms-1"></i>
                         }
                     </button>
                 </div>
@@ -518,161 +682,168 @@
 <!-- ========================================================================= -->
 @if (SelectedOrderDetails != null)
 {
-    <div class="modal fade show d-block" tabindex="-1" style="background: rgba(0,0,0,0.75); backdrop-filter: blur(4px); z-index: 1050;">
-        <div class="modal-dialog modal-xl modal-dialog-centered modal-dialog-scrollable">
-            <div class="modal-content card border-0 shadow-5-strong" style="background: var(--bg-card);">
+    <div class="modal fade show d-block" tabindex="-1" style="background: rgba(15, 23, 42, 0.7); backdrop-filter: blur(4px); z-index: 1050;">
+        <div class="modal-dialog modal-dialog-centered medlab-fixed-order-dialog">
+            <div class="modal-content border-0 shadow-lg medlab-modal-content" style="border-radius: 6px; overflow: hidden; border: 1px solid var(--medlab-border) !important;">
                 <!-- Modal Header -->
-                <div class="modal-header border-bottom border-secondary d-flex justify-content-between align-items-center bg-dark">
-                    <div>
-                        <h5 class="modal-title text-info fw-bold mb-1 d-flex align-items-center gap-2">
-                            <i class="fas fa-file-invoice"></i>
-                            <span>@Prefs.T("تفاصيل الطلب والحسابات والتحاليل", "Order Details, Billing & Tests") #@SelectedOrderDetails.Order.Id (@Prefs.T("زيارة رقم", "Visit #") @SelectedOrderDetails.Order.VisitNo)</span>
-                        </h5>
-                        <span class="text-secondary small">
-                            المريض: <strong class="text-white">@SelectedOrderDetails.Patient.FullNameAr</strong> | P.ID: <strong class="text-info">@SelectedOrderDetails.Patient.Mrn</strong> | الجنس: @(SelectedOrderDetails.Patient.Sex == "F" ? "أنثى" : "ذكر") | التاريخ: @SelectedOrderDetails.Order.OrderDatetime.ToString("dd/MM/yyyy HH:mm")
-                        </span>
+                <div class="modal-header py-2 px-3 border-bottom d-flex justify-content-between align-items-center medlab-modal-header" style="border-color: var(--medlab-border) !important;">
+                    <div class="d-flex align-items-center gap-2">
+                        <div class="d-flex align-items-center justify-content-center rounded-2" style="width: 32px; height: 32px; background: rgba(0, 62, 107, 0.1); color: var(--medlab-navy);">
+                            <i class="fas fa-file-invoice" style="font-size: 14px;"></i>
+                        </div>
+                        <div>
+                            <div class="d-flex align-items-center gap-2">
+                                <h6 class="fw-bold mb-0 text-medlab-navy" style="font-size: 13.5px;">
+                                    @Prefs.T("تفاصيل الطلب والحسابات والتحاليل", "Order Details, Billing & Tests") #@SelectedOrderDetails.Order.Id (@Prefs.T("زيارة رقم", "Visit #") @SelectedOrderDetails.Order.VisitNo)
+                                </h6>
+                                <span class="badge-status @GetStatusClass(SelectedOrderDetails.Order.Status)" style="font-size: 10px;">
+                                    @GetStatusDisplay(SelectedOrderDetails.Order.Status)
+                                </span>
+                            </div>
+                            <div class="text-muted" style="font-size: 11px;">
+                                @Prefs.T("المريض", "Patient"): <strong class="text-medlab-navy">@SelectedOrderDetails.Patient.FullNameAr</strong> | MRN: <strong class="text-medlab-navy font-monospace">@SelectedOrderDetails.Patient.Mrn</strong> | @(SelectedOrderDetails.Patient.Sex == "F" ? Prefs.T("أنثى", "Female") : Prefs.T("ذكر", "Male")) | @SelectedOrderDetails.Order.OrderDatetime.ToString("dd.MM.yyyy HH:mm")
+                            </div>
+                        </div>
                     </div>
                     <div class="d-flex align-items-center gap-2">
-                        <button type="button" class="btn btn-sm btn-info fw-bold d-flex align-items-center gap-1 shadow-sm" data-mdb-ripple-init @onclick="OpenOrderBarcodeLabelsModal" title='@Prefs.T("معاينة وطباعة ملصقات الباركود لجميع أنابيب المراجع (50×25 مم)", "Preview & Print Tube Barcodes")'>
-                            <i class="fas fa-barcode"></i>
-                            <span>@Prefs.T("طباعة باركود الأنابيب", "Print Tube Barcodes")</span>
-                        </button>
-                        <span class="badge-status @GetStatusClass(SelectedOrderDetails.Order.Status) fs-6 px-3 py-2">
-                            @SelectedOrderDetails.Order.Status
-                        </span>
-                        <button type="button" class="btn-close btn-close-white" @onclick="() => SelectedOrderDetails = null"></button>
+                        <button type="button" class="btn-close" @onclick="() => SelectedOrderDetails = null"></button>
                     </div>
                 </div>
 
-                <div class="modal-body p-4">
+                <div class="modal-body">
                     <!-- Status / Action Message Alert -->
                     @if (!string.IsNullOrEmpty(DetailsAlertMessage))
                     {
-                        <div class="alert @DetailsAlertClass py-2 px-3 mb-3 d-flex justify-content-between align-items-center">
+                        <div class="alert @DetailsAlertClass py-2 px-3 mb-2 d-flex justify-content-between align-items-center flex-shrink-0" style="font-size: 12px;">
                             <span>@DetailsAlertMessage</span>
-                            <button type="button" class="btn-close btn-close-white small" @onclick="ClearDetailsAlert"></button>
+                            <button type="button" class="btn-close small" @onclick="ClearDetailsAlert"></button>
                         </div>
                     }
 
-                    <!-- ══ 1. FINANCIAL SUMMARY & PAYMENT ══ -->
-                    <div class="card p-3 mb-3 border-0 shadow-2-strong" style="background: rgba(15, 23, 42, 0.85);">
-                        <div class="row g-3 align-items-center">
-                            <div class="col-md-2 col-6 border-end border-secondary">
-                                <div class="text-secondary small">إجمالي الفاتورة (Total):</div>
-                                <div class="fw-bold text-white fs-5 mt-1">@((SelectedOrderDetails.Invoice?.Total ?? 0).ToString("N0")) د.ع</div>
+                    <!-- ══ 1. FINANCIAL SUMMARY & DIRECT CASHIER PAYMENT ══ -->
+                    <div class="medlab-cart-box flex-shrink-0 p-2 px-3 border rounded shadow-sm" style="background: var(--medlab-card-bg); border-color: var(--medlab-border) !important;">
+                        <div class="row g-2 align-items-center">
+                            <div class="col-md col-4 border-end" style="border-color: var(--medlab-border) !important;">
+                                <div class="medlab-form-label mb-0" style="font-size: 10.5px;">@Prefs.T("إجمالي الفاتورة", "Total Amount")</div>
+                                <div class="fw-bold text-medlab-navy fs-6 mt-1 font-monospace">@((SelectedOrderDetails.Invoice?.Total ?? 0).ToString("N0")) د.ع</div>
                             </div>
-                            <div class="col-md-2 col-6 border-end border-secondary">
-                                <div class="text-secondary small">@Prefs.T("الخصم (Discount):", "Discount:")</div>
-                                <div class="fw-bold text-warning fs-5 mt-1">@((SelectedOrderDetails.Invoice?.Discount ?? 0).ToString("N0")) د.ع</div>
+                            <div class="col-md col-4 border-end" style="border-color: var(--medlab-border) !important;">
+                                <div class="medlab-form-label mb-0" style="font-size: 10.5px;">@Prefs.T("الخصم الممنوح", "Discount")</div>
+                                <div class="fw-bold text-warning fs-6 mt-1 font-monospace">@((SelectedOrderDetails.Invoice?.Discount ?? 0).ToString("N0")) د.ع</div>
                             </div>
-                            <div class="col-md-2 col-6 border-end border-secondary">
-                                <div class="text-secondary small">الصافي (Net Total):</div>
-                                <div class="fw-bold text-info fs-5 mt-1">@((SelectedOrderDetails.Invoice?.Net ?? 0).ToString("N0")) د.ع</div>
+                            <div class="col-md col-4 border-end" style="border-color: var(--medlab-border) !important;">
+                                <div class="medlab-form-label mb-0 text-primary" style="font-size: 10.5px;">@Prefs.T("الصافي المطلوب", "Net Total")</div>
+                                <div class="fw-bold text-primary fs-6 mt-1 font-monospace">@((SelectedOrderDetails.Invoice?.Net ?? 0).ToString("N0")) د.ع</div>
                             </div>
-                            <div class="col-md-2 col-6 border-end border-secondary">
-                                <div class="text-secondary small">المسدد (Paid):</div>
-                                <div class="fw-bold text-success fs-5 mt-1">@((SelectedOrderDetails.Invoice?.Paid ?? 0).ToString("N0")) د.ع</div>
+                            <div class="col-md col-6 border-end" style="border-color: var(--medlab-border) !important;">
+                                <div class="medlab-form-label mb-0 text-success" style="font-size: 10.5px;">@Prefs.T("المبلغ المسدد", "Paid Amount")</div>
+                                <div class="fw-bold text-success fs-6 mt-1 font-monospace">@((SelectedOrderDetails.Invoice?.Paid ?? 0).ToString("N0")) د.ع</div>
                             </div>
-                            <div class="col-md-2 col-6 border-end border-secondary">
-                                <div class="text-secondary small">المتبقي (Balance Due):</div>
-                                <div class="fw-bold fs-5 mt-1 @((SelectedOrderDetails.Invoice?.Balance ?? 0) > 0 ? "text-danger" : "text-muted")">
-                                    @((SelectedOrderDetails.Invoice?.Balance ?? 0).ToString("N0")) د.ع
+                            <div class="col-md col-6">
+                                <div class="medlab-form-label mb-0" style="font-size: 10.5px;">@Prefs.T("المتبقي بذمة المراجع", "Balance Due")</div>
+                                <div class="fw-bold fs-6 mt-1 font-monospace @((SelectedOrderDetails.Invoice?.Balance ?? 0) > 0 ? "text-danger" : "text-success")">
+                                    @if ((SelectedOrderDetails.Invoice?.Balance ?? 0) > 0)
+                                    {
+                                        <span>@((SelectedOrderDetails.Invoice?.Balance ?? 0).ToString("N0")) د.ع</span>
+                                    }
+                                    else
+                                    {
+                                        <span><i class="fas fa-check-circle text-success me-1"></i> @Prefs.T("مسدد بالكامل ✓", "Fully Paid ✓")</span>
+                                    }
                                 </div>
-                            </div>
-                            <div class="col-md-2 col-12 d-flex flex-column gap-2 justify-content-center">
-                                @if (SelectedOrderDetails.Invoice != null && SelectedOrderDetails.Invoice.Balance > 0)
-                                {
-                                    <button class="btn btn-success fw-bold py-2 shadow-sm" data-mdb-ripple-init @onclick="ToggleDetailsPaymentBox">
-                                        <i class="fas fa-credit-card me-1"></i> تسديد دفعة (Pay)
-                                    </button>
-                                }
-                                else
-                                {
-                                    <span class="badge bg-success bg-opacity-25 text-success border border-success py-2 text-center">
-                                        <i class="fas fa-check-circle me-1"></i> مسدد بالكامل
-                                    </span>
-                                }
-                                <button class="btn btn-outline-info btn-sm py-1" data-mdb-ripple-init @onclick="OpenReceiptModal">
-                                    <i class="fas fa-receipt me-1"></i> وصل 80 مم
-                                </button>
                             </div>
                         </div>
 
-                        <!-- Collapsible Quick Payment Sub-Form -->
-                        @if (IsDetailsPaymentBoxOpen && SelectedOrderDetails.Invoice != null && SelectedOrderDetails.Invoice.Balance > 0)
+                        <!-- Direct Cashier Payment Bar -->
+                        @if (SelectedOrderDetails.Invoice != null && SelectedOrderDetails.Invoice.Balance > 0)
                         {
-                            <div class="mt-3 pt-3 border-top border-secondary p-3 rounded bg-dark border">
-                                <h6 class="fw-bold text-success mb-3 d-flex align-items-center gap-2">
-                                    <i class="fas fa-money-bill-wave"></i>
-                                    <span>تسديد دفعة للطلب الحالي:</span>
-                                </h6>
-                                <div class="row g-2 align-items-center">
-                                    <div class="col-md-4">
-                                        <label class="form-label text-secondary small mb-1">المبلغ المراد تسديده الآن (د.ع):</label>
-                                        <input type="number" class="form-control fw-bold text-success fs-5" @bind="DetailsPaymentAmount" min="1" max="@SelectedOrderDetails.Invoice.Balance" />
-                                    </div>
-                                    <div class="col-md-4">
-                                        <label class="form-label text-secondary small mb-1">@Prefs.T("طريقة الدفع:", "Payment Method:")</label>
-                                        <select class="form-select" @bind="DetailsPaymentMethod">
-                                            <option value="Cash">@Prefs.T("نقداً (Cash)", "Cash")</option>
-                                            <option value="Card">كارت / زين كاش (Card)</option>
-                                        </select>
-                                    </div>
-                                    <div class="col-md-4 d-flex align-items-end gap-2">
-                                        <button class="btn btn-success fw-bold px-4 py-2 mt-auto" data-mdb-ripple-init @onclick="SubmitDetailsPayment" disabled="@IsProcessingPayment">
-                                            @if (IsProcessingPayment)
-                                            {
-                                                <span class="spinner-border spinner-border-sm me-1"></span>
-                                                <span>جاري الحفظ...</span>
-                                            }
-                                            else
-                                            {
-                                                <span><i class="fas fa-check me-1"></i> تأكيد الدفع والاستلام</span>
-                                            }
+                            <div class="mt-2 pt-2 border-top d-flex align-items-center gap-3 flex-wrap" style="border-color: var(--medlab-border) !important; background: rgba(34, 197, 94, 0.05); padding: 10px 14px; border-radius: 8px;">
+                                <div class="d-flex align-items-center gap-1 text-success fw-bold" style="font-size: 12.5px;">
+                                    <i class="fas fa-cash-register fs-6"></i>
+                                    <span>@Prefs.T("عملية الدفع:", "Cashier Payment:")</span>
+                                </div>
+                                <div class="d-flex align-items-center gap-2">
+                                    <label class="medlab-form-label mb-0 text-nowrap fw-bold" style="font-size: 11.5px;">@Prefs.T("المبلغ (د.ع):", "Amount (IQD):")</label>
+                                    <input type="number" class="form-control form-control-sm fw-bold text-success font-monospace" style="height: 32px; width: 140px; font-size: 13px;" @bind="DetailsPaymentAmount" min="1" max="@SelectedOrderDetails.Invoice.Balance" />
+                                </div>
+                                <div class="d-flex align-items-center gap-2">
+                                    <label class="medlab-form-label mb-0 text-nowrap fw-bold" style="font-size: 11.5px;">@Prefs.T("طريقة الدفع:", "Payment Method:")</label>
+                                    <div class="btn-group shadow-sm" role="group">
+                                        <button type="button" class="btn btn-sm px-3 d-flex align-items-center gap-1 @(DetailsPaymentMethod == "Cash" ? "btn-success fw-bold text-white shadow-sm" : "btn-outline-secondary bg-white")" 
+                                                style="height: 32px; font-size: 11.5px; border-radius: 4px 0 0 4px;" 
+                                                @onclick='() => DetailsPaymentMethod = "Cash"'>
+                                            <i class="fas fa-money-bill-wave"></i>
+                                            <span>@Prefs.T("نقداً (Cash)", "Cash")</span>
                                         </button>
-                                        <button class="btn btn-outline-secondary py-2 mt-auto" data-mdb-ripple-init @onclick="() => IsDetailsPaymentBoxOpen = false">
-                                            إلغاء
+                                        <button type="button" class="btn btn-sm px-3 d-flex align-items-center gap-1 @(DetailsPaymentMethod == "Card" ? "btn-primary fw-bold text-white shadow-sm" : "btn-outline-secondary bg-white")" 
+                                                style="height: 32px; font-size: 11.5px; border-radius: 0 4px 4px 0;" 
+                                                @onclick='() => DetailsPaymentMethod = "Card"'>
+                                            <i class="fas fa-credit-card"></i>
+                                            <span>@Prefs.T("بالبطاقة (Card)", "Card")</span>
                                         </button>
                                     </div>
                                 </div>
+                                <button type="button" class="btn btn-sm fw-bold px-4 d-flex align-items-center gap-2 shadow-sm ms-auto @(DetailsPaymentMethod == "Card" ? "btn-primary" : "btn-success")" 
+                                        style="height: 34px; font-size: 12.5px; @(DetailsPaymentMethod == "Card" ? "background: #2563eb; border-color: #2563eb;" : "background: #16a34a; border-color: #16a34a;")" 
+                                        @onclick="SubmitDetailsPayment" disabled="@IsProcessingPayment">
+                                    @if (IsProcessingPayment)
+                                    {
+                                        <span class="spinner-border spinner-border-sm me-1"></span>
+                                        <span>@Prefs.T("جاري الدفع...", "Processing...")</span>
+                                    }
+                                    else
+                                    {
+                                        <i class="fas @(DetailsPaymentMethod == "Card" ? "fa-credit-card" : "fa-money-bill-wave")"></i>
+                                        <span>
+                                            @if (DetailsPaymentMethod == "Card")
+                                            {
+                                                @Prefs.T("دفع بالبطاقة وطباعة الوصل", "Pay with Card & Print")
+                                            }
+                                            else
+                                            {
+                                                @Prefs.T("دفع نقداً وطباعة الوصل", "Pay with Cash & Print")
+                                            }
+                                        </span>
+                                    }
+                                </button>
                             </div>
                         }
                     </div>
 
                     <!-- ══ 2. ORDERED TESTS MANAGEMENT (ADD / DELETE) ══ -->
-                    <div class="card p-3 mb-3 border-0 shadow-2-strong" style="background: rgba(15, 23, 42, 0.85);">
-                        <div class="d-flex align-items-center justify-content-between mb-3 flex-wrap gap-2">
+                    <div class="medlab-order-details-card medlab-order-tests-container shadow-sm">
+                        <div class="d-flex align-items-center justify-content-between mb-2 flex-wrap gap-2 flex-shrink-0">
                             <div class="d-flex align-items-center gap-2">
-                                <h5 class="fw-bold text-info mb-0 d-flex align-items-center gap-2">
-                                    <i class="fas fa-clipboard-list"></i>
-                                    <span>قائمة التحاليل المطلوبة لهذا الطلب:</span>
-                                </h5>
-                                <span class="badge bg-primary text-white fs-6">
-                                    @(SelectedOrderDetails.Specimens.Sum(s => s.Tests.Count)) فحص
+                                <h6 class="fw-bold text-medlab-navy mb-0 d-flex align-items-center gap-2" style="font-size: 12.5px;">
+                                    <i class="fas fa-clipboard-list text-primary"></i>
+                                    <span>@Prefs.T("قائمة التحاليل المطلوبة لهذا الطلب", "Ordered Laboratory Tests")</span>
+                                </h6>
+                                <span class="badge" style="background: var(--medlab-navy); color: #fff; font-size: 10px;">
+                                    @(SelectedOrderDetails.Specimens.Sum(s => s.Tests.Count)) @Prefs.T("فحص", "Tests")
                                 </span>
                             </div>
 
                             <!-- Quick Add Test To Order Bar with Live Search -->
                             <div class="d-flex align-items-center gap-2 flex-grow-1 justify-content-end flex-wrap" style="max-width: 750px;">
                                 <!-- Live Search Input -->
-                                <div class="input-group" style="width: 260px;">
-                                    <span class="input-group-text bg-dark border-secondary text-info">
+                                <div class="input-group input-group-sm" style="width: 240px;">
+                                    <span class="input-group-text bg-transparent text-muted border-end-0">
                                         <i class="fas fa-search"></i>
                                     </span>
-                                    <input type="text" class="form-control" 
-                                           placeholder="ابحث باسم الفحص أو الكود..." 
-                                           @bind="AddTestSearchQuery" @bind:event="oninput" @onkeydown="HandleAddTestKeyDown" />
+                                    <input type="text" class="form-control border-start-0" 
+                                           placeholder="@Prefs.T("ابحث باسم الفحص أو الكود...", "Search test name or code...")" 
+                                           @bind="AddTestSearchQuery" @bind:event="oninput" @onkeydown="HandleAddTestKeyDown" style="height: 28px; font-size: 11.5px;" />
                                     @if (!string.IsNullOrEmpty(AddTestSearchQuery))
                                     {
-                                        <button class="btn btn-outline-secondary btn-sm" type="button" @onclick="ClearAddTestSearch" title="مسح">
+                                        <button class="btn btn-outline-secondary btn-sm" type="button" @onclick="ClearAddTestSearch" title="@Prefs.T("مسح", "Clear")">
                                             <i class="fas fa-times"></i>
                                         </button>
                                     }
                                 </div>
 
                                 <!-- Filtered Tests Dropdown -->
-                                <select class="form-select flex-grow-1" style="min-width: 240px;" @bind="SelectedTestToAddId">
-                                    <option value="0">-- اختر فحصاً (@AddTestFilteredCatalog.Count() فحص متاح) --</option>
+                                <select class="form-select form-select-sm flex-grow-1" style="min-width: 220px; height: 28px; font-size: 11.5px;" @bind="SelectedTestToAddId">
+                                    <option value="0">@Prefs.T($"-- اختر فحصاً ({AddTestFilteredCatalog.Count()} فحص متاح) --", $"-- Select test ({AddTestFilteredCatalog.Count()} available) --")</option>
                                     @foreach (var t in AddTestFilteredCatalog)
                                     {
                                         <option value="@t.Id">[@t.TestCode] @(t.NameAr ?? t.NameEn) - @t.FormattedPrice (@t.SpecimenTypeName)</option>
@@ -680,84 +851,96 @@
                                 </select>
 
                                 <!-- Add Button -->
-                                <button class="btn btn-success fw-bold text-nowrap px-3" data-mdb-ripple-init @onclick="AddTestToCurrentOrder" disabled="@(SelectedTestToAddId == 0 || IsAddingTest)">
+                                <button class="btn btn-sm btn-primary fw-bold text-nowrap px-3" style="height: 28px; font-size: 11px;" @onclick="AddTestToCurrentOrder" disabled="@(SelectedTestToAddId == 0 || IsAddingTest)">
                                     @if (IsAddingTest)
                                     {
                                         <span class="spinner-border spinner-border-sm me-1"></span>
-                                        <span>جاري الإضافة...</span>
+                                        <span>@Prefs.T("جاري الإضافة...", "Adding...")</span>
                                     }
                                     else
                                     {
-                                        <span><i class="fas fa-plus me-1"></i> إضافة الفحص</span>
+                                        <span><i class="fas fa-plus me-1"></i> @Prefs.T("إضافة الفحص", "Add Test")</span>
                                     }
                                 </button>
                             </div>
                         </div>
 
-                        <!-- Table of Ordered Tests -->
-                        <div class="table-responsive">
-                            <table class="table table-hover align-middle mb-0" style="color: var(--text-main);">
-                                <thead class="table-dark">
+                        <!-- Table of Ordered Tests with Fixed Height & Sticky Header -->
+                        <div class="table-responsive medlab-order-tests-table-wrapper">
+                            <table class="medlab-table mb-0 w-100">
+                                <thead>
                                     <tr>
-                                        <th>اسم التحليل (Test Name)</th>
-                                        <th>نوع العينة / الأنبوب (Tube)</th>
-                                        <th>باركود العينة (Accession)</th>
-                                        <th>السعر (Price)</th>
-                                        <th>الحالة (Status)</th>
-                                        <th class="text-center">@Prefs.T("إجراءات", "Actions")</th>
+                                        <th>@Prefs.T("اسم التحليل", "TEST NAME")</th>
+                                        <th style="width: 140px;">@Prefs.T("نوع العينة / الأنبوب", "SPECIMEN / TUBE")</th>
+                                        <th style="width: 180px;">@Prefs.T("باركود العينة", "ACCESSION BARCODE")</th>
+                                        <th style="width: 110px;">@Prefs.T("السعر", "PRICE")</th>
+                                        <th style="width: 110px;" class="text-center">@Prefs.T("الحالة", "STATUS")</th>
+                                        <th class="text-center" style="width: 80px;">@Prefs.T("إجراءات", "ACTIONS")</th>
                                     </tr>
                                 </thead>
                                 <tbody>
-                                    @foreach (var spec in SelectedOrderDetails.Specimens)
+                                    @if (SelectedOrderDetails.Specimens == null || !SelectedOrderDetails.Specimens.Any() || !SelectedOrderDetails.Specimens.Any(s => s.Tests.Any()))
                                     {
-                                        var tubeColor = GetTubeColor(spec.SpecimenTypeName);
-                                        @foreach (var test in spec.Tests)
+                                        <tr>
+                                            <td colspan="6" class="text-center py-4 text-muted small">
+                                                <i class="fas fa-clipboard-question fs-4 d-block opacity-50 mb-1"></i>
+                                                @Prefs.T("لا توجد تحاليل مسجلة لهذا الطلب حالياً.", "No tests currently ordered.")
+                                            </td>
+                                        </tr>
+                                    }
+                                    else
+                                    {
+                                        @foreach (var spec in SelectedOrderDetails.Specimens)
                                         {
-                                            long orderTestId = test.OrderTestId;
-                                            string testName = test.NameAr ?? test.NameEn;
-                                            <tr>
-                                                <td>
-                                                    <div class="fw-bold text-white fs-6">@testName</div>
-                                                    <div class="small text-secondary" style="font-family: monospace;">@test.TestCode</div>
-                                                </td>
-                                                <td>
-                                                    <div class="d-flex align-items-center gap-2">
-                                                        <span style="width: 12px; height: 12px; border-radius: 50%; background-color: @tubeColor; display: inline-block;"></span>
-                                                        <span class="badge bg-dark border border-secondary text-white">@spec.SpecimenTypeName</span>
-                                                    </div>
-                                                </td>
-                                                <td>
-                                                    <div class="d-flex align-items-center gap-1">
-                                                        <strong class="text-info font-monospace">@spec.Specimen.AccessionNo</strong>
-                                                        <button class="btn btn-sm btn-info py-0 px-2 fw-bold text-dark" data-mdb-ripple-init title='@Prefs.T("معاينة وطباعة ملصق هذا الأنبوب (50×25 مم)", "Preview & Print Tube Label")' @onclick="() => OpenSingleSpecimenLabel(spec)">
-                                                            <i class="fas fa-barcode me-1"></i> @Prefs.T("باركود", "Barcode")
-                                                        </button>
-                                                        <button class="btn btn-sm btn-outline-info py-0 px-2" data-mdb-ripple-init title='@Prefs.T("طباعة صامتة فورية لطابعة الباركود", "Silent Direct Print")' @onclick="() => PrintSilentTubeLabel(spec)">
-                                                            <i class="fas fa-bolt"></i>
-                                                        </button>
-                                                    </div>
-                                                </td>
-                                                <td class="fw-bold text-success">
-                                                    @test.Price.ToString("N0") د.ع
-                                                </td>
-                                                <td>
-                                                    <span class="badge-status @GetStatusClass(test.Status)">
-                                                        @test.Status
-                                                    </span>
-                                                </td>
-                                                <td class="text-center">
-                                                    @if (test.Status == "Ordered" && SelectedOrderDetails.Order.Status != "Cancelled")
-                                                    {
-                                                        <button class="btn btn-sm btn-outline-danger px-2 py-1" data-mdb-ripple-init title="حذف هذا الفحص من الطلب وتعديل الفاتورة" @onclick="() => RemoveTestFromCurrentOrder(orderTestId, testName)">
-                                                            <i class="fas fa-trash-can me-1"></i> حذف
-                                                        </button>
-                                                    }
-                                                    else
-                                                    {
-                                                        <span class="badge bg-secondary opacity-75">مُستلم ✓</span>
-                                                    }
-                                                </td>
-                                            </tr>
+                                            var tubeColor = GetTubeColor(spec.SpecimenTypeName);
+                                            @foreach (var test in spec.Tests)
+                                            {
+                                                long orderTestId = test.OrderTestId;
+                                                string testName = test.NameAr ?? test.NameEn;
+                                                <tr>
+                                                    <td>
+                                                        <div class="fw-bold text-medlab-navy" style="font-size: 12px;">@testName</div>
+                                                        <div class="small text-muted font-monospace" style="font-size: 10px;">@test.TestCode</div>
+                                                    </td>
+                                                    <td>
+                                                        <div class="d-flex align-items-center gap-1">
+                                                            <span style="width: 9px; height: 9px; border-radius: 2px; background-color: @tubeColor; display: inline-block;"></span>
+                                                            <span class="badge bg-secondary bg-opacity-10 text-secondary border font-monospace" style="font-size: 9.5px;">@spec.SpecimenTypeName</span>
+                                                        </div>
+                                                    </td>
+                                                    <td>
+                                                        <strong class="text-primary font-monospace" style="font-size: 11.5px;">@spec.Specimen.AccessionNo</strong>
+                                                    </td>
+                                                    <td class="fw-bold text-medlab-navy font-monospace" style="font-size: 11.5px;">
+                                                        @test.Price.ToString("N0") د.ع
+                                                    </td>
+                                                    <td class="text-center">
+                                                        <span class="badge-status @GetStatusClass(test.Status)" style="font-size: 9.5px;">
+                                                            @GetStatusDisplay(test.Status)
+                                                        </span>
+                                                        @if (spec.Rejection != null)
+                                                        {
+                                                            <div class="mt-1">
+                                                                <span class="badge bg-danger text-white font-monospace text-wrap" style="font-size: 8.5px; max-width: 140px; display: inline-block;" title="@($"{Prefs.T("سبب الرفض:", "Reason:")} {spec.Rejection.DisplayReason}\n{Prefs.T("ملاحظات:", "Notes:")} {spec.Rejection.Notes}\n{Prefs.T("بواسطة:", "By:")} {spec.Rejection.UserFullName ?? spec.Rejection.Username}")">
+                                                                    ⚠️ @spec.Rejection.DisplayReason
+                                                                </span>
+                                                            </div>
+                                                        }
+                                                    </td>
+                                                    <td class="text-center">
+                                                        @if (test.Status == "Ordered" && SelectedOrderDetails.Order.Status != "Cancelled")
+                                                        {
+                                                            <button class="btn btn-sm btn-outline-danger py-0 px-2" style="font-size: 10px; height: 22px; line-height: 20px;" title="@Prefs.T("حذف هذا الفحص من الطلب وتعديل الفاتورة", "Remove test from order")" @onclick="() => RemoveTestFromCurrentOrder(orderTestId, testName)">
+                                                                <i class="fas fa-trash-can me-1"></i> @Prefs.T("حذف", "Delete")
+                                                            </button>
+                                                        }
+                                                        else
+                                                        {
+                                                            <span class="badge bg-secondary bg-opacity-10 text-secondary border" style="font-size: 9.5px;">@Prefs.T("مُستلم ✓", "Received ✓")</span>
+                                                        }
+                                                    </td>
+                                                </tr>
+                                            }
                                         }
                                     }
                                 </tbody>
@@ -766,37 +949,35 @@
                     </div>
 
                     <!-- ══ 3. NOTICE BANNER ══ -->
-                    <div class="p-2 px-3 rounded border border-secondary bg-dark d-flex align-items-center gap-2 mb-0">
-                        <i class="fas fa-circle-info text-info"></i>
-                        <span class="text-secondary small">
+                    <div class="p-2 px-3 rounded border d-flex align-items-center gap-2 mb-0 flex-shrink-0" style="background: rgba(2, 132, 199, 0.05); border-color: var(--medlab-border) !important;">
+                        <i class="fas fa-circle-info text-primary" style="font-size: 13px;"></i>
+                        <span style="font-size: 11px; color: var(--medlab-text-navy);">
                             @Prefs.T("معلومات المراجع والطلب جاهزة. يمكنك طباعة باركود الأنابيب (50×25 مم) مباشرة بالضغط على زر [طباعة باركود الأنابيب] بالأعلى أو بالأسفل، أو بجانب كل أنبوب، بالإضافة لإدارة الفاتورة والوصل.", "Patient & order ready. You can print tube barcodes (50x25mm) directly by clicking [Print Tube Barcodes] at top/bottom, or beside each tube, in addition to cashier receipts and payments.")
                         </span>
                     </div>
                 </div>
 
                 <!-- Modal Footer -->
-                <div class="modal-footer border-top border-secondary d-flex justify-content-between align-items-center bg-dark">
-                    <div class="d-flex gap-2">
-                        <button type="button" class="btn btn-info fw-bold" data-mdb-ripple-init @onclick="OpenOrderBarcodeLabelsModal">
-                            <i class="fas fa-barcode me-1"></i> @Prefs.T("طباعة باركود الأنابيب (50×25 مم)", "Print Tube Barcodes (50x25mm)")
-                        </button>
-                        <button type="button" class="btn btn-success fw-bold" data-mdb-ripple-init @onclick="PrintSilentReceipt">
-                            <i class="fas fa-bolt me-1"></i> طباعة وصل صامتة
-                        </button>
-                        <button type="button" class="btn btn-outline-info" data-mdb-ripple-init @onclick="OpenReceiptModal">
-                            <i class="fas fa-receipt me-1"></i> معاينة الوصل 80 مم
+                <div class="modal-footer medlab-modal-footer d-flex justify-content-between align-items-center flex-wrap gap-2">
+                    <div class="d-flex align-items-center gap-2 flex-wrap">
+                        <button type="button" class="btn btn-sm btn-primary fw-bold d-flex align-items-center gap-2 px-3 shadow-sm" style="height: 32px; font-size: 11.5px; background: var(--medlab-navy); border-color: var(--medlab-navy);" @onclick="OpenOrderBarcodeLabelsModal">
+                            <i class="fas fa-barcode fs-6"></i>
+                            <span>@Prefs.T("طباعة باركودات التحاليل", "Print Specimen Barcodes")</span>
                         </button>
                         @if (SelectedOrderDetails.Order.Status != "Cancelled")
                         {
-                            <button type="button" class="btn btn-outline-danger" data-mdb-ripple-init @onclick="CancelCurrentOrder">
-                                <i class="fas fa-ban me-1"></i> إلغاء الطلب بالكامل
+                            <button type="button" class="btn btn-sm btn-outline-danger" style="height: 30px; font-size: 11px;" @onclick="CancelCurrentOrder">
+                                <i class="fas fa-ban me-1"></i> @Prefs.T("إلغاء الطلب", "Cancel Order")
                             </button>
                         }
                     </div>
-                    <div class="d-flex gap-2">
-                        <button type="button" class="btn btn-outline-secondary" data-mdb-ripple-init @onclick="() => SelectedOrderDetails = null">إغلاق</button>
-                        <a href="results?orderId=@SelectedOrderDetails.Order.Id" class="btn btn-primary fw-bold" data-mdb-ripple-init>
-                            <i class="fas fa-chart-line me-1"></i> الانتقال المباشر للنتائج والاعتماد ➔
+                    <div class="d-flex align-items-center gap-2">
+                        <button type="button" class="btn btn-sm btn-outline-secondary px-3" style="height: 28px; font-size: 11px;" @onclick="() => SelectedOrderDetails = null">
+                            @Prefs.T("إغلاق", "Close")
+                        </button>
+                        <a href="results?orderId=@SelectedOrderDetails.Order.Id" class="btn btn-sm btn-primary fw-bold px-3 d-flex align-items-center gap-1" style="height: 28px; font-size: 11px;">
+                            <span>@Prefs.T("الانتقال المباشر للنتائج والاعتماد", "Go to Results & Validation")</span>
+                            <i class="fas @(Prefs.IsArabic ? "fa-arrow-left" : "fa-arrow-right") ms-1"></i>
                         </a>
                     </div>
                 </div>
@@ -806,55 +987,82 @@
 }
 
 <!-- ========================================================================= -->
-<!-- MODAL: 80mm Thermal Cashier Receipt Preview & Print                       -->
+<!-- MODAL: 80mm Thermal Cashier Receipt Preview & Print (Like Real Cashier)    -->
 <!-- ========================================================================= -->
 @if (IsReceiptModalOpen && SelectedOrderDetails != null)
 {
-    <div class="modal fade show d-block" tabindex="-1" style="background: rgba(0,0,0,0.8); backdrop-filter: blur(4px); z-index: 1060;">
-        <div class="modal-dialog modal-dialog-centered" style="max-width: 420px;">
-            <div class="modal-content card border-0 shadow-5-strong" style="background: var(--bg-card);">
-                <div class="modal-header border-bottom border-secondary d-flex justify-content-between align-items-center py-2">
-                    <h6 class="modal-title text-white fw-bold mb-0 d-flex align-items-center gap-2">
-                        <i class="fas fa-receipt text-info"></i>
-                        <span>وصل كاشير حراري (80 مم)</span>
-                    </h6>
+    var labNameAr = !string.IsNullOrWhiteSpace(LabSettings?.LabNameAr) ? LabSettings.LabNameAr : "مختبر النقاء التخصصي";
+    var labNameEn = !string.IsNullOrWhiteSpace(LabSettings?.LabNameEn) ? LabSettings.LabNameEn : "Al-Naqaa Specialized Lab";
+    var labAddress = !string.IsNullOrWhiteSpace(LabSettings?.Address) ? LabSettings.Address : "بغداد - الكرادة";
+    var labPhones = !string.IsNullOrWhiteSpace(LabSettings?.Phones) ? LabSettings.Phones : "07700000000";
+    var labContact = $"{labAddress} • {labPhones}";
+    var invoiceNumber = SelectedOrderDetails.Invoice?.InvoiceNo != null ? $"TEST-{SelectedOrderDetails.Invoice.InvoiceNo:D2}" : $"TEST-{SelectedOrderDetails.Order.Id:D2}";
+    var patientNumber = SelectedOrderDetails.Patient.Mrn > 0 ? SelectedOrderDetails.Patient.Mrn.ToString() : (100000 + SelectedOrderDetails.Patient.Id).ToString();
+    var allOrderTests = SelectedOrderDetails.Specimens.SelectMany(s => s.Tests).ToList();
+    var invoiceTotal = SelectedOrderDetails.Invoice?.Total ?? allOrderTests.Sum(t => t.Price);
+    var invoiceDiscount = SelectedOrderDetails.Invoice?.Discount ?? 0;
+    var invoiceNet = SelectedOrderDetails.Invoice?.Net ?? invoiceTotal;
+    var invoicePaid = SelectedOrderDetails.Invoice?.Paid ?? 0;
+    var invoiceBalance = SelectedOrderDetails.Invoice?.Balance ?? (invoiceNet - invoicePaid);
+
+    <div class="modal fade show d-block" tabindex="-1" style="background: rgba(15, 23, 42, 0.85); backdrop-filter: blur(5px); z-index: 1070;">
+        <div class="modal-dialog modal-dialog-centered" style="max-width: 440px;">
+            <div class="modal-content border-0 shadow-lg" style="background: #1e293b; border-radius: 12px; overflow: hidden; border: 1px solid rgba(255,255,255,0.1);">
+                <!-- Modal Top Header -->
+                <div class="modal-header py-2 px-3 border-bottom border-secondary d-flex justify-content-between align-items-center" style="background: #0f172a;">
+                    <div class="d-flex align-items-center gap-2">
+                        <i class="fas fa-receipt text-success fs-5"></i>
+                        <div>
+                            <h6 class="fw-bold text-white mb-0" style="font-size: 13.5px;">@Prefs.T("وصل كاشير حراري (80 مم)", "Thermal Cashier Receipt (80mm)")</h6>
+                            <small class="text-muted" style="font-size: 10px;">@Prefs.T("جاهز للطباعة المباشرة", "Ready for cashier printing")</small>
+                        </div>
+                    </div>
                     <button type="button" class="btn-close btn-close-white" @onclick="() => IsReceiptModalOpen = false"></button>
                 </div>
-                <div class="modal-body p-3 text-center bg-dark">
-                    <!-- Thermal 80mm Ticket Box -->
-                    <div class="d-inline-block text-start p-3 bg-white text-dark rounded shadow"
-                         style="width: 320px; font-family: 'Segoe UI', Tahoma, sans-serif; border: 1px solid #ccc; line-height: 1.3;">
-                        <!-- Header -->
-                        <div class="text-center mb-2 pb-2 border-bottom border-dark">
-                            <h5 class="fw-bold mb-0" style="font-size: 16px;">@(LabSettings?.LabNameAr ?? "المختبر الطبي التخصصي")</h5>
-                            <div class="text-muted" style="font-size: 11px;">@(LabSettings?.LabNameEn ?? "Specialized Medical Laboratory")</div>
-                            <div style="font-size: 10px; color: #444;" class="mt-1">
-                                @(LabSettings?.Address ?? "") @(string.IsNullOrWhiteSpace(LabSettings?.Phones) ? "" : $"• {LabSettings.Phones}")
+
+                <!-- Modal Body: Real Thermal Receipt Card with jagged edges -->
+                <div class="modal-body p-3 text-center d-flex flex-column align-items-center" style="background: #0b1120; max-height: 75vh; overflow-y: auto;">
+                    
+                    <!-- Top Zigzag Tear decoration -->
+                    <div class="receipt-zigzag-top" style="width: 320px;"></div>
+
+                    <!-- Thermal Paper Ticket (Printable Area) -->
+                    <div id="cashier-receipt-print-area" class="thermal-receipt-container text-start bg-white text-dark shadow-lg"
+                         style="width: 320px; font-family: 'Segoe UI', Tahoma, Arial, sans-serif; padding: 18px 16px; direction: rtl; line-height: 1.35; color: #000;">
+                        
+                        <!-- 1. Lab Header -->
+                        <div class="text-center" style="margin-bottom: 4px;">
+                            <h5 class="fw-bold mb-0 text-black" style="font-size: 17px; font-weight: 800; letter-spacing: -0.3px;">@labNameAr</h5>
+                            <div class="fw-bold text-dark" style="font-size: 13px; font-weight: 600; margin-top: 1px;">@labNameEn</div>
+                            <div class="text-dark" style="font-size: 11px; margin-top: 3px; font-weight: 500;">@labContact</div>
+                        </div>
+
+                        <!-- Solid Black Line -->
+                        <div style="border-bottom: 2px solid #000; margin: 8px 0;"></div>
+
+                        <!-- 2. Patient & Invoice Metadata (2 Columns) -->
+                        <div style="font-size: 11.5px; line-height: 1.55;">
+                            <div class="d-flex justify-content-between align-items-start">
+                                <div style="text-align: right; width: 55%;">
+                                    <div><span style="font-weight: 500;">اسم المريض:</span> <strong style="font-size: 12px;">@SelectedOrderDetails.Patient.FullNameAr</strong></div>
+                                    <div><span style="font-weight: 500;">رقم الفاتورة:</span> <strong class="font-monospace">#@invoiceNumber</strong></div>
+                                </div>
+                                <div style="text-align: left; width: 45%;">
+                                    <div><span style="font-weight: 500;">التاريخ:</span> <strong class="font-monospace">@SelectedOrderDetails.Order.OrderDatetime.ToString("dd/MM/yyyy")</strong></div>
+                                    <div><span style="font-weight: 500;">الرقم:</span> <strong class="font-monospace">@patientNumber</strong></div>
+                                </div>
                             </div>
                         </div>
 
-                        <!-- Invoice & Patient Info -->
-                        <div style="font-size: 11px;" class="mb-2 pb-2 border-bottom border-dark">
-                            <div class="d-flex justify-content-between">
-                                <span>فاتورة رقم: <strong>#@(SelectedOrderDetails.Invoice?.InvoiceNo ?? SelectedOrderDetails.Order.Id)</strong></span>
-                                <span>طلب: <strong>#@SelectedOrderDetails.Order.Id</strong></span>
-                            </div>
-                            <div class="d-flex justify-content-between">
-                                <span>المريض: <strong>@SelectedOrderDetails.Patient.FullNameAr</strong></span>
-                                <span>MRN: <strong>@SelectedOrderDetails.Patient.Mrn</strong></span>
-                            </div>
-                            <div class="d-flex justify-content-between">
-                                <span>التاريخ: @SelectedOrderDetails.Order.OrderDatetime.ToString("dd/MM/yyyy HH:mm")</span>
-                                <span>الدفع: @(DetailsPaymentMethod == "Card" ? "كارت / زين كاش" : "نقداً")</span>
-                            </div>
-                        </div>
+                        <!-- Solid Black Line -->
+                        <div style="border-bottom: 2px solid #000; margin: 8px 0;"></div>
 
-                        <!-- Tests Table -->
-                        <table style="width: 100%; font-size: 11px; margin-bottom: 8px;">
+                        <!-- 3. Tests & Prices Table -->
+                        <table style="width: 100%; border-collapse: collapse; font-size: 12px; margin: 4px 0;">
                             <thead>
-                                <tr style="border-bottom: 1px solid #000;">
-                                    <th style="text-align: right; padding: 2px 0;">التحليل</th>
-                                    <th style="text-align: left; padding: 2px 0;">السعر</th>
+                                <tr style="border-bottom: 1.5px solid #000;">
+                                    <th style="text-align: right; padding: 4px 0; font-weight: 800;">الفحص</th>
+                                    <th style="text-align: left; padding: 4px 0; font-weight: 800;">السعر (د.ع)</th>
                                 </tr>
                             </thead>
                             <tbody>
@@ -863,60 +1071,223 @@
                                     @foreach (var t in spec.Tests)
                                     {
                                         <tr>
-                                            <td style="text-align: right; padding: 2px 0;">@(t.NameAr ?? t.NameEn)</td>
-                                            <td style="text-align: left; padding: 2px 0; font-weight: bold;">@t.Price.ToString("N0")</td>
+                                            <td style="text-align: right; padding: 5px 0; vertical-align: top;">
+                                                @(string.IsNullOrWhiteSpace(t.NameAr) ? t.NameEn : $"{t.NameAr} ({t.TestCode})")
+                                            </td>
+                                            <td style="text-align: left; padding: 5px 0; font-weight: bold; font-family: monospace; font-size: 12.5px; vertical-align: top;">
+                                                @t.Price.ToString("N0")
+                                            </td>
                                         </tr>
                                     }
                                 }
                             </tbody>
                         </table>
 
-                        <!-- Totals -->
-                        <div style="font-size: 11px; border-top: 1px dashed #000; padding-top: 4px;" class="mb-2">
-                            <div class="d-flex justify-content-between">
-                                <span>الإجمالي (Total):</span>
-                                <span>@((SelectedOrderDetails.Invoice?.Total ?? 0).ToString("N0")) د.ع</span>
+                        <!-- Dashed Black Line -->
+                        <div style="border-bottom: 1.5px dashed #000; margin: 8px 0;"></div>
+
+                        <!-- 4. Financial Totals & Paid Amount -->
+                        @if (invoiceDiscount > 0)
+                        {
+                            <div class="d-flex justify-content-between" style="font-size: 11.5px; margin-bottom: 3px;">
+                                <span>المبلغ الإجمالي</span>
+                                <span class="font-monospace">@invoiceTotal.ToString("N0") د.ع</span>
                             </div>
-                            @if ((SelectedOrderDetails.Invoice?.Discount ?? 0) > 0)
-                            {
-                                <div class="d-flex justify-content-between">
-                                    <span>@Prefs.T("الخصم (Discount):", "Discount:")</span>
-                                    <span>@((SelectedOrderDetails.Invoice?.Discount ?? 0).ToString("N0")) د.ع</span>
+                            <div class="d-flex justify-content-between" style="font-size: 11.5px; margin-bottom: 3px;">
+                                <span>الخصم الممنوح</span>
+                                <span class="font-monospace">-@invoiceDiscount.ToString("N0") د.ع</span>
+                            </div>
+                        }
+
+                        <div class="d-flex justify-content-between align-items-center" style="padding: 2px 0;">
+                            <div>
+                                <span style="font-size: 15px; font-weight: 800;">المبلغ المدفوع</span>
+                                <div style="font-size: 11px; font-weight: 700; color: #1e293b;">
+                                    طريقة الدفع: @(CurrentReceiptPaymentMethod == "Card" ? "بالبطاقة (Card) 💳" : "نقداً (Cash) 💵")
                                 </div>
-                            }
-                            <div class="d-flex justify-content-between fw-bold" style="font-size: 12px;">
-                                <span>الصافي (Net):</span>
-                                <span>@((SelectedOrderDetails.Invoice?.Net ?? 0).ToString("N0")) د.ع</span>
                             </div>
-                            <div class="d-flex justify-content-between">
-                                <span>المدفوع (Paid):</span>
-                                <span class="fw-bold">@((SelectedOrderDetails.Invoice?.Paid ?? 0).ToString("N0")) د.ع</span>
+                            <span class="font-monospace" style="font-size: 17px; font-weight: 800;">@invoicePaid.ToString("N0") د.ع</span>
+                        </div>
+
+                        @if (invoiceBalance > 0)
+                        {
+                            <div class="d-flex justify-content-between" style="font-size: 11.5px; margin-top: 4px; color: #dc2626; font-weight: bold;">
+                                <span>المتبقي بذمة المريض</span>
+                                <span class="font-monospace">@invoiceBalance.ToString("N0") د.ع</span>
                             </div>
-                            <div class="d-flex justify-content-between fw-bold">
-                                <span>@Prefs.T("المتبقي (Balance):", "Remaining Balance:")</span>
-                                <span>@((SelectedOrderDetails.Invoice?.Balance ?? 0).ToString("N0")) د.ع</span>
+                        }
+
+                        <!-- Solid Black Line -->
+                        <div style="border-bottom: 2px solid #000; margin: 8px 0;"></div>
+
+                        <!-- 5. Footer Thank You -->
+                        <div class="text-center" style="margin-top: 6px;">
+                            <div style="font-size: 15px; font-weight: 800; margin-bottom: 2px;">شكراً لزيارتكم</div>
+                            <div style="font-size: 13px; font-weight: 600;">Thank you for visiting</div>
+                        </div>
+
+                    </div>
+
+                    <!-- Bottom Zigzag Tear decoration -->
+                    <div class="receipt-zigzag-bottom" style="width: 320px;"></div>
+
+                </div>
+
+                <!-- Modal Footer with Printing Actions -->
+                <div class="modal-footer py-2 px-3 border-top border-secondary d-flex justify-content-between align-items-center" style="background: #0f172a;">
+                    <button type="button" class="btn btn-outline-secondary btn-sm" @onclick="() => IsReceiptModalOpen = false">
+                        <i class="fas fa-times me-1"></i> @Prefs.T("إغلاق", "Close")
+                    </button>
+                    <div class="d-flex gap-2">
+                        <button type="button" class="btn btn-primary btn-sm fw-bold px-3" @onclick="PrintSilentReceipt" title="@Prefs.T("طباعة صامتة فورية لطابعة الإيصالات المثبتة", "Silent Direct Print")">
+                            <i class="fas fa-bolt me-1"></i> @Prefs.T("طباعة صامتة", "Direct Print")
+                        </button>
+                        <button type="button" class="btn btn-success btn-sm fw-bold px-3" onclick="lisPrintThermalReceipt('cashier-receipt-print-area')">
+                            <i class="fas fa-print me-1"></i> @Prefs.T("طباعة الوصل (80 مم)", "Print Receipt (80mm)")
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+}
+
+<!-- ========================================================================= -->
+<!-- MODAL: Cashier Thermal Refund Receipt (وصل استرجاع مالي 80mm)            -->
+<!-- ========================================================================= -->
+@if (IsRefundReceiptModalOpen && LastRefundResult != null)
+{
+    string labNameAr = LabSettings?.LabNameAr ?? "مختبر التحليلات المرضية المتقدم";
+    string labNameEn = LabSettings?.LabNameEn ?? "Advanced Clinical Laboratory";
+    string labContact = $"{LabSettings?.Address ?? "بغداد - الكرادة"} | هاتف: {LabSettings?.Phones ?? "07700000000"}";
+
+    <div class="modal fade show d-block" tabindex="-1" style="background: rgba(0,0,0,0.8); backdrop-filter: blur(5px); z-index: 1060;">
+        <div class="modal-dialog modal-dialog-centered" style="max-width: 420px;">
+            <div class="modal-content card border-0 shadow-5-strong" style="background: #0f172a;">
+                
+                <!-- Modal Header -->
+                <div class="modal-header py-2 px-3 border-bottom border-secondary d-flex justify-content-between align-items-center" style="background: #1e293b;">
+                    <div class="d-flex align-items-center gap-2">
+                        <span class="badge bg-danger p-1 fs-6"><i class="fas fa-undo"></i></span>
+                        <div>
+                            <h6 class="modal-title fw-bold text-white mb-0" style="font-size: 14px;">@Prefs.T("وصل استرجاع مالي (Refund Receipt)", "Refund Receipt (80mm)")</h6>
+                            <div class="text-white-50 small" style="font-size: 10px;">@Prefs.T("إلغاء فحص واسترجاع قيمته للمراجع", "Test cancellation & refund voucher")</div>
+                        </div>
+                    </div>
+                    <button type="button" class="btn-close btn-close-white" @onclick="() => IsRefundReceiptModalOpen = false"></button>
+                </div>
+
+                <!-- Modal Body: Real Thermal Receipt Card with jagged edges -->
+                <div class="modal-body p-3 text-center d-flex flex-column align-items-center" style="background: #0b1120; max-height: 75vh; overflow-y: auto;">
+                    
+                    <!-- Top Zigzag Tear decoration -->
+                    <div class="receipt-zigzag-top" style="width: 320px;"></div>
+
+                    <!-- Thermal Paper Ticket (Printable Area) -->
+                    <div id="cashier-refund-print-area" class="thermal-receipt-container text-start bg-white text-dark shadow-lg"
+                         style="width: 320px; font-family: 'Segoe UI', Tahoma, Arial, sans-serif; padding: 18px 16px; direction: rtl; line-height: 1.35; color: #000;">
+                        
+                        <!-- 1. Lab Header -->
+                        <div class="text-center" style="margin-bottom: 4px;">
+                            <h5 class="fw-bold mb-0 text-black" style="font-size: 17px; font-weight: 800; letter-spacing: -0.3px;">@labNameAr</h5>
+                            <div class="fw-bold text-dark" style="font-size: 13px; font-weight: 600; margin-top: 1px;">@labNameEn</div>
+                            <div class="text-dark" style="font-size: 11px; margin-top: 3px; font-weight: 500;">@labContact</div>
+                        </div>
+
+                        <!-- Solid Black Line -->
+                        <div style="border-bottom: 2px solid #000; margin: 8px 0;"></div>
+
+                        <!-- 2. Receipt Title Box -->
+                        <div class="text-center py-1 my-1" style="border: 2px dashed #dc2626; background: #fef2f2; border-radius: 4px;">
+                            <div class="fw-bold text-danger" style="font-size: 15px; font-weight: 800;">وصل استرجاع مالي</div>
+                            <div class="text-danger small font-monospace" style="font-size: 11px; font-weight: 700;">REFUND VOUCHER</div>
+                        </div>
+
+                        <!-- 3. Patient & Refund Metadata -->
+                        <div style="font-size: 11.5px; line-height: 1.55; margin-top: 6px;">
+                            <div class="d-flex justify-content-between align-items-start">
+                                <div style="text-align: right; width: 55%;">
+                                    <div><span style="font-weight: 500;">اسم المريض:</span> <strong style="font-size: 12px;">@LastRefundResult.PatientName</strong></div>
+                                    <div><span style="font-weight: 500;">رقم الفاتورة:</span> <strong class="font-monospace">#@(LastRefundResult.InvoiceNo > 0 ? LastRefundResult.InvoiceNo.ToString() : LastRefundResult.OrderId.ToString())</strong></div>
+                                </div>
+                                <div style="text-align: left; width: 45%;">
+                                    <div><span style="font-weight: 500;">التاريخ:</span> <strong class="font-monospace">@DateTime.Now.ToString("dd/MM/yyyy HH:mm")</strong></div>
+                                    <div><span style="font-weight: 500;">الرقم:</span> <strong class="font-monospace">@LastRefundResult.Mrn</strong></div>
+                                </div>
                             </div>
                         </div>
 
-                        <!-- Barcode & Thank You -->
-                        <div class="text-center pt-2 border-top border-dark">
-                            <div style="font-family: monospace; font-size: 14px; font-weight: bold; letter-spacing: 2px;">
-                                *@(SelectedOrderDetails.Specimens.FirstOrDefault()?.Specimen.AccessionNo ?? SelectedOrderDetails.Order.Id.ToString())*
+                        <!-- Solid Black Line -->
+                        <div style="border-bottom: 2px solid #000; margin: 8px 0;"></div>
+
+                        <!-- 4. Cancelled Test Details Table -->
+                        <div style="font-size: 11px; font-weight: 700; margin-bottom: 4px; color: #475569;">تفاصيل الفحص الملغي:</div>
+                        <table style="width: 100%; border-collapse: collapse; font-size: 12px; margin: 4px 0;">
+                            <thead>
+                                <tr style="border-bottom: 1.5px solid #000;">
+                                    <th style="text-align: right; padding: 4px 0; font-weight: 800;">الفحص الملغي</th>
+                                    <th style="text-align: left; padding: 4px 0; font-weight: 800;">المبلغ المسترجع</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <tr>
+                                    <td style="text-align: right; padding: 6px 0; vertical-align: top;">
+                                        <strong>@LastRefundResult.TestName</strong>
+                                        <div class="text-muted" style="font-size: 10.5px;">كود: @LastRefundResult.TestCode</div>
+                                    </td>
+                                    <td style="text-align: left; padding: 6px 0; font-weight: bold; font-family: monospace; font-size: 13px; vertical-align: top; color: #dc2626;">
+                                        -@LastRefundResult.RefundAmount.ToString("N0") د.ع
+                                    </td>
+                                </tr>
+                            </tbody>
+                        </table>
+
+                        <!-- Dashed Black Line -->
+                        <div style="border-bottom: 1.5px dashed #000; margin: 8px 0;"></div>
+
+                        <!-- 5. Refund Amount Box -->
+                        <div class="d-flex justify-content-between align-items-center" style="padding: 4px 0;">
+                            <div>
+                                <span style="font-size: 14px; font-weight: 800; color: #dc2626;">المبلغ المسترجع للمراجع:</span>
+                                <div style="font-size: 11px; font-weight: 700; color: #1e293b;">
+                                    طريقة الإرجاع: نقداً (Cash Refund) 💵
+                                </div>
                             </div>
-                            <div style="font-size: 10px; color: #555; margin-top: 4px;">نتمنى لكم دوام الصحة والعافية</div>
+                            <span class="font-monospace" style="font-size: 18px; font-weight: 800; color: #dc2626;">
+                                @LastRefundResult.RefundAmount.ToString("N0") د.ع
+                            </span>
                         </div>
+
+                        <!-- Solid Black Line -->
+                        <div style="border-bottom: 2px solid #000; margin: 8px 0;"></div>
+
+                        <!-- 6. Footer & Signatures -->
+                        <div class="d-flex justify-content-between align-items-end mt-3 pt-2" style="font-size: 10.5px;">
+                            <div style="text-align: center; width: 45%;">
+                                <div style="border-bottom: 1px dotted #000; margin-bottom: 3px; height: 18px;"></div>
+                                <span>توقيع المراجع المستلم</span>
+                            </div>
+                            <div style="text-align: center; width: 45%;">
+                                <div style="border-bottom: 1px dotted #000; margin-bottom: 3px; height: 18px;"></div>
+                                <span>أمين الصندوق: @(AuthSession.CurrentUser?.FullName ?? "المحاسب")</span>
+                            </div>
+                        </div>
+
                     </div>
+
+                    <!-- Bottom Zigzag Tear decoration -->
+                    <div class="receipt-zigzag-bottom" style="width: 320px;"></div>
+
                 </div>
-                <div class="modal-footer border-top border-secondary d-flex justify-content-between py-2">
-                    <button type="button" class="btn btn-outline-secondary btn-sm" data-mdb-ripple-init @onclick="() => IsReceiptModalOpen = false">إغلاق</button>
-                    <div class="d-flex gap-2">
-                        <button type="button" class="btn btn-primary fw-bold px-3 btn-sm" data-mdb-ripple-init @onclick="PrintSilentReceipt">
-                            <i class="fas fa-bolt me-1"></i> طباعة صامتة فورية
-                        </button>
-                        <button type="button" class="btn btn-success fw-bold px-3 btn-sm" data-mdb-ripple-init onclick="window.print()">
-                            <i class="fas fa-print me-1"></i> طباعة المتصفح
-                        </button>
-                    </div>
+
+                <!-- Modal Footer with Printing Actions -->
+                <div class="modal-footer py-2 px-3 border-top border-secondary d-flex justify-content-between align-items-center" style="background: #0f172a;">
+                    <button type="button" class="btn btn-outline-secondary btn-sm" @onclick="() => IsRefundReceiptModalOpen = false">
+                        <i class="fas fa-times me-1"></i> @Prefs.T("إغلاق", "Close")
+                    </button>
+                    <button type="button" class="btn btn-danger btn-sm fw-bold px-3" onclick="lisPrintThermalReceipt('cashier-refund-print-area')">
+                        <i class="fas fa-print me-1"></i> @Prefs.T("طباعة وصل الاسترجاع (80 مم)", "Print Refund Receipt (80mm)")
+                    </button>
                 </div>
             </div>
         </div>
@@ -1069,10 +1440,27 @@
     private decimal DiscountAmount = 0;
     private decimal NetAmount = 0;
     private decimal PaidAmount = 0;
+    private bool IsPaidAmountCustomized = false;
     private decimal RemainingBalance => Math.Max(0, NetAmount - PaidAmount);
     private string PaymentMethod = "Cash";
     private string OrderStepError = "";
     private bool IsSubmittingOrder = false;
+
+    private void OnDiscountChanged()
+    {
+        RecalculateFinancials();
+    }
+
+    private void OnPaidAmountChanged()
+    {
+        IsPaidAmountCustomized = (PaidAmount != NetAmount);
+    }
+
+    private void ResetPaidToFull()
+    {
+        PaidAmount = NetAmount;
+        IsPaidAmountCustomized = false;
+    }
 
     // Specimen Grouping Info
     public record TubeGroup(string SpecimenTypeName, int TestsCount);
@@ -1087,9 +1475,39 @@
     private bool IsDetailsPaymentBoxOpen = false;
     private decimal DetailsPaymentAmount = 0;
     private string DetailsPaymentMethod = "Cash";
+    private string CurrentReceiptPaymentMethod = "Cash";
     private bool IsProcessingPayment = false;
     private string DetailsAlertMessage = "";
     private string DetailsAlertClass = "alert-success";
+
+    private CancellationTokenSource? _detailsAlertCts;
+
+    private void SetDetailsAlert(string message, string alertClass = "alert-success", int autoDismissMs = 4500)
+    {
+        _detailsAlertCts?.Cancel();
+        _detailsAlertCts = new CancellationTokenSource();
+        var token = _detailsAlertCts.Token;
+
+        DetailsAlertClass = alertClass;
+        DetailsAlertMessage = message;
+
+        if (autoDismissMs > 0)
+        {
+            _ = Task.Run(async () =>
+            {
+                try
+                {
+                    await Task.Delay(autoDismissMs, token);
+                    if (!token.IsCancellationRequested)
+                    {
+                        DetailsAlertMessage = "";
+                        await InvokeAsync(StateHasChanged);
+                    }
+                }
+                catch (TaskCanceledException) { }
+            }, token);
+        }
+    }
     private long SelectedTestToAddId = 0;
     private bool IsAddingTest = false;
     private string AddTestSearchQuery = "";
@@ -1133,7 +1551,33 @@
         }
     }
     private bool IsReceiptModalOpen = false;
+    private bool IsRefundReceiptModalOpen = false;
+    private RemoveTestResult? LastRefundResult;
+    private bool _isReceiptPrintingTriggered = false;
+    private bool _isRefundPrintingTriggered = false;
     private LabSettingsDto? LabSettings;
+
+    [SupplyParameterFromQuery(Name = "newOrder")]
+    public bool? NewOrderParam { get; set; }
+
+    [SupplyParameterFromQuery(Name = "viewOrderId")]
+    public long? ViewOrderIdParam { get; set; }
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (IsReceiptModalOpen && !_isReceiptPrintingTriggered)
+        {
+            _isReceiptPrintingTriggered = true;
+            await Task.Delay(350);
+            try { await JS.InvokeVoidAsync("lisPrintThermalReceipt", "cashier-receipt-print-area"); } catch { }
+        }
+        if (IsRefundReceiptModalOpen && !_isRefundPrintingTriggered)
+        {
+            _isRefundPrintingTriggered = true;
+            await Task.Delay(350);
+            try { await JS.InvokeVoidAsync("lisPrintThermalReceipt", "cashier-refund-print-area"); } catch { }
+        }
+    }
 
     protected override async Task OnInitializedAsync()
     {
@@ -1142,6 +1586,15 @@
         Departments = await CatalogService.GetDepartmentsAsync();
         AllCatalogTests = (await CatalogService.GetAllTestsAsync()).Where(t => t.Active).ToList();
         FilteredCatalogTests = AllCatalogTests;
+
+        if (NewOrderParam == true)
+        {
+            StartNewOrderFlow();
+        }
+        else if (ViewOrderIdParam.HasValue && ViewOrderIdParam.Value > 0)
+        {
+            await ViewOrderDetails(ViewOrderIdParam.Value);
+        }
     }
 
     private async Task RefreshOrders()
@@ -1171,6 +1624,27 @@
     {
         ResetToNewPatient();
         IsStep1PatientModalOpen = true;
+    }
+
+    private async Task CloseModalsSafe()
+    {
+        bool hasData = !string.IsNullOrWhiteSpace(PatientFullName) ||
+                       !string.IsNullOrWhiteSpace(PatientPhone) ||
+                       SelectedTests.Any();
+
+        if (hasData)
+        {
+            bool ok = await JS.InvokeAsync<bool>("lisConfirm",
+                Prefs.T("تأكيد الخروج وإلغاء الطلب", "Confirm Exit & Discard"),
+                Prefs.T("لديك بيانات مدخلة أو فحوصات مختارة لم يتم حفظها بعد. هل أنت متأكد من الخروج وإلغاء هذا الطلب؟",
+                        "You have unsaved patient details or selected tests. Are you sure you want to exit and discard this order?"),
+                Prefs.T("نعم، اخرج وتجاهل", "Yes, Discard & Exit"),
+                Prefs.T("البقاء والمتابعة", "Stay & Continue"),
+                "warning");
+            if (!ok) return;
+        }
+
+        CloseModals();
     }
 
     private void CloseModals()
@@ -1256,6 +1730,11 @@
             DiscountAmount = 0;
             NetAmount = 0;
             PaidAmount = 0;
+            IsPaidAmountCustomized = false;
+        }
+        else
+        {
+            RecalculateFinancials();
         }
         FilterAvailableTests();
     }
@@ -1312,7 +1791,9 @@
     {
         TotalPrice = SelectedTests.Sum(t => t.Price);
         NetAmount = Math.Max(0, TotalPrice - DiscountAmount);
-        if (PaidAmount == 0 || PaidAmount > NetAmount)
+        
+        // Keep PaidAmount automatically synchronized with NetAmount unless user customized it
+        if (!IsPaidAmountCustomized || PaidAmount > NetAmount || PaidAmount == 0)
         {
             PaidAmount = NetAmount;
         }
@@ -1357,10 +1838,10 @@
             {
                 PatientId = patient.Id,
                 ReferringDoctor = string.IsNullOrWhiteSpace(ReferringDoctor) ? null : ReferringDoctor.Trim(),
-                ClinicalNotes = string.IsNullOrWhiteSpace(ClinicalNotes) ? null : ClinicalNotes.Trim(),
+                ClinicalNotes = null,
                 TestIds = SelectedTestIds.ToList(),
                 Discount = DiscountAmount,
-                InitialPayment = PaidAmount,
+                InitialPayment = 0, // Payment is processed directly on Order Details page!
                 PaymentMethod = PaymentMethod
             };
 
@@ -1369,8 +1850,15 @@
             CloseModals();
             await RefreshOrders();
 
-            // Open Order Details
+            // Open Order Details directly for Barcode printing & Payment!
             SelectedOrderDetails = createdOrder;
+            DetailsPaymentAmount = createdOrder.Invoice?.Balance ?? createdOrder.Invoice?.Net ?? NetAmount;
+            DetailsPaymentMethod = "Cash";
+            IsReceiptModalOpen = false;
+            if (LabSettings == null)
+            {
+                LabSettings = await LabSettingsService.GetSettingsAsync();
+            }
         }
         catch (Exception ex)
         {
@@ -1387,9 +1875,30 @@
         try
         {
             SelectedOrderDetails = await OrderService.GetOrderByIdAsync(orderId);
+            DetailsPaymentAmount = SelectedOrderDetails?.Invoice?.Balance ?? 0;
+            DetailsPaymentMethod = "Cash";
+            CurrentReceiptPaymentMethod = "Cash";
             IsDetailsPaymentBoxOpen = false;
             DetailsAlertMessage = "";
             SelectedTestToAddId = 0;
+
+            if (SelectedOrderDetails?.Invoice != null)
+            {
+                try
+                {
+                    using var conn = DbConnectionFactory.CreateConnection();
+                    var lastMethod = await conn.ExecuteScalarAsync<string>(
+                        "SELECT method FROM payments WHERE invoice_id = @InvId ORDER BY id DESC LIMIT 1;",
+                        new { InvId = SelectedOrderDetails.Invoice.Id });
+                    if (!string.IsNullOrWhiteSpace(lastMethod))
+                    {
+                        CurrentReceiptPaymentMethod = lastMethod;
+                        DetailsPaymentMethod = lastMethod;
+                    }
+                }
+                catch { }
+            }
+
             if (LabSettings == null)
             {
                 LabSettings = await LabSettingsService.GetSettingsAsync();
@@ -1421,8 +1930,7 @@
         if (SelectedOrderDetails?.Invoice == null) return;
         if (DetailsPaymentAmount <= 0 || DetailsPaymentAmount > SelectedOrderDetails.Invoice.Balance)
         {
-            DetailsAlertMessage = "يرجى إدخال مبلغ صحيح ضمن حدود المبلغ المتبقي.";
-            DetailsAlertClass = "alert-warning";
+            SetDetailsAlert(Prefs.T("يرجى إدخال مبلغ صحيح ضمن حدود المبلغ المتبقي.", "Please enter a valid amount within the remaining balance."), "alert-warning");
             return;
         }
 
@@ -1437,18 +1945,19 @@
                 DetailsPaymentMethod,
                 currentUserId: 1);
 
-            DetailsAlertClass = "alert-success";
-            DetailsAlertMessage = $"✅ تم تسديد مبلغ ({DetailsPaymentAmount:N0} د.ع) بنجاح!";
+            SetDetailsAlert(Prefs.T($"✅ تم تسديد مبلغ ({DetailsPaymentAmount:N0} د.ع) بنجاح!", $"✅ Payment of ({DetailsPaymentAmount:N0} IQD) recorded successfully!"), "alert-success");
+            CurrentReceiptPaymentMethod = DetailsPaymentMethod;
             IsDetailsPaymentBoxOpen = false;
 
-            // Reload order details & main list
+            // Reload order details & main list, and show receipt
             await ViewOrderDetails(SelectedOrderDetails.Order.Id);
             await RefreshOrders();
+            _isReceiptPrintingTriggered = false;
+            IsReceiptModalOpen = true;
         }
         catch (Exception ex)
         {
-            DetailsAlertClass = "alert-danger";
-            DetailsAlertMessage = $"خطأ في تسجيل الدفعة: {ex.Message}";
+            SetDetailsAlert(Prefs.T($"خطأ في تسجيل الدفعة: {ex.Message}", $"Error recording payment: {ex.Message}"), "alert-danger");
         }
         finally
         {
@@ -1474,19 +1983,30 @@
                 existingSpecimenId: null,
                 currentUserId: 1);
 
-            DetailsAlertClass = "alert-success";
-            DetailsAlertMessage = $"✅ تمت إضافة فحص ({testName}) وتحديث الفاتورة والباركودات بنجاح.";
             SelectedTestToAddId = 0;
             AddTestSearchQuery = "";
 
             // Reload order details & main list
             await ViewOrderDetails(SelectedOrderDetails.Order.Id);
             await RefreshOrders();
+
+            if (SelectedOrderDetails.Invoice != null && SelectedOrderDetails.Invoice.Balance > 0)
+            {
+                DetailsPaymentAmount = SelectedOrderDetails.Invoice.Balance;
+                IsDetailsPaymentBoxOpen = true;
+                SetDetailsAlert(Prefs.T(
+                    $"✅ تمت إضافة فحص ({testName}) بنجاح. المبلغ المطلوب سداده للتحليل الجديد: {SelectedOrderDetails.Invoice.Balance:N0} د.ع. يرجى تأكيد الدفع وطباعة الوصل الجديد من شريط الدفع بالأسفل.",
+                    $"✅ Test ({testName}) added. Balance due for new test: {SelectedOrderDetails.Invoice.Balance:N0} IQD. Please confirm payment and print new receipt below."
+                ), "alert-warning");
+            }
+            else
+            {
+                SetDetailsAlert(Prefs.T($"✅ تمت إضافة فحص ({testName}) وتحديث الفاتورة والباركودات بنجاح.", $"✅ Test ({testName}) added and invoice updated successfully."), "alert-success");
+            }
         }
         catch (Exception ex)
         {
-            DetailsAlertClass = "alert-danger";
-            DetailsAlertMessage = $"خطأ أثناء إضافة الفحص: {ex.Message}";
+            SetDetailsAlert(Prefs.T($"خطأ أثناء إضافة الفحص: {ex.Message}", $"Error adding test: {ex.Message}"), "alert-danger");
         }
         finally
         {
@@ -1498,25 +2018,45 @@
     {
         if (SelectedOrderDetails == null) return;
 
+        bool confirmed = await JS.InvokeAsync<bool>("lisConfirm",
+            Prefs.T("تأكيد حذف الفحص", "Confirm Test Removal"),
+            Prefs.T($"هل أنت متأكد من حذف فحص [{testName}] من هذا الطلب؟ إذا كان التحليل مسدداً مسبقاً، سيتم إصدار استرجاع مالي وطباعة وصل استرجاع.",
+                    $"Are you sure you want to remove test [{testName}] from this order? If paid, a refund will be issued with a refund receipt."),
+            Prefs.T("نعم، احذف الفحص واسترجع المبلغ", "Yes, Remove Test & Refund"),
+            Prefs.T("تراجع", "Cancel"),
+            "danger");
+        if (!confirmed) return;
+
         DetailsAlertMessage = "";
         try
         {
-            await OrderService.RemoveTestFromOrderAsync(
+            var removeResult = await OrderService.RemoveTestFromOrderAsync(
                 SelectedOrderDetails.Order.Id,
                 orderTestId,
                 currentUserId: 1);
 
-            DetailsAlertClass = "alert-success";
-            DetailsAlertMessage = $"✅ تم حذف فحص ({testName}) وتعديل الفاتورة بنجاح.";
-
             // Reload order details & main list
             await ViewOrderDetails(SelectedOrderDetails.Order.Id);
             await RefreshOrders();
+
+            if (removeResult.RefundAmount > 0)
+            {
+                LastRefundResult = removeResult;
+                _isRefundPrintingTriggered = false;
+                IsRefundReceiptModalOpen = true;
+                SetDetailsAlert(Prefs.T(
+                    $"✅ تم حذف فحص ({testName}) بنجاح. تم استرجاع مبلغ {removeResult.RefundAmount:N0} د.ع للمراجع وإصدار وصل استرجاع مالي.",
+                    $"✅ Test ({testName}) removed. Refund of {removeResult.RefundAmount:N0} IQD issued with refund receipt."
+                ), "alert-warning");
+            }
+            else
+            {
+                SetDetailsAlert(Prefs.T($"✅ تم حذف فحص ({testName}) وتعديل الفاتورة بنجاح.", $"✅ Test ({testName}) removed and invoice adjusted successfully."), "alert-success");
+            }
         }
         catch (Exception ex)
         {
-            DetailsAlertClass = "alert-danger";
-            DetailsAlertMessage = $"خطأ أثناء حذف الفحص: {ex.Message}";
+            SetDetailsAlert(Prefs.T($"خطأ أثناء حذف الفحص: {ex.Message}", $"Error removing test: {ex.Message}"), "alert-danger");
         }
     }
 
@@ -1524,12 +2064,20 @@
     {
         if (SelectedOrderDetails == null) return;
 
+        bool confirmed = await JS.InvokeAsync<bool>("lisConfirm",
+            Prefs.T("تأكيد إلغاء الطلب بالكامل", "Confirm Order Cancellation"),
+            Prefs.T($"هل أنت متأكد من إلغاء هذا الطلب (#{SelectedOrderDetails.Order.Id}) للمراجع ({SelectedOrderDetails.Patient.FullNameAr}) بالكامل؟ سيتم تحويل حالة الطلب إلى (ملغي).",
+                    $"Are you sure you want to cancel order #{SelectedOrderDetails.Order.Id} for patient ({SelectedOrderDetails.Patient.FullNameAr}) completely? The order status will be set to Cancelled."),
+            Prefs.T("نعم، قم بإلغاء الطلب", "Yes, Cancel Order"),
+            Prefs.T("تراجع وحفظ الطلب", "Keep Order"),
+            "danger");
+        if (!confirmed) return;
+
         DetailsAlertMessage = "";
         try
         {
             await OrderService.CancelOrderAsync(SelectedOrderDetails.Order.Id, "إلغاء الطلب من قبل المستخدم", 1);
-            DetailsAlertClass = "alert-warning";
-            DetailsAlertMessage = "⚠️ تم إلغاء الطلب بالكامل وتحديث الحالة.";
+            SetDetailsAlert(Prefs.T("⚠️ تم إلغاء الطلب بالكامل وتحديث الحالة.", "⚠️ Order completely cancelled and status updated."), "alert-warning");
 
             // Reload order details & main list
             await ViewOrderDetails(SelectedOrderDetails.Order.Id);
@@ -1537,8 +2085,7 @@
         }
         catch (Exception ex)
         {
-            DetailsAlertClass = "alert-danger";
-            DetailsAlertMessage = $"خطأ أثناء إلغاء الطلب: {ex.Message}";
+            SetDetailsAlert(Prefs.T($"خطأ أثناء إلغاء الطلب: {ex.Message}", $"Error cancelling order: {ex.Message}"), "alert-danger");
         }
     }
 
@@ -1606,7 +2153,7 @@
                 PatientPhone = patient.Phone,
                 Gender = patient.Sex == "F" ? "أنثى" : "ذكر",
                 CashierName = "المحاسب (الكاشير)",
-                PaymentMethod = "Cash",
+                PaymentMethod = CurrentReceiptPaymentMethod,
                 TotalAmount = invoice?.Total ?? allTests.Sum(t => t.Price),
                 Discount = invoice?.Discount ?? 0,
                 NetAmount = invoice?.Net ?? allTests.Sum(t => t.Price),
@@ -1762,7 +2309,20 @@
         "resultreceived" => "badge-resultreceived",
         "validated" => "badge-validated",
         "rejected" => "badge-rejected",
+        "cancelled" => "badge-secondary",
         _ => "badge-secondary"
+    };
+
+    private string GetStatusDisplay(string status) => status?.ToLower() switch
+    {
+        "ordered" => Prefs.T("مسجل", "Ordered"),
+        "collected" => Prefs.T("تم السحب", "Collected"),
+        "inprogress" => Prefs.T("قيد التحليل", "In Progress"),
+        "resultreceived" => Prefs.T("وارد من الجهاز", "Result In"),
+        "validated" => Prefs.T("معتمد ومكتمل", "Validated"),
+        "rejected" => Prefs.T("مرفوض", "Rejected"),
+        "cancelled" => Prefs.T("ملغي", "Cancelled"),
+        _ => status ?? "--"
     };
 
     private static string GetStatusTextColor(string? status) => status?.ToLower() switch
@@ -1825,6 +2385,8 @@
 
     public void Dispose()
     {
+        _detailsAlertCts?.Cancel();
+        _detailsAlertCts?.Dispose();
         Prefs.OnChange -= OnPrefsChanged;
     }
 }

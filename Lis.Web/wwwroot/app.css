@@ -663,8 +663,8 @@ h6, .h6 { font-size: 0.9rem; }
 }
 
 .lis-sidebar {
-    width: 260px;
-    min-width: 260px;
+    width: 76px;
+    min-width: 76px;
     background-color: var(--bg-sidebar);
     border-right: 1px solid var(--border-color);
     display: flex;
@@ -679,7 +679,7 @@ h6, .h6 { font-size: 0.9rem; }
 
 .lis-main-content {
     flex: 1;
-    margin-left: 260px;
+    margin-left: 76px; width: calc(100% - 76px);
     display: flex;
     flex-direction: column;
     min-height: 100vh;
@@ -778,4 +778,1316 @@ h6, .h6 { font-size: 0.9rem; }
     @page {
         margin: 0mm;
     }
+}
+
+
+/* ═══════════════════════════════════════════════════════════════
+   THERMAL RECEIPT CASHIER STYLING (Realistic Paper Ticket)
+   ═══════════════════════════════════════════════════════════════ */
+.thermal-receipt-container {
+    border-radius: 2px;
+    box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.4), 0 8px 10px -6px rgba(0, 0, 0, 0.2);
+    position: relative;
+}
+
+.receipt-zigzag-top {
+    height: 8px;
+    background: linear-gradient(135deg, transparent 75%, #ffffff 75%) 0 0,
+                linear-gradient(225deg, transparent 75%, #ffffff 75%) 0 0;
+    background-size: 10px 8px;
+    background-repeat: repeat-x;
+}
+
+.receipt-zigzag-bottom {
+    height: 8px;
+    background: linear-gradient(45deg, transparent 75%, #ffffff 75%) 0 0,
+                linear-gradient(315deg, transparent 75%, #ffffff 75%) 0 0;
+    background-size: 10px 8px;
+    background-repeat: repeat-x;
+}
+
+/* ═══════════════════════════════════════════════════════════════
+   MEDLAB CLINICAL LABORATORY THEME (Swiss / German Style)
+   ═══════════════════════════════════════════════════════════════ */
+
+:root {
+    --medlab-navy: #003E6B;
+    --medlab-navy-dark: #002D4F;
+    --medlab-navy-header: #0B4F8A;
+    --medlab-blue: #0B72B9;
+    --medlab-blue-light: #0284C7;
+    --medlab-bg-app: #EEF3F8;
+    --medlab-bg-card: #FFFFFF;
+    --medlab-border: #DCE6F1;
+    --medlab-border-subtle: #E8EEF5;
+    --medlab-table-header: #EAF2F9;
+    --medlab-text-navy: #0B4F8A;
+    --medlab-text-dark: #1E293B;
+    --medlab-text-muted: #64748B;
+    --medlab-danger-red: #DC2626;
+}
+
+/* Sidebar Slim Layout */
+.lis-sidebar.medlab-sidebar {
+    width: 76px !important;
+    min-width: 76px !important;
+    background-color: var(--medlab-navy) !important;
+    border-right: 1px solid var(--medlab-navy-dark) !important;
+}
+
+.lis-main-content.medlab-main {
+    margin-left: 76px !important;
+    width: calc(100% - 76px) !important;
+    background-color: var(--medlab-bg-app) !important;
+}
+
+/* Nav Menu MedLab Items */
+.nav-medlab-container {
+    display: flex;
+    flex-direction: column;
+    height: 100%;
+    padding: 0;
+}
+
+.nav-medlab-brand {
+    padding: 16px 8px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 4px;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+    color: #FFFFFF;
+    text-decoration: none;
+}
+
+.nav-medlab-brand i {
+    font-size: 24px;
+    color: #FFFFFF;
+}
+
+.nav-medlab-brand span {
+    font-size: 13px;
+    font-weight: 700;
+    letter-spacing: 0.5px;
+}
+
+.nav-medlab-list {
+    display: flex;
+    flex-direction: column;
+    padding: 8px 0;
+    margin: 0;
+    list-style: none;
+    overflow-y: auto;
+    overflow-x: hidden;
+    gap: 2px;
+}
+
+.nav-medlab-item {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    padding: 10px 4px;
+    color: #B2D1EC;
+    text-decoration: none;
+    transition: all 0.15s ease-in-out;
+    font-size: 10.5px;
+    font-weight: 600;
+    text-align: center;
+    position: relative;
+}
+
+.nav-medlab-item i {
+    font-size: 19px;
+    margin-bottom: 4px;
+}
+
+.nav-medlab-item:hover {
+    color: #FFFFFF;
+    background: rgba(255, 255, 255, 0.08);
+}
+
+.nav-medlab-item.active {
+    color: #FFFFFF;
+    background: var(--medlab-blue);
+}
+
+.nav-medlab-item.active::before {
+    content: '';
+    position: absolute;
+    left: 0;
+    top: 0;
+    bottom: 0;
+    width: 4px;
+    background: #38BDF8;
+}
+
+/* MedLab Topbar */
+.medlab-topbar {
+    background: #FFFFFF !important;
+    border-bottom: 1px solid #D9E4EF !important;
+    height: 52px !important;
+    padding: 0 16px !important;
+    box-shadow: 0 1px 4px rgba(11, 79, 138, 0.04);
+}
+
+.medlab-search-input-group {
+    display: flex;
+    align-items: center;
+    background: #F1F5F9;
+    border: 1px solid #CBD5E1;
+    border-radius: 4px;
+    height: 32px;
+    padding: 0 8px;
+    width: 250px;
+}
+
+.medlab-search-input-group input {
+    border: none;
+    background: transparent;
+    outline: none;
+    font-size: 12px;
+    color: #1E293B;
+    width: 100%;
+}
+
+.medlab-btn-add {
+    background: var(--medlab-blue);
+    color: #FFFFFF;
+    border: none;
+    border-radius: 4px;
+    width: 32px;
+    height: 32px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 13px;
+    cursor: pointer;
+    transition: background 0.15s;
+}
+
+.medlab-btn-add:hover {
+    background: #095C96;
+}
+
+.medlab-patient-tab-pill {
+    display: inline-flex;
+    align-items: center;
+    background: #F8FAFC;
+    border: 1px solid #CBD5E1;
+    border-radius: 4px;
+    padding: 4px 10px;
+    font-size: 12px;
+    color: #0F172A;
+    font-weight: 600;
+    gap: 8px;
+    height: 32px;
+}
+
+.medlab-patient-tab-pill .tab-close-btn {
+    border: none;
+    background: transparent;
+    color: #94A3B8;
+    font-size: 12px;
+    cursor: pointer;
+    padding: 0;
+    line-height: 1;
+}
+
+.medlab-patient-tab-pill .tab-close-btn:hover {
+    color: #EF4444;
+}
+
+/* MedLab Sub-Header Strip */
+.medlab-subnav-strip {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    background: #FFFFFF;
+    border-bottom: 1px solid #D9E4EF;
+    padding: 6px 16px;
+    margin: -1.5rem -1.5rem 1.25rem -1.5rem;
+}
+
+.medlab-subnav-tabs {
+    display: flex;
+    align-items: center;
+    gap: 18px;
+}
+
+.medlab-subnav-tab {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 12px;
+    font-weight: 700;
+    color: #64748B;
+    text-transform: uppercase;
+    text-decoration: none;
+    padding: 6px 0;
+    border-bottom: 2px solid transparent;
+    cursor: pointer;
+}
+
+.medlab-subnav-tab.active, .medlab-subnav-tab:hover {
+    color: var(--medlab-blue);
+    border-bottom-color: var(--medlab-blue);
+}
+
+.medlab-btn-controller {
+    background: #0284C7;
+    color: #FFFFFF;
+    border: none;
+    font-size: 11.5px;
+    font-weight: 700;
+    padding: 5px 14px;
+    border-radius: 4px;
+    text-transform: uppercase;
+}
+
+.medlab-btn-report {
+    background: var(--medlab-blue);
+    color: #FFFFFF;
+    border: none;
+    font-size: 11.5px;
+    font-weight: 700;
+    padding: 5px 14px;
+    border-radius: 4px;
+    text-transform: uppercase;
+}
+
+/* MedLab 2-Column Findings Layout */
+.medlab-findings-layout {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) 310px;
+    gap: 16px;
+}
+
+@media (max-width: 1200px) {
+    .medlab-findings-layout {
+        grid-template-columns: 1fr;
+    }
+}
+
+/* Center Findings Card */
+.medlab-findings-card {
+    background: #FFFFFF;
+    border: 1px solid var(--medlab-border);
+    border-radius: 4px;
+    padding: 16px;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.03);
+}
+
+.medlab-befund-title {
+    font-size: 13.5px;
+    font-weight: 800;
+    color: #0F172A;
+    text-transform: uppercase;
+    letter-spacing: 0.3px;
+}
+
+.medlab-befund-title-bar {
+    width: 3px;
+    height: 15px;
+    background-color: #0F172A;
+    display: inline-block;
+    margin-right: 6px;
+}
+
+.medlab-meta-grid {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 12px;
+    background: #F8FAFC;
+    border: 1px solid #E2E8F0;
+    border-radius: 4px;
+    padding: 10px 14px;
+    margin: 12px 0 16px 0;
+}
+
+.medlab-meta-label {
+    display: block;
+    font-size: 10px;
+    font-weight: 700;
+    color: #64748B;
+    text-transform: uppercase;
+    margin-bottom: 2px;
+}
+
+.medlab-meta-val {
+    display: block;
+    font-size: 12px;
+    font-weight: 600;
+    color: #1E293B;
+}
+
+/* Add Catalog Item Bar */
+.medlab-add-catalog-bar {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    margin-bottom: 12px;
+}
+
+.medlab-add-catalog-bar input {
+    height: 30px;
+    font-size: 12px;
+    border: 1px solid #CBD5E1;
+    border-radius: 4px;
+    padding: 0 10px;
+    width: 250px;
+    background: #FFFFFF;
+}
+
+/* MedLab Clinical Table */
+.medlab-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 12px;
+}
+
+.medlab-table th {
+    background: var(--medlab-table-header);
+    color: var(--medlab-text-navy);
+    font-weight: 700;
+    font-size: 11px;
+    text-transform: uppercase;
+    padding: 8px 10px;
+    border-bottom: 1px solid #D0DFEE;
+    letter-spacing: 0.3px;
+}
+
+.medlab-table td {
+    padding: 7px 10px;
+    border-bottom: 1px solid #EEF3F8;
+    color: #1E293B;
+    vertical-align: middle;
+}
+
+.medlab-table tr:hover td {
+    background-color: #F8FAFD;
+}
+
+.medlab-value-text {
+    font-weight: 700;
+    font-size: 13px;
+    text-align: right;
+}
+
+.medlab-value-text.abnormal-high, .medlab-value-text.abnormal-low {
+    color: var(--medlab-danger-red);
+}
+
+.medlab-flag-arrow {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    background: #FEE2E2;
+    color: #DC2626;
+    font-weight: 900;
+    font-size: 11px;
+    width: 16px;
+    height: 16px;
+    border-radius: 3px;
+    margin-left: 4px;
+}
+
+/* Right Context Cards */
+.medlab-context-card {
+    background: #FFFFFF;
+    border: 1px solid var(--medlab-border);
+    border-radius: 4px;
+    margin-bottom: 14px;
+    overflow: hidden;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.03);
+}
+
+[data-mdb-theme="dark"] .medlab-context-card {
+    background: #111A24 !important;
+    border-color: #2D3F53 !important;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.4) !important;
+}
+
+[data-mdb-theme="dark"] .medlab-context-card .bg-light {
+    background-color: #162231 !important;
+    border-color: #2D3F53 !important;
+    color: #E2E8F0 !important;
+}
+
+[data-mdb-theme="dark"] .medlab-context-card .text-medlab-navy {
+    color: #E2E8F0 !important;
+}
+
+[data-mdb-theme="dark"] .medlab-context-card .btn-outline-secondary {
+    background: #162231 !important;
+    border-color: #2D3F53 !important;
+    color: #E2E8F0 !important;
+}
+
+[data-mdb-theme="dark"] .medlab-context-card .btn-outline-primary {
+    background: #162231 !important;
+    border-color: #2D3F53 !important;
+    color: #38BDF8 !important;
+}
+
+.medlab-card-navy-header {
+    background: var(--medlab-navy-header);
+    color: #FFFFFF;
+    font-size: 11.5px;
+    font-weight: 700;
+    text-transform: uppercase;
+    padding: 8px 12px;
+    letter-spacing: 0.4px;
+}
+
+.medlab-card-body {
+    padding: 12px;
+}
+
+.patient-info-name {
+    font-size: 13.5px;
+    font-weight: 700;
+    color: var(--medlab-navy-header);
+    line-height: 1.3;
+}
+
+.patient-info-meta {
+    font-size: 11.5px;
+    color: #334155;
+    font-weight: 600;
+    margin-top: 2px;
+}
+
+.patient-info-detail {
+    font-size: 11.5px;
+    color: #475569;
+    margin-top: 4px;
+    line-height: 1.4;
+}
+
+.patient-avatar-placeholder {
+    width: 48px;
+    height: 48px;
+    border-radius: 50%;
+    background: #E2E8F0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: #94A3B8;
+    font-size: 24px;
+    flex-shrink: 0;
+}
+
+/* ==========================================================================
+   Application-wide Compact Typography & MedLab Harmonization
+   Aligning overall UI font size to the crisp sidebar density (10.5px - 12px)
+   ========================================================================== */
+html, body {
+    font-size: 12px;
+    -webkit-font-smoothing: antialiased;
+}
+
+.table, .lis-table, .medlab-table {
+    font-size: 11.5px;
+}
+
+.table th, .lis-table th, .medlab-table th {
+    font-size: 10.5px;
+}
+
+.form-control, .form-select, .input-group-text {
+    font-size: 11.5px;
+}
+
+.form-control-sm, .form-select-sm {
+    font-size: 11px;
+    height: 28px;
+}
+
+.btn {
+    font-size: 11.5px;
+}
+
+.btn-sm {
+    font-size: 11px;
+}
+
+.badge {
+    font-size: 10.5px;
+}
+
+/* MedLab Modal Suite */
+.medlab-modal-content {
+    background: #FFFFFF !important;
+    border: 1px solid var(--medlab-border) !important;
+    box-shadow: 0 10px 30px rgba(0, 62, 107, 0.12) !important;
+}
+
+[data-mdb-theme="dark"] .medlab-modal-content {
+    background: #111A24 !important;
+    border-color: #2D3F53 !important;
+    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5) !important;
+}
+
+.medlab-modal-header {
+    background: #FFFFFF;
+    border-bottom: 1px solid var(--medlab-border);
+    border-top: 3px solid var(--medlab-navy);
+}
+
+[data-mdb-theme="dark"] .medlab-modal-header {
+    background: #162231;
+    border-color: #2D3F53;
+}
+
+.text-medlab-navy {
+    color: var(--medlab-text-navy) !important;
+}
+
+[data-mdb-theme="dark"] .text-medlab-navy {
+    color: #E2E8F0 !important;
+}
+
+.bg-medlab-subtle {
+    background: #F8FAFD;
+}
+
+[data-mdb-theme="dark"] .bg-medlab-subtle {
+    background: #162231;
+}
+
+.medlab-tab-btn {
+    font-size: 11px;
+    font-weight: 700;
+    letter-spacing: 0.3px;
+    padding: 4px 10px;
+    border: 1px solid #CBD5E1;
+    background: #FFFFFF;
+    color: #475569;
+    transition: all 0.15s ease-in-out;
+}
+
+.medlab-tab-btn:hover {
+    background: #F1F5F9;
+    color: #0F172A;
+}
+
+.medlab-tab-btn.active {
+    background: var(--medlab-blue) !important;
+    color: #FFFFFF !important;
+    border-color: var(--medlab-blue) !important;
+}
+
+[data-mdb-theme="dark"] .medlab-tab-btn {
+    background: #1A2634;
+    border-color: #2D3F53;
+    color: #94A3B8;
+}
+
+[data-mdb-theme="dark"] .medlab-tab-btn.active {
+    background: var(--medlab-blue) !important;
+    color: #FFFFFF !important;
+}
+
+/* ==========================================================================
+   MedLab Clinical Dashboard Styling Suite
+   ========================================================================== */
+.medlab-kpi-card {
+    background: #FFFFFF;
+    border: 1px solid var(--medlab-border);
+    border-radius: 4px;
+    padding: 12px 14px;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.03);
+    position: relative;
+    overflow: hidden;
+    transition: transform 0.15s ease, box-shadow 0.15s ease;
+}
+
+[data-mdb-theme="dark"] .medlab-kpi-card {
+    background: #111A24;
+    border-color: #2D3F53;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.4);
+}
+
+.medlab-kpi-card:hover {
+    box-shadow: 0 4px 12px rgba(0, 62, 107, 0.08);
+}
+
+.medlab-kpi-card::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    height: 3px;
+    background: var(--medlab-blue);
+}
+
+.medlab-kpi-card.kpi-blue::before { background: #0B72B9; }
+.medlab-kpi-card.kpi-amber::before { background: #F59E0B; }
+.medlab-kpi-card.kpi-green::before { background: #107C41; }
+.medlab-kpi-card.kpi-red::before { background: #DC2626; }
+.medlab-kpi-card.kpi-navy::before { background: #003E6B; }
+
+.medlab-kpi-icon {
+    width: 36px;
+    height: 36px;
+    border-radius: 4px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 16px;
+    flex-shrink: 0;
+}
+
+.medlab-kpi-value {
+    font-size: 22px;
+    font-weight: 700;
+    line-height: 1.1;
+    color: #0F172A;
+    letter-spacing: -0.3px;
+}
+
+[data-mdb-theme="dark"] .medlab-kpi-value {
+    color: #F8FAFC;
+}
+
+.medlab-kpi-label {
+    font-size: 11px;
+    font-weight: 700;
+    text-transform: uppercase;
+    color: #64748B;
+    letter-spacing: 0.3px;
+}
+
+[data-mdb-theme="dark"] .medlab-kpi-label {
+    color: #94A3B8;
+}
+
+.medlab-kpi-sub {
+    font-size: 10.5px;
+    color: #64748B;
+}
+
+/* MedLab Pipeline Ribbon */
+.medlab-pipeline-container {
+    background: #FFFFFF;
+    border: 1px solid var(--medlab-border);
+    border-radius: 4px;
+    padding: 10px 14px;
+    margin-bottom: 16px;
+}
+
+[data-mdb-theme="dark"] .medlab-pipeline-container {
+    background: #111A24;
+    border-color: #2D3F53;
+}
+
+.medlab-step {
+    flex: 1;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 6px 12px;
+    border-radius: 3px;
+    background: #F8FAFD;
+    border: 1px solid #E2E8F0;
+    position: relative;
+}
+
+[data-mdb-theme="dark"] .medlab-step {
+    background: #162231;
+    border-color: #2D3F53;
+}
+
+.medlab-step-num {
+    width: 24px;
+    height: 24px;
+    border-radius: 50%;
+    background: #E2E8F0;
+    color: #475569;
+    font-size: 11px;
+    font-weight: 700;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+}
+
+.medlab-step.active .medlab-step-num {
+    background: var(--medlab-blue);
+    color: #FFFFFF;
+}
+
+.medlab-step-title {
+    font-size: 11px;
+    font-weight: 700;
+    color: #334155;
+    line-height: 1.2;
+}
+
+[data-mdb-theme="dark"] .medlab-step-title {
+    color: #E2E8F0;
+}
+
+.medlab-step-count {
+    font-size: 14px;
+    font-weight: 700;
+    color: var(--medlab-navy);
+}
+
+[data-mdb-theme="dark"] .medlab-step-count {
+    color: #38BDF8;
+}
+
+/* Pulsing Status Dot */
+.medlab-pulse-dot {
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    display: inline-block;
+    position: relative;
+}
+
+.medlab-pulse-dot.online {
+    background: #107C41;
+    box-shadow: 0 0 0 0 rgba(16, 124, 65, 0.7);
+    animation: medlabPulse 2s infinite;
+}
+
+.medlab-pulse-dot.standby {
+    background: #F59E0B;
+}
+
+@keyframes medlabPulse {
+    0% {
+        box-shadow: 0 0 0 0 rgba(16, 124, 65, 0.7);
+    }
+    70% {
+        box-shadow: 0 0 0 6px rgba(16, 124, 65, 0);
+    }
+    100% {
+        box-shadow: 0 0 0 0 rgba(16, 124, 65, 0);
+    }
+}
+
+/* Specimen Tube Cap Colors */
+.tube-indicator {
+    width: 10px;
+    height: 10px;
+    border-radius: 2px;
+    display: inline-block;
+    flex-shrink: 0;
+}
+.tube-edta { background-color: #8B5CF6; } /* Lavender/Purple */
+.tube-serum { background-color: #EF4444; } /* Red/Gold */
+.tube-citrate { background-color: #38BDF8; } /* Light Blue */
+.tube-urine { background-color: #FBBF24; } /* Yellow */
+.tube-heparin { background-color: #10B981; } /* Green */
+
+/* ==========================================================================
+   MedLab Patient Switcher & Clinical Findings Toolbar
+   ========================================================================== */
+.medlab-patient-selector-bar {
+    background: #FFFFFF;
+    border: 1px solid var(--medlab-border);
+    border-radius: 4px;
+    padding: 6px 12px;
+    margin-bottom: 12px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 10px;
+    flex-wrap: wrap;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.02);
+}
+
+[data-mdb-theme="dark"] .medlab-patient-selector-bar {
+    background: #111A24;
+    border-color: #2D3F53;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.3);
+}
+
+.medlab-critical-tag {
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    background: #FEE2E2;
+    color: #DC2626;
+    border: 1px solid #FCA5A5;
+    border-radius: 3px;
+    padding: 3px 8px;
+    font-size: 11px;
+    font-weight: 700;
+    letter-spacing: 0.3px;
+}
+
+[data-mdb-theme="dark"] .medlab-critical-tag {
+    background: rgba(220, 38, 38, 0.2);
+    border-color: rgba(220, 38, 38, 0.4);
+    color: #F87171;
+}
+
+.medlab-search-popover {
+    position: absolute;
+    top: 100%;
+    left: 0;
+    right: 0;
+    z-index: 1050;
+    background: #FFFFFF;
+    border: 1px solid var(--medlab-border);
+    border-radius: 4px;
+    box-shadow: 0 8px 24px rgba(0, 62, 107, 0.15);
+    max-height: 320px;
+    overflow-y: auto;
+    margin-top: 4px;
+}
+
+[data-mdb-theme="dark"] .medlab-search-popover {
+    background: #162231;
+    border-color: #2D3F53;
+    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.5);
+}
+
+.medlab-search-item {
+    padding: 8px 12px;
+    cursor: pointer;
+    border-bottom: 1px solid #F1F5F9;
+    transition: background 0.15s ease;
+}
+
+[data-mdb-theme="dark"] .medlab-search-item {
+    border-bottom-color: #1E293B;
+}
+
+.medlab-search-item:hover {
+    background: #F8FAFD;
+}
+
+[data-mdb-theme="dark"] .medlab-search-item:hover {
+    background: #1E2D40;
+}
+
+/* Dark mode inputs in clinical table */
+[data-mdb-theme="dark"] .medlab-table input.form-control {
+    background-color: #162231 !important;
+    border-color: #2D3F53 !important;
+    color: #F8FAFC !important;
+}
+
+[data-mdb-theme="dark"] .medlab-table input.form-control:focus {
+    border-color: var(--medlab-blue) !important;
+    box-shadow: 0 0 0 2px rgba(11, 114, 185, 0.25) !important;
+}
+
+[data-mdb-theme="dark"] .medlab-table td {
+    color: #E2E8F0;
+    border-bottom-color: #1E293B;
+}
+
+[data-mdb-theme="dark"] .medlab-table tr:hover td {
+    background-color: #162231;
+}
+
+[data-mdb-theme="dark"] .medlab-context-card .bg-white {
+    background-color: #111A24 !important;
+}
+
+[data-mdb-theme="dark"] .medlab-context-card svg {
+    background: transparent !important;
+}
+
+/* ==========================================================================
+   MedLab Clinical Modals Suite (Step 1, Step 2, Order Details)
+   ========================================================================== */
+.medlab-search-box {
+    background: #F8FAFD;
+    border: 1px solid var(--medlab-border);
+    border-radius: 4px;
+    padding: 12px 14px;
+}
+
+[data-mdb-theme="dark"] .medlab-search-box {
+    background: #162231;
+    border-color: #2D3F53;
+}
+
+.medlab-form-label {
+    font-size: 11px;
+    font-weight: 700;
+    color: var(--medlab-text-navy);
+    margin-bottom: 3px;
+    display: block;
+    letter-spacing: 0.3px;
+}
+
+[data-mdb-theme="dark"] .medlab-form-label {
+    color: #94A3B8;
+}
+
+.medlab-modal-footer {
+    background: #F8FAFD;
+    border-top: 1px solid var(--medlab-border);
+    padding: 10px 16px;
+}
+
+[data-mdb-theme="dark"] .medlab-modal-footer {
+    background: #162231;
+    border-color: #2D3F53;
+}
+
+.medlab-cart-box {
+    background: #F8FAFD;
+    border: 1px solid var(--medlab-border);
+    border-radius: 4px;
+    padding: 12px;
+}
+
+[data-mdb-theme="dark"] .medlab-cart-box {
+    background: #162231;
+    border-color: #2D3F53;
+}
+
+.medlab-catalog-item-card {
+    background: #FFFFFF;
+    border: 1px solid #CBD5E1;
+    border-radius: 4px;
+    padding: 8px 10px;
+    cursor: pointer;
+    transition: all 0.15s ease-in-out;
+}
+
+.medlab-catalog-item-card:hover {
+    border-color: var(--medlab-blue);
+    background: #F8FAFD;
+}
+
+.medlab-catalog-item-card.selected {
+    background: rgba(11, 114, 185, 0.08);
+    border-color: var(--medlab-blue);
+}
+
+[data-mdb-theme="dark"] .medlab-catalog-item-card {
+    background: #162231;
+    border-color: #2D3F53;
+}
+
+/* ═════════════════════════════════════════════════════════════════ */
+/* MedLab Fixed Size Modal Suite (Order Details & Tests Management)  */
+/* ═════════════════════════════════════════════════════════════════ */
+.medlab-fixed-order-dialog {
+    width: 94vw !important;
+    max-width: 1220px !important;
+    height: 86vh !important;
+    min-height: 580px !important;
+    max-height: 840px !important;
+    margin: auto !important;
+    display: flex !important;
+    flex-direction: column !important;
+}
+
+.medlab-fixed-order-dialog .modal-content {
+    height: 100% !important;
+    max-height: 100% !important;
+    display: flex !important;
+    flex-direction: column !important;
+    overflow: hidden !important;
+}
+
+.medlab-fixed-order-dialog .modal-header {
+    flex-shrink: 0 !important;
+}
+
+.medlab-fixed-order-dialog .modal-body {
+    flex: 1 1 auto !important;
+    overflow-y: auto !important;
+    display: flex !important;
+    flex-direction: column !important;
+    gap: 10px !important;
+    min-height: 0 !important;
+    padding: 12px 16px !important;
+}
+
+.medlab-fixed-order-dialog .modal-footer {
+    flex-shrink: 0 !important;
+}
+
+.medlab-order-details-card {
+    background: #FFFFFF;
+    border: 1px solid var(--medlab-border);
+    border-radius: 6px;
+    padding: 12px 14px;
+}
+
+[data-mdb-theme="dark"] .medlab-order-details-card {
+    background: #162231;
+    border-color: #2D3F53;
+}
+
+.medlab-order-tests-container {
+    flex: 1 1 auto !important;
+    min-height: 220px !important;
+    display: flex !important;
+    flex-direction: column !important;
+    overflow: hidden !important;
+}
+
+.medlab-order-tests-table-wrapper {
+    flex: 1 1 auto !important;
+    overflow-y: auto !important;
+    min-height: 160px !important;
+    border: 1px solid var(--medlab-border);
+    border-radius: 4px;
+    position: relative;
+    background: var(--medlab-card-bg, #FFFFFF);
+}
+
+[data-mdb-theme="dark"] .medlab-order-tests-table-wrapper {
+    background: #111A24;
+    border-color: #2D3F53;
+}
+
+.medlab-order-tests-table-wrapper thead th {
+    position: sticky;
+    top: 0;
+    z-index: 2;
+    background: #F1F5F9 !important;
+    color: var(--medlab-text-navy) !important;
+    font-size: 11px !important;
+    font-weight: 700 !important;
+    box-shadow: 0 1px 0 var(--medlab-border);
+}
+
+[data-mdb-theme="dark"] .medlab-order-tests-table-wrapper thead th {
+    background: #1E293B !important;
+    color: #94A3B8 !important;
+    box-shadow: 0 1px 0 #334155;
+}
+
+[data-mdb-theme="dark"] .medlab-order-tests-table-wrapper table tbody tr {
+    border-bottom: 1px solid #1E293B !important;
+}
+
+[data-mdb-theme="dark"] .medlab-order-tests-table-wrapper table tbody td {
+    color: #E2E8F0 !important;
+}
+
+[data-mdb-theme="dark"] .medlab-catalog-item-card:hover {
+    background: #1E2D40;
+    border-color: #38BDF8;
+}
+
+[data-mdb-theme="dark"] .medlab-catalog-item-card.selected {
+    background: rgba(56, 189, 248, 0.15);
+    border-color: #38BDF8;
+}
+
+/* ==========================================================================
+   MedLab Next-Gen Step 1 Patient Finder & Verified Patient Card
+   ========================================================================== */
+.medlab-patient-finder-panel {
+    background: linear-gradient(135deg, rgba(2, 132, 199, 0.05) 0%, rgba(14, 165, 233, 0.02) 100%);
+    border: 1px solid rgba(2, 132, 199, 0.25);
+    border-radius: 8px;
+    padding: 12px 14px;
+    position: relative;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.03);
+}
+
+[data-mdb-theme="dark"] .medlab-patient-finder-panel {
+    background: linear-gradient(135deg, rgba(15, 23, 42, 0.85) 0%, rgba(30, 41, 59, 0.65) 100%);
+    border-color: rgba(56, 189, 248, 0.25);
+    box-shadow: 0 4px 14px rgba(0, 0, 0, 0.3);
+}
+
+.medlab-patient-finder-input {
+    height: 38px;
+    font-size: 13px;
+    font-weight: 500;
+    border-radius: 6px;
+    border: 1px solid rgba(2, 132, 199, 0.35);
+    transition: all 0.2s ease;
+}
+
+.medlab-patient-finder-input:focus {
+    border-color: #0284C7;
+    box-shadow: 0 0 0 3px rgba(2, 132, 199, 0.18);
+}
+
+.medlab-patient-suggestion-dropdown {
+    position: absolute;
+    top: calc(100% + 4px);
+    left: 0;
+    right: 0;
+    z-index: 1050;
+    background: #FFFFFF;
+    border: 1px solid #CBD5E1;
+    border-radius: 8px;
+    box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.15), 0 8px 10px -6px rgba(0, 0, 0, 0.1);
+    max-height: 250px;
+    overflow-y: auto;
+}
+
+[data-mdb-theme="dark"] .medlab-patient-suggestion-dropdown {
+    background: #1E293B;
+    border-color: #334155;
+    box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.5);
+}
+
+.medlab-patient-suggestion-item {
+    padding: 10px 14px;
+    border-bottom: 1px solid #F1F5F9;
+    cursor: pointer;
+    transition: all 0.15s ease;
+}
+
+[data-mdb-theme="dark"] .medlab-patient-suggestion-item {
+    border-bottom-color: #334155;
+}
+
+.medlab-patient-suggestion-item:last-child {
+    border-bottom: none;
+}
+
+.medlab-patient-suggestion-item:hover {
+    background: rgba(2, 132, 199, 0.08);
+}
+
+[data-mdb-theme="dark"] .medlab-patient-suggestion-item:hover {
+    background: rgba(56, 189, 248, 0.12);
+}
+
+/* Verified Patient Identity Card */
+.medlab-verified-patient-card {
+    background: linear-gradient(135deg, rgba(16, 185, 129, 0.08) 0%, rgba(5, 150, 105, 0.03) 100%);
+    border: 1px solid rgba(16, 185, 129, 0.35);
+    border-right: 5px solid #10B981 !important;
+    border-radius: 8px;
+    padding: 12px 16px;
+    box-shadow: 0 2px 6px rgba(16, 185, 129, 0.08);
+}
+
+[data-mdb-theme="dark"] .medlab-verified-patient-card {
+    background: linear-gradient(135deg, rgba(6, 78, 59, 0.25) 0%, rgba(15, 23, 42, 0.6) 100%);
+    border-color: rgba(16, 185, 129, 0.35);
+    border-right: 5px solid #10B981 !important;
+}
+
+/* Step 1 Demographics Container */
+.medlab-demographics-section {
+    background: #FFFFFF;
+    border: 1px solid var(--medlab-border);
+    border-radius: 8px;
+    padding: 14px;
+}
+
+[data-mdb-theme="dark"] .medlab-demographics-section {
+    background: #162231;
+    border-color: #2D3F53;
+}
+
+/* ═════════════════════════════════════════════════════════════════ */
+/* MedLab Authentication & Login Suite                               */
+/* ═════════════════════════════════════════════════════════════════ */
+.lis-login-layout {
+    min-height: 100vh;
+    width: 100%;
+}
+
+.medlab-login-container {
+    min-height: 100vh;
+    width: 100%;
+    display: flex;
+    flex-direction: column;
+    justify-content: space-between;
+    background: radial-gradient(circle at 50% 10%, rgba(2, 132, 199, 0.08) 0%, transparent 60%),
+                linear-gradient(135deg, #F8FAFD 0%, #EDF2F7 100%);
+    transition: background 0.25s ease;
+}
+
+[data-mdb-theme="dark"] .medlab-login-container {
+    background: radial-gradient(circle at 50% 10%, rgba(2, 132, 199, 0.12) 0%, transparent 60%),
+                linear-gradient(135deg, #0A0F17 0%, #111A24 100%);
+}
+
+.medlab-login-card-wrapper {
+    flex: 1;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 24px 16px;
+}
+
+.medlab-login-card {
+    width: 100%;
+    max-width: 440px;
+    background: #FFFFFF;
+    border: 1px solid var(--medlab-border);
+    border-radius: 12px;
+    padding: 32px 28px;
+    box-shadow: 0 16px 36px rgba(0, 62, 107, 0.08);
+    transition: all 0.2s ease;
+}
+
+[data-mdb-theme="dark"] .medlab-login-card {
+    background: #162231;
+    border-color: #2D3F53;
+    box-shadow: 0 20px 48px rgba(0, 0, 0, 0.55);
+}
+
+.medlab-login-logo {
+    width: 58px;
+    height: 58px;
+    border-radius: 14px;
+    background: rgba(2, 132, 199, 0.1);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border: 1px solid rgba(2, 132, 199, 0.25);
+    transition: transform 0.2s ease;
+}
+
+.medlab-login-logo:hover {
+    transform: scale(1.05);
+}
+
+.medlab-autofill-box {
+    background: rgba(2, 132, 199, 0.05);
+    border: 1px dashed rgba(2, 132, 199, 0.3);
+}
+
+[data-mdb-theme="dark"] .medlab-autofill-box {
+    background: rgba(2, 132, 199, 0.1);
+    border-color: rgba(2, 132, 199, 0.25);
+}
+
+
+
+
+
+
+/* ═══════════════════════════════════════════════════════════════
+   THERMAL RECEIPT CASHIER STYLING (Realistic Paper Ticket)
+   ═══════════════════════════════════════════════════════════════ */
+.thermal-receipt-container {
+    border-radius: 2px;
+    box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.4), 0 8px 10px -6px rgba(0, 0, 0, 0.2);
+    position: relative;
+}
+
+.receipt-zigzag-top {
+    height: 8px;
+    background: linear-gradient(135deg, transparent 75%, #ffffff 75%) 0 0,
+                linear-gradient(225deg, transparent 75%, #ffffff 75%) 0 0;
+    background-size: 10px 8px;
+    background-repeat: repeat-x;
+}
+
+.receipt-zigzag-bottom {
+    height: 8px;
+    background: linear-gradient(45deg, transparent 75%, #ffffff 75%) 0 0,
+                linear-gradient(315deg, transparent 75%, #ffffff 75%) 0 0;
+    background-size: 10px 8px;
+    background-repeat: repeat-x;
 }

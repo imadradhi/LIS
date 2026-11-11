@@ -43,7 +43,8 @@ TRUNCATE TABLE
     orders,
     patients,
     qc_results,
-    middleware_log
+    middleware_log,
+    audit_log
 RESTART IDENTITY CASCADE;
 
 -- 3. Reset operational sequences

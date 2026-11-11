@@ -39,7 +39,9 @@ namespace Lis.Core.ASTM
                 {
                     case 'H':
                         msg.Header = new AstmHeaderRecord();
-                        if (fields.Length > 4) msg.Header.SenderId = fields[4];
+                        if (fields.Length > 2) msg.Header.MessageControlId = fields[2].Trim();
+                        if (fields.Length > 3) msg.Header.AccessPassword = fields[3].Trim();
+                        if (fields.Length > 4) msg.Header.SenderId = fields[4].Trim();
                         break;
 
                     case 'P':
@@ -88,16 +90,31 @@ namespace Lis.Core.ASTM
             return msg;
         }
 
-        public static List<string> BuildWorklistFrames(string accessionNo, long mrn, string patientName, List<string> instrumentTestCodes, string specimenType = "EDTA Whole Blood")
+        public static List<string> BuildWorklistFrames(
+            string accessionNo,
+            long mrn,
+            string patientName,
+            List<string> instrumentTestCodes,
+            string specimenType = "Serum",
+            string accessPassword = "DPC",
+            string receiverId = "LIS",
+            string senderId = "LIS",
+            string actionCode = "N")
         {
             var frames = new List<string>();
             int frameNum = 1;
 
-            // 1. Header
-            var header = new AstmHeaderRecord { SenderId = "LIS", Timestamp = DateTime.Now };
+            // 1. Header (E1394 Section 7.1)
+            var header = new AstmHeaderRecord
+            {
+                SenderId = string.IsNullOrWhiteSpace(senderId) ? "LIS" : senderId,
+                ReceiverId = string.IsNullOrWhiteSpace(receiverId) ? "LIS" : receiverId,
+                AccessPassword = string.IsNullOrWhiteSpace(accessPassword) ? "DPC" : accessPassword,
+                Timestamp = DateTime.Now
+            };
             frames.Add(AstmFraming.BuildFrame(frameNum++, header.ToAstmString()));
 
-            // 2. Patient
+            // 2. Patient (E1394 Section 8.1)
             var patient = new AstmPatientRecord
             {
                 SequenceNumber = 1,
@@ -106,13 +123,13 @@ namespace Lis.Core.ASTM
             };
             frames.Add(AstmFraming.BuildFrame(frameNum++, patient.ToAstmString()));
 
-            // 3. Order (Worklist)
+            // 3. Order / Worklist (E1394 Section 9.4)
             var order = new AstmOrderRecord
             {
                 SequenceNumber = 1,
                 SpecimenId = accessionNo,
-                SpecimenType = specimenType,
-                ActionCode = "Q", // In reply to host query
+                SpecimenType = string.IsNullOrWhiteSpace(specimenType) ? "Serum" : specimenType,
+                ActionCode = string.IsNullOrWhiteSpace(actionCode) ? "N" : actionCode,
                 UniversalTestCodes = new List<string>()
             };
 
@@ -123,7 +140,7 @@ namespace Lis.Core.ASTM
 
             frames.Add(AstmFraming.BuildFrame(frameNum++, order.ToAstmString()));
 
-            // 4. Terminator
+            // 4. Terminator (E1394 Section 13.1)
             var term = new AstmTerminatorRecord { SequenceNumber = 1, TerminationCode = "N" };
             frames.Add(AstmFraming.BuildFrame(frameNum++, term.ToAstmString()));
 

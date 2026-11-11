@@ -1,0 +1,229 @@
+@page "/login"
+@layout Layout.LoginLayout
+@inject AuthSessionService AuthSession
+@inject UserPreferencesService Prefs
+@inject NavigationManager NavManager
+@inject IJSRuntime JS
+
+<PageTitle>@Prefs.T("تسجيل الدخول — نظام إدارة المختبرات الطبية (LIS)", "Sign In — Laboratory Information System (LIS)")</PageTitle>
+
+<div class="medlab-login-container">
+    <!-- Top Floating Actions (Language & Theme) -->
+    <div class="medlab-login-topbar d-flex justify-content-between align-items-center w-100 px-4 py-3">
+        <div class="d-flex align-items-center gap-2">
+            <span class="badge bg-success bg-opacity-10 text-success border border-success border-opacity-25 px-2 py-1 font-monospace" style="font-size: 11px;">
+                <span class="me-1">●</span> @Prefs.T("السيرفر متصل (localhost:5432)", "Server Online (localhost:5432)")
+            </span>
+        </div>
+        <div class="d-flex align-items-center gap-2">
+            <!-- Language Switcher -->
+            <button type="button" class="btn btn-sm btn-outline-secondary px-3 py-1 rounded-pill d-flex align-items-center gap-1 border" @onclick="ToggleLanguage" style="font-size: 11.5px; height: 30px;">
+                <i class="fas fa-globe text-primary"></i>
+                <span class="fw-bold">@(Prefs.IsEnglish ? "العربية" : "English")</span>
+            </button>
+            <!-- Theme Toggle -->
+            <button type="button" class="btn btn-sm btn-outline-secondary p-1 rounded-circle border" @onclick="ToggleTheme" style="width: 30px; height: 30px;" title="@Prefs.T("تبديل مظهر النظام", "Toggle Theme")">
+                <span>@(Prefs.Current.Theme == "dark" ? "☀️" : "🌙")</span>
+            </button>
+        </div>
+    </div>
+
+    <!-- Center Login Card -->
+    <div class="medlab-login-card-wrapper">
+        <div class="medlab-login-card shadow-lg">
+            <!-- Header & Branding -->
+            <div class="text-center mb-4">
+                <div class="medlab-login-logo mx-auto mb-3 shadow-sm">
+                    <i class="fas fa-microscope text-primary" style="font-size: 28px;"></i>
+                </div>
+                <h4 class="fw-bold text-medlab-navy mb-1" style="font-size: 18px; letter-spacing: -0.3px;">
+                    @Prefs.T("مختبر التحليلات الطبية التخصصي", "Specialized Medical Laboratory")
+                </h4>
+                <div class="font-monospace text-primary fw-semibold" style="font-size: 11.5px; letter-spacing: 0.5px;">
+                    Laboratory Information System (LIS Web)
+                </div>
+                <p class="text-muted small mt-1 mb-0" style="font-size: 11px;">
+                    @Prefs.T("نظام إدارة الفحوصات والربط المباشر مع الأجهزة والمعدات الطبية", "Comprehensive Clinical Laboratory & Instrument Interfacing System")
+                </p>
+            </div>
+
+            <hr class="my-3 opacity-25" style="border-color: var(--medlab-border);" />
+
+            <!-- Error Banner -->
+            @if (!string.IsNullOrEmpty(ErrorMessage))
+            {
+                <div class="alert alert-danger py-2 px-3 mb-3 d-flex align-items-center gap-2" style="font-size: 12px; border-radius: 6px;">
+                    <i class="fas fa-circle-exclamation fs-6 flex-shrink-0"></i>
+                    <span>@ErrorMessage</span>
+                </div>
+            }
+
+            <!-- Login Form -->
+            <form @onsubmit="HandleLogin" class="medlab-login-form">
+                <!-- Username -->
+                <div class="mb-3">
+                    <label class="form-label fw-bold text-medlab-navy d-flex align-items-center gap-1" style="font-size: 12px;">
+                        <i class="fas fa-user text-primary"></i>
+                        <span>@Prefs.T("اسم المستخدم", "Username")</span>
+                    </label>
+                    <div class="input-group input-group-sm">
+                        <span class="input-group-text bg-transparent text-muted border-end-0">
+                            <i class="fas fa-at"></i>
+                        </span>
+                        <input type="text" class="form-control border-start-0 font-monospace" 
+                               placeholder="@Prefs.T("ادخل اسم المستخدم (مثال: admin)", "Enter username (e.g. admin)")" 
+                               @bind="Username" autofocus required style="height: 38px; font-size: 13px;" />
+                    </div>
+                </div>
+
+                <!-- Password with Show/Hide toggle -->
+                <div class="mb-3">
+                    <label class="form-label fw-bold text-medlab-navy d-flex align-items-center gap-1" style="font-size: 12px;">
+                        <i class="fas fa-lock text-primary"></i>
+                        <span>@Prefs.T("كلمة المرور", "Password")</span>
+                    </label>
+                    <div class="input-group input-group-sm">
+                        <span class="input-group-text bg-transparent text-muted border-end-0">
+                            <i class="fas fa-key"></i>
+                        </span>
+                        <input type="@(ShowPassword ? "text" : "password")" class="form-control border-start-0 border-end-0 font-monospace" 
+                               placeholder="@Prefs.T("ادخل كلمة المرور...", "Enter password...")" 
+                               @bind="Password" required style="height: 38px; font-size: 13px;" />
+                        <button type="button" class="btn btn-outline-secondary border-start-0" @onclick="() => ShowPassword = !ShowPassword" title="@Prefs.T("إظهار / إخفاء كلمة المرور", "Toggle Password Visibility")">
+                            <i class="fas @(ShowPassword ? "fa-eye-slash" : "fa-eye")"></i>
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Remember Me -->
+                <div class="d-flex justify-content-between align-items-center mb-3">
+                    <div class="form-check">
+                        <input class="form-check-input" type="checkbox" id="rememberMeCheck" @bind="RememberMe" />
+                        <label class="form-check-label text-muted small" for="rememberMeCheck" style="font-size: 11.5px; cursor: pointer;">
+                            @Prefs.T("تذكر تسجيل دخولي على هذا الجهاز", "Remember me on this browser")
+                        </label>
+                    </div>
+                </div>
+
+                <!-- Submit Button -->
+                <button type="submit" class="btn btn-primary w-100 fw-bold d-flex align-items-center justify-content-center gap-2 shadow-sm py-2" 
+                        disabled="@IsSubmitting" style="font-size: 13.5px; border-radius: 6px; height: 42px;">
+                    @if (IsSubmitting)
+                    {
+                        <span class="spinner-border spinner-border-sm"></span>
+                        <span>@Prefs.T("جاري التحقق وتسجيل الدخول...", "Authenticating...")</span>
+                    }
+                    else
+                    {
+                        <i class="fas fa-arrow-right-to-bracket"></i>
+                        <span>@Prefs.T("تسجيل الدخول إلى النظام (Sign In)", "Sign In to System")</span>
+                    }
+                </button>
+            </form>
+
+            <!-- Quick Auto-Fill Box -->
+            <div class="medlab-autofill-box mt-3 p-2 px-3 rounded d-flex justify-content-between align-items-center">
+                <div>
+                    <div class="fw-bold text-primary small d-flex align-items-center gap-1" style="font-size: 11px;">
+                        <i class="fas fa-lightbulb"></i>
+                        <span>@Prefs.T("حساب المسؤول الافتراضي", "Default Administrator")</span>
+                    </div>
+                    <div class="text-muted font-monospace" style="font-size: 10.5px;">
+                        admin / Admin123
+                    </div>
+                </div>
+                <button type="button" class="btn btn-sm btn-outline-primary py-1 px-2 fw-bold d-flex align-items-center gap-1" 
+                        @onclick="AutoFillAdminCredentials" style="font-size: 10.5px; height: 26px;">
+                    <i class="fas fa-bolt text-warning"></i>
+                    <span>@Prefs.T("تعبئة سريعة", "Quick Fill")</span>
+                </button>
+            </div>
+
+            <!-- Footer Meta -->
+            <div class="text-center text-muted small mt-4 pt-2 border-top" style="font-size: 10.5px; border-color: var(--medlab-border) !important;">
+                <span>@Prefs.T("نظام إدارة المختبرات الطبية LIS • الإصدار v1.0.0", "Laboratory Information System (LIS) • Version v1.0.0")</span>
+            </div>
+        </div>
+    </div>
+</div>
+
+@code {
+    private string Username { get; set; } = "admin";
+    private string Password { get; set; } = "";
+    private bool RememberMe { get; set; } = true;
+    private bool ShowPassword { get; set; } = false;
+    private bool IsSubmitting { get; set; } = false;
+    private string? ErrorMessage { get; set; }
+
+    [SupplyParameterFromQuery(Name = "returnUrl")]
+    public string? ReturnUrl { get; set; }
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (firstRender)
+        {
+            await Prefs.LoadAsync();
+            await AuthSession.InitializeAsync();
+
+            // If user is already authenticated, redirect them to main application
+            if (AuthSession.IsAuthenticated)
+            {
+                var destination = string.IsNullOrWhiteSpace(ReturnUrl) ? "/" : ReturnUrl;
+                NavManager.NavigateTo(destination, forceLoad: true);
+            }
+        }
+    }
+
+    private async Task HandleLogin()
+    {
+        if (string.IsNullOrWhiteSpace(Username) || string.IsNullOrWhiteSpace(Password))
+        {
+            ErrorMessage = Prefs.T("يرجى إدخال اسم المستخدم وكلمة المرور.", "Please enter both username and password.");
+            return;
+        }
+
+        IsSubmitting = true;
+        ErrorMessage = null;
+        StateHasChanged();
+
+        try
+        {
+            var result = await AuthSession.LoginAsync(Username, Password, RememberMe);
+            if (result.Success)
+            {
+                var target = string.IsNullOrWhiteSpace(ReturnUrl) ? "/" : ReturnUrl;
+                NavManager.NavigateTo(target, forceLoad: true);
+            }
+            else
+            {
+                ErrorMessage = Prefs.T("اسم المستخدم أو كلمة المرور غير صحيحة.", "Invalid username or password.");
+            }
+        }
+        catch (Exception ex)
+        {
+            ErrorMessage = ex.Message;
+        }
+        finally
+        {
+            IsSubmitting = false;
+            StateHasChanged();
+        }
+    }
+
+    private void AutoFillAdminCredentials()
+    {
+        Username = "admin";
+        Password = "Admin123";
+        ErrorMessage = null;
+    }
+
+    private async Task ToggleLanguage()
+    {
+        await Prefs.ToggleLanguageAsync();
+    }
+
+    private async Task ToggleTheme()
+    {
+        await Prefs.ToggleThemeAsync();
+    }
+}

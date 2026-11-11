@@ -4,6 +4,7 @@
 @inject IQcService QcService
 @inject ITestCatalogService CatalogService
 @inject UserPreferencesService Prefs
+@inject IJSRuntime JS
 @implements IDisposable
 @rendermode InteractiveServer
 
@@ -1057,6 +1058,18 @@
 
     private async Task DeleteMaterial(long id)
     {
+        var mat = MaterialsList?.FirstOrDefault(m => m.Id == id);
+        var matName = mat?.Name ?? mat?.LotNo ?? id.ToString();
+
+        bool confirmed = await JS.InvokeAsync<bool>("lisConfirm",
+            Prefs.T("تأكيد حذف مادة ضبط الجودة", "Confirm QC Material Deletion"),
+            Prefs.T($"هل أنت متأكد من حذف مادة ضبط الجودة (Lot: {matName})؟ سيتم حذف كافة القيم والنتائج التابعة لها.",
+                    $"Are you sure you want to delete QC material (Lot: {matName})? All associated targets and runs will also be deleted."),
+            Prefs.T("نعم، احذف المادة", "Yes, Delete Material"),
+            Prefs.T("تراجع", "Cancel"),
+            "danger");
+        if (!confirmed) return;
+
         try
         {
             await QcService.DeleteMaterialAsync(id, 1);
@@ -1099,6 +1112,15 @@
 
     private async Task DeleteTarget(long id)
     {
+        bool confirmed = await JS.InvokeAsync<bool>("lisConfirm",
+            Prefs.T("تأكيد حذف القيمة المستهدفة", "Confirm Target Value Deletion"),
+            Prefs.T("هل أنت متأكد من حذف هذه القيمة المستهدفة لمخطط ليفي-جينينغز؟",
+                    "Are you sure you want to delete this target value from Levey-Jennings chart?"),
+            Prefs.T("نعم، احذف القيمة", "Yes, Delete Target"),
+            Prefs.T("تراجع", "Cancel"),
+            "danger");
+        if (!confirmed) return;
+
         try
         {
             await QcService.DeleteTargetAsync(id, 1);

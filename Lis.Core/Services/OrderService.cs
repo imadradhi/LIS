@@ -34,6 +34,24 @@ namespace Lis.Core.Services
         public string SpecimenTypeName { get; set; } = string.Empty;
         public string? Color { get; set; }
         public List<OrderTestDto> Tests { get; set; } = new List<OrderTestDto>();
+        public SpecimenRejectionDto? Rejection { get; set; }
+    }
+
+    public class SpecimenRejectionDto
+    {
+        public long Id { get; set; }
+        public long SpecimenId { get; set; }
+        public long ReasonId { get; set; }
+        public string ReasonNameEn { get; set; } = string.Empty;
+        public string? ReasonNameAr { get; set; }
+        public string DisplayReason => !string.IsNullOrWhiteSpace(ReasonNameAr) ? ReasonNameAr : ReasonNameEn;
+        public string? Notes { get; set; }
+        public long? UserId { get; set; }
+        public string? Username { get; set; }
+        public string? UserFullName { get; set; }
+        public DateTime CreatedAt { get; set; }
+        public string? AccessionNo { get; set; }
+        public string? SpecimenTypeName { get; set; }
     }
 
     public class OrderTestDto
@@ -62,6 +80,19 @@ namespace Lis.Core.Services
         public DateTime CreatedAt { get; set; }
     }
 
+    public class RemoveTestResult
+    {
+        public bool Success { get; set; } = true;
+        public decimal RefundAmount { get; set; }
+        public string TestName { get; set; } = string.Empty;
+        public string TestCode { get; set; } = string.Empty;
+        public decimal TestPrice { get; set; }
+        public string PatientName { get; set; } = string.Empty;
+        public long Mrn { get; set; }
+        public long OrderId { get; set; }
+        public long InvoiceNo { get; set; }
+    }
+
     public interface IOrderService
     {
         Task<OrderDetailsDto> CreateOrderAsync(CreateOrderRequest request, long? currentUserId = null);
@@ -70,10 +101,12 @@ namespace Lis.Core.Services
         Task<IEnumerable<dynamic>> GetOrdersListAsync(string? status = null, DateTime? date = null, string? query = null, int limit = 100);
         Task<IEnumerable<dynamic>> GetDepartmentWorklistAsync(long? departmentId = null, string? status = null, int limit = 100);
         Task MarkSpecimenCollectedAsync(long specimenId, long? currentUserId = null);
+        Task MarkOrderSpecimensCollectedAsync(long orderId, long? currentUserId = null);
         Task RejectSpecimenAsync(long specimenId, long reasonId, string? notes, bool recollect, long? currentUserId = null);
+        Task<SpecimenRejectionDto?> GetSpecimenRejectionDetailsAsync(long specimenId);
         Task CancelOrderAsync(long orderId, string reason, long? currentUserId = null);
         Task<Specimen> AddTestToOrderAsync(long orderId, long testId, long? existingSpecimenId = null, long? currentUserId = null);
-        Task RemoveTestFromOrderAsync(long orderId, long orderTestId, long? currentUserId = null);
+        Task<RemoveTestResult> RemoveTestFromOrderAsync(long orderId, long orderTestId, long? currentUserId = null);
     }
 
     public class OrderService : IOrderService
@@ -338,12 +371,31 @@ namespace Lis.Core.Services
                     ORDER BY ot.id ASC;
                 ", new { SpecimenId = spec.Id })).ToList();
 
+                var rejection = await conn.QueryFirstOrDefaultAsync<SpecimenRejectionDto>(@"
+                    SELECT sr.id, sr.specimen_id AS SpecimenId, sr.reason_id AS ReasonId,
+                           rr.name_en AS ReasonNameEn, rr.name_ar AS ReasonNameAr,
+                           sr.notes AS Notes, sr.user_id AS UserId,
+                           u.username AS Username, u.full_name AS UserFullName,
+                           sr.created_at AS CreatedAt,
+                           s.accession_no AS AccessionNo,
+                           st.name_en AS SpecimenTypeName
+                    FROM specimen_rejections sr
+                    JOIN specimens s ON s.id = sr.specimen_id
+                    JOIN specimen_types st ON st.id = s.specimen_type_id
+                    JOIN rejection_reasons rr ON rr.id = sr.reason_id
+                    LEFT JOIN users u ON u.id = sr.user_id
+                    WHERE sr.specimen_id = @SpecimenId
+                    ORDER BY sr.id DESC
+                    LIMIT 1;
+                ", new { SpecimenId = spec.Id });
+
                 specDtos.Add(new SpecimenDto
                 {
                     Specimen = spec,
                     SpecimenTypeName = (string)s.specimen_type_name,
                     Color = (string?)s.color,
-                    Tests = tests
+                    Tests = tests,
+                    Rejection = rejection
                 });
             }
 
@@ -441,7 +493,12 @@ namespace Lis.Core.Services
                        p.mrn, p.full_name_ar, p.sex, p.date_of_birth,
                        string_agg(DISTINCT t.test_code, ', ') AS test_names,
                        COALESCE(inv.paid, 0) AS paid_amount,
-                       inv.status AS invoice_status
+                       inv.status AS invoice_status,
+                       sr.notes AS rejection_notes,
+                       sr.created_at AS rejected_at,
+                       rr.name_ar AS rejection_reason_name_ar,
+                       rr.name_en AS rejection_reason_name_en,
+                       COALESCE(u.full_name, u.username) AS rejected_by_user
                 FROM specimens s
                 JOIN orders o ON o.id = s.order_id
                 JOIN patients p ON p.id = o.patient_id
@@ -449,10 +506,19 @@ namespace Lis.Core.Services
                 JOIN order_tests ot ON ot.specimen_id = s.id
                 JOIN tests t ON t.id = ot.test_id
                 JOIN invoices inv ON inv.order_id = o.id
+                LEFT JOIN LATERAL (
+                    SELECT sr1.reason_id, sr1.notes, sr1.user_id, sr1.created_at
+                    FROM specimen_rejections sr1
+                    WHERE sr1.specimen_id = s.id
+                    ORDER BY sr1.id DESC
+                    LIMIT 1
+                ) sr ON true
+                LEFT JOIN rejection_reasons rr ON rr.id = sr.reason_id
+                LEFT JOIN users u ON u.id = sr.user_id
                 WHERE s.archived = FALSE
                   AND (@Status IS NULL OR s.status = @Status)
                   AND (@DepartmentId IS NULL OR t.department_id = @DepartmentId)
-                GROUP BY s.id, st.id, o.id, p.id, inv.id
+                GROUP BY s.id, st.id, o.id, p.id, inv.id, sr.notes, sr.created_at, rr.name_ar, rr.name_en, u.full_name, u.username
                 ORDER BY s.id DESC
                 LIMIT @Limit;
             ";
@@ -505,6 +571,30 @@ namespace Lis.Core.Services
             ", new { OrderId = orderId });
 
             await _authService.LogAuditAsync(currentUserId, "SPECIMEN_COLLECTED", "specimens", specimenId.ToString());
+        }
+
+        public async Task MarkOrderSpecimensCollectedAsync(long orderId, long? currentUserId = null)
+        {
+            using var conn = _connectionFactory.CreateConnection();
+            await conn.ExecuteAsync(@"
+                UPDATE specimens
+                SET status = 'Collected',
+                    collected_at = COALESCE(collected_at, clock_timestamp()),
+                    updated_at = clock_timestamp()
+                WHERE order_id = @OrderId AND status = 'Ordered';
+
+                UPDATE order_tests
+                SET status = 'Collected',
+                    updated_at = clock_timestamp()
+                WHERE order_id = @OrderId AND status = 'Ordered';
+
+                UPDATE orders
+                SET status = 'Collected',
+                    updated_at = clock_timestamp()
+                WHERE id = @OrderId AND status = 'Ordered';
+            ", new { OrderId = orderId });
+
+            await _authService.LogAuditAsync(currentUserId, "ORDER_SPECIMENS_COLLECTED", "orders", orderId.ToString());
         }
 
         public async Task RejectSpecimenAsync(long specimenId, long reasonId, string? notes, bool recollect, long? currentUserId = null)
@@ -575,6 +665,28 @@ namespace Lis.Core.Services
                 trans.Rollback();
                 throw;
             }
+        }
+
+        public async Task<SpecimenRejectionDto?> GetSpecimenRejectionDetailsAsync(long specimenId)
+        {
+            using var conn = _connectionFactory.CreateConnection();
+            return await conn.QueryFirstOrDefaultAsync<SpecimenRejectionDto>(@"
+                SELECT sr.id, sr.specimen_id AS SpecimenId, sr.reason_id AS ReasonId,
+                       rr.name_en AS ReasonNameEn, rr.name_ar AS ReasonNameAr,
+                       sr.notes AS Notes, sr.user_id AS UserId,
+                       u.username AS Username, u.full_name AS UserFullName,
+                       sr.created_at AS CreatedAt,
+                       s.accession_no AS AccessionNo,
+                       st.name_en AS SpecimenTypeName
+                FROM specimen_rejections sr
+                JOIN specimens s ON s.id = sr.specimen_id
+                JOIN specimen_types st ON st.id = s.specimen_type_id
+                JOIN rejection_reasons rr ON rr.id = sr.reason_id
+                LEFT JOIN users u ON u.id = sr.user_id
+                WHERE sr.specimen_id = @SpecimenId
+                ORDER BY sr.id DESC
+                LIMIT 1;
+            ", new { SpecimenId = specimenId });
         }
 
         public async Task CancelOrderAsync(long orderId, string reason, long? currentUserId = null)
@@ -691,18 +803,22 @@ namespace Lis.Core.Services
             }
         }
 
-        public async Task RemoveTestFromOrderAsync(long orderId, long orderTestId, long? currentUserId = null)
+        public async Task<RemoveTestResult> RemoveTestFromOrderAsync(long orderId, long orderTestId, long? currentUserId = null)
         {
             using var conn = (Npgsql.NpgsqlConnection)_connectionFactory.CreateConnection();
             using var trans = conn.BeginTransaction();
 
             try
             {
-                // 1. Get the order_test and test info
+                // 1. Get the order_test and test info, along with patient and invoice details for refund
                 var orderTest = await conn.QueryFirstOrDefaultAsync<dynamic>(@"
-                    SELECT ot.id, ot.order_id, ot.specimen_id, ot.test_id, t.price
+                    SELECT ot.id, ot.order_id, ot.specimen_id, ot.test_id, t.price, t.test_code, t.name_ar, t.name_en,
+                           p.full_name_ar, p.mrn, inv.invoice_no
                     FROM order_tests ot
                     JOIN tests t ON t.id = ot.test_id
+                    JOIN orders o ON o.id = ot.order_id
+                    JOIN patients p ON p.id = o.patient_id
+                    LEFT JOIN invoices inv ON inv.order_id = ot.order_id
                     WHERE ot.id = @OrderTestId AND ot.order_id = @OrderId;
                 ", new { OrderTestId = orderTestId, OrderId = orderId }, trans);
 
@@ -732,19 +848,69 @@ namespace Lis.Core.Services
                     );
                 ", new { OrderId = orderId, TestId = testId }, trans);
 
-                // 5. Update invoice
-                await conn.ExecuteAsync(@"
-                    UPDATE invoices
-                    SET total = GREATEST(0, total - @Price),
-                        net = GREATEST(0, (total - @Price) - discount),
-                        balance = GREATEST(0, ((total - @Price) - discount) - paid),
-                        status = CASE 
-                            WHEN GREATEST(0, ((total - @Price) - discount) - paid) <= 0 THEN 'Paid' 
-                            WHEN paid > 0 THEN 'Partial' 
-                            ELSE 'Unpaid' 
-                        END
-                    WHERE order_id = @OrderId;
-                ", new { OrderId = orderId, Price = price }, trans);
+                // 5. Update invoice & evaluate refund if already paid
+                decimal refundAmount = 0;
+                var invoice = await conn.QueryFirstOrDefaultAsync<dynamic>(
+                    "SELECT id, total, discount, net, paid, balance FROM invoices WHERE order_id = @OrderId;",
+                    new { OrderId = orderId }, trans);
+
+                if (invoice != null)
+                {
+                    decimal currentPaid = (decimal)invoice.paid;
+                    decimal currentTotal = (decimal)invoice.total;
+                    decimal currentDiscount = (decimal)invoice.discount;
+                    decimal newTotal = Math.Max(0, currentTotal - price);
+                    decimal newNet = Math.Max(0, newTotal - currentDiscount);
+
+                    if (currentPaid > newNet)
+                    {
+                        refundAmount = currentPaid - newNet;
+                        decimal newPaid = newNet;
+
+                        // Insert negative refund payment record
+                        await conn.ExecuteAsync(@"
+                            INSERT INTO payments (invoice_id, amount, method, user_id, created_at)
+                            VALUES (@InvoiceId, @RefundAmount, 'Refund', @UserId, clock_timestamp());
+
+                            UPDATE invoices
+                            SET total = @NewTotal,
+                                net = @NewNet,
+                                paid = @NewPaid,
+                                balance = 0,
+                                status = CASE WHEN @NewNet = 0 THEN 'Cancelled' ELSE 'Paid' END
+                            WHERE id = @InvoiceId;
+                        ", new
+                        {
+                            InvoiceId = (long)invoice.id,
+                            RefundAmount = -refundAmount,
+                            NewTotal = newTotal,
+                            NewNet = newNet,
+                            NewPaid = newPaid,
+                            UserId = currentUserId
+                        }, trans);
+                    }
+                    else
+                    {
+                        decimal newBalance = Math.Max(0, newNet - currentPaid);
+                        string newStatus = newBalance == 0 ? (newNet == 0 ? "Cancelled" : "Paid") : (currentPaid > 0 ? "Partial" : "Unpaid");
+
+                        await conn.ExecuteAsync(@"
+                            UPDATE invoices
+                            SET total = @NewTotal,
+                                net = @NewNet,
+                                balance = @NewBalance,
+                                status = @NewStatus
+                            WHERE id = @InvoiceId;
+                        ", new
+                        {
+                            InvoiceId = (long)invoice.id,
+                            NewTotal = newTotal,
+                            NewNet = newNet,
+                            NewBalance = newBalance,
+                            NewStatus = newStatus
+                        }, trans);
+                    }
+                }
 
                 // 6. If this specimen has no remaining tests, delete it
                 var remainingTests = await conn.ExecuteScalarAsync<int>(
@@ -757,7 +923,20 @@ namespace Lis.Core.Services
                 }
 
                 trans.Commit();
-                await _authService.LogAuditAsync(currentUserId, "REMOVE_TEST_FROM_ORDER", "order_tests", orderId.ToString(), null, new { orderTestId, testId, specimenId, price });
+                await _authService.LogAuditAsync(currentUserId, "REMOVE_TEST_FROM_ORDER", "order_tests", orderId.ToString(), null, new { orderTestId, testId, specimenId, price, refundAmount });
+
+                return new RemoveTestResult
+                {
+                    Success = true,
+                    RefundAmount = refundAmount,
+                    TestName = (string)(orderTest.name_ar ?? orderTest.name_en ?? "فحص مخبري"),
+                    TestCode = (string)(orderTest.test_code ?? ""),
+                    TestPrice = price,
+                    PatientName = (string)(orderTest.full_name_ar ?? "مريض"),
+                    Mrn = orderTest.mrn != null ? (long)orderTest.mrn : 0,
+                    OrderId = orderId,
+                    InvoiceNo = orderTest.invoice_no != null ? (long)orderTest.invoice_no : orderId
+                };
             }
             catch
             {

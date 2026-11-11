@@ -43,7 +43,7 @@ namespace Lis.Core.ASTM
         {
             int fn = frameNumber % 8; // ASTM frames are 0 to 7
             char terminator = isLast ? (char)AstmConstants.ETX : (char)AstmConstants.ETB;
-            string payload = $"{fn}{text}{terminator}";
+            string payload = $"{fn}{text}\r{terminator}";
             string checksum = CalculateChecksum(payload);
 
             return $"{(char)AstmConstants.STX}{payload}{checksum}\r\n";
@@ -75,8 +75,8 @@ namespace Lis.Core.ASTM
             if (!int.TryParse(fnChar.ToString(), out int frameNum))
                 return false;
 
-            // Text between frame number and ETX/ETB
-            string content = rawFrame.Substring(stxIdx + 2, etxIdx - (stxIdx + 2));
+            // Text between frame number and ETX/ETB (trim trailing \r if present before ETX)
+            string content = rawFrame.Substring(stxIdx + 2, etxIdx - (stxIdx + 2)).TrimEnd('\r');
 
             // Checksum is 2 hex chars after ETX/ETB
             string receivedChecksum = rawFrame.Substring(etxIdx + 1, 2);

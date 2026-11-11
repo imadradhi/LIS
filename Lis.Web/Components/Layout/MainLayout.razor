@@ -1,232 +1,223 @@
 @inherits LayoutComponentBase
 @inject NavigationManager NavManager
 @inject UserPreferencesService Prefs
+@inject AuthSessionService AuthSession
 @inject IJSRuntime JS
 @implements IDisposable
 
-<div class="lis-app-wrapper @(Prefs.Current.IsSidebarCollapsed ? "sidebar-collapsed" : "")">
-    <!-- Left Sidebar (MDB Sidenav compatible) -->
-    <aside class="lis-sidebar">
-        <NavMenu />
-    </aside>
-
-    <!-- Main Content Area -->
-    <div class="lis-main-content">
-        <!-- Top Navbar (MDB Navbar matching Admin Dashboard) -->
-        <header class="lis-topbar navbar navbar-expand-lg px-3 py-2 border-bottom d-flex justify-content-between align-items-center">
-            <!-- Left Side: Sidenav Toggle & Barcode Scanner -->
-            <div class="d-flex align-items-center gap-2">
-                <button class="btn btn-outline-secondary btn-sm p-1 px-2 border-0" type="button" @onclick="ToggleSidebar" 
-                        title="@Prefs.T("إخفاء / إظهار القائمة الجانبية", "Toggle Sidebar Navigation")" data-mdb-ripple-init>
-                    <i class="fas fa-bars fs-6"></i>
-                </button>
-
-                <div class="d-none d-md-flex align-items-center gap-2 ms-2">
-                    <div class="input-group input-group-sm" style="max-width: 320px;">
-                        <span class="input-group-text border-end-0 bg-transparent text-muted ps-3 pe-2">
-                            <i class="fas fa-search" style="font-size: 12px;"></i>
-                        </span>
-                        <input type="text" class="form-control border-start-0 ps-1 font-monospace" 
-                               placeholder="@Prefs.T("مسح باركود (ctrl + alt)...", "Scan barcode (ctrl + alt)...")" 
-                               @bind="QuickScanBarcode" @onkeydown="HandleQuickScanKey" />
-                        <button class="btn btn-primary btn-sm px-3" type="button" @onclick="DoQuickScan" data-mdb-ripple-init>
-                            @Prefs.T("بحث", "Search")
-                        </button>
-                    </div>
-                </div>
-            </div>
-
-            <!-- Right Side: Contact, Support, Notifications, Language, Theme, Profile -->
-            <div class="d-flex align-items-center gap-2">
-                <!-- Notifications Bell with Red Badge -->
-                <div class="position-relative me-1" title="@Prefs.T("الإشعارات والتنبيهات الحية", "Live Notifications")">
-                    <button class="btn btn-outline-secondary btn-sm p-2 rounded-circle border-0" type="button" data-mdb-ripple-init>
-                        <i class="fas fa-bell text-secondary"></i>
-                    </button>
-                    <span class="position-absolute top-0 start-100 translate-middle badge rounded-pill bg-danger" style="font-size: 9.5px; padding: 2px 5px; margin-top: 5px; margin-left: -8px;">
-                        1
-                    </span>
-                </div>
-
-                <!-- Language Quick Switcher -->
-                <button class="btn btn-outline-secondary btn-sm px-2 py-1 d-flex align-items-center gap-1 rounded-pill" type="button" @onclick="ToggleLanguage" 
-                        title="@Prefs.T("التبديل إلى English", "Switch to العربية")" data-mdb-ripple-init>
-                    <i class="fas fa-globe text-primary"></i>
-                    <span class="fw-bold" style="font-size: 11px;">@(Prefs.IsEnglish ? "العربية" : "EN")</span>
-                </button>
-
-                <!-- Theme Mode Toggle (Dark / Light) -->
-                <button class="btn btn-outline-secondary btn-sm p-2 rounded-circle" type="button" @onclick="ToggleTheme" 
-                        title="@(Prefs.Current.Theme == "dark" ? Prefs.T("التبديل إلى الوضع الفاتح (Light Mode)", "Switch to Light Mode") : Prefs.T("التبديل إلى الوضع الداكن (Dark Mode)", "Switch to Dark Mode"))" data-mdb-ripple-init>
-                    @if (Prefs.Current.Theme == "dark")
-                    {
-                        <span class="text-warning">☀️</span>
-                    }
-                    else
-                    {
-                        <span class="text-info">🌙</span>
-                    }
-                </button>
-
-                <!-- Open Preferences Modal Button -->
-                <button class="btn btn-outline-secondary btn-sm p-2 rounded-circle" type="button" @onclick="OpenPreferencesModal" 
-                        title="@Prefs.T("تفضيلات المستخدم وواجهة العرض", "User Preferences & Display")" data-mdb-ripple-init>
-                    <i class="fas fa-sliders-h"></i>
-                </button>
-
-                <!-- User Profile Pill -->
-                <div class="d-flex align-items-center gap-2 ms-2 ps-2 border-start border-secondary border-opacity-25" style="cursor: pointer;" @onclick="OpenPreferencesModal">
-                    <div class="text-end d-none d-sm-block">
-                        <div class="fw-bold small" style="line-height: 1.2;">@Prefs.T("د. مصطفى حميد", "Dr. Mustafa Hameed")</div>
-                        <small class="text-success fw-semibold" style="font-size: 10.5px;">🟢 @Prefs.T("مدير المختبر (Admin)", "Lab Director (Admin)")</small>
-                    </div>
-                    <div style="width: 36px; height: 36px; border-radius: 50%; background: linear-gradient(135deg, #2563EB 0%, #7C3AED 100%); display: flex; align-items: center; justify-content: center; font-size: 15px; color: #FFFFFF; font-weight: bold; box-shadow: 0 2px 8px rgba(0,0,0,0.15);">
-                        <span>MH</span>
-                    </div>
-                </div>
-            </div>
-        </header>
-
-        <!-- Page Body Container -->
-        <main class="lis-body-container">
-            @Body
-        </main>
+@if (!AuthSession.IsAuthenticated)
+{
+    <div class="d-flex align-items-center justify-content-center vh-100" style="background: var(--bg-body, #0A0F17); color: #E2E8F0;">
+        <div class="text-center p-4">
+            <div class="spinner-border text-primary mb-3" style="width: 2.5rem; height: 2.5rem;" role="status"></div>
+            <div class="fw-bold mb-1" style="font-size: 13px;">@Prefs.T("جاري التحقق من جلسة تسجيل الدخول...", "Verifying authentication session...")</div>
+            <div class="text-muted small" style="font-size: 11px;">@Prefs.T("يرجى الانتظار...", "Please wait...")</div>
+        </div>
     </div>
-</div>
+}
+else
+{
+    <div class="lis-app-wrapper @(Prefs.Current.IsSidebarCollapsed ? "sidebar-collapsed" : "")">
+        <!-- Left Sidebar (MedLab Slim Sidenav) -->
+        <aside class="lis-sidebar medlab-sidebar">
+            <NavMenu />
+        </aside>
+
+        <!-- Main Content Area -->
+        <div class="lis-main-content medlab-main">
+            <!-- Top Navbar (MedLab Header) -->
+            <header class="lis-topbar medlab-topbar navbar navbar-expand-lg border-bottom d-flex justify-content-between align-items-center">
+                <!-- Left Side: Search Bar & Patient Tab Pill -->
+                <div class="d-flex align-items-center gap-2">
+                    <div class="medlab-search-input-group">
+                        <input type="text" placeholder="@Prefs.T("Name, ID, or Patient No...", "Name, ID, or Patient No...")" 
+                               @bind="QuickScanBarcode" @onkeydown="HandleQuickScanKey" />
+                        <i class="fas fa-search text-muted" style="cursor: pointer; font-size: 11px;" @onclick="DoQuickScan"></i>
+                    </div>
+                    <button class="medlab-btn-add" type="button" title="@Prefs.T("إضافة طلب جديد", "New Order")" @onclick='() => NavManager.NavigateTo("orders")'>
+                        <i class="fas fa-plus"></i>
+                    </button>
+
+                    <!-- Active Patient Tab Pill -->
+                    <div class="medlab-patient-tab-pill d-none d-md-inline-flex">
+                        <i class="fas fa-user text-primary" style="font-size: 11px;"></i>
+                        <span>@(ActivePatientTabTitle ?? Prefs.T("بترا زمبويل، 23 سنة (أنثى)", "PETRA ZUMBUIL, 23 y (F)"))</span>
+                        <button class="tab-close-btn ms-1" type="button" @onclick="ClearActivePatientTab" title="Close">✕</button>
+                    </div>
+                </div>
+
+                <!-- Right Side: Notifications, Language, Theme, User Profile -->
+                <div class="d-flex align-items-center gap-2">
+                    <!-- Notifications Bell with Red Badge -->
+                    <div class="position-relative me-1" title="@Prefs.T("الإشعارات والتنبيهات الحية", "Live Notifications")">
+                        <button class="btn btn-outline-secondary btn-sm p-1 rounded-circle border-0 text-muted" type="button">
+                            <i class="fas fa-bell fs-6"></i>
+                        </button>
+                        <span class="position-absolute top-0 start-100 translate-middle badge rounded-pill bg-danger" style="font-size: 9px; padding: 2px 5px; margin-top: 4px; margin-left: -6px;">
+                            1
+                        </span>
+                    </div>
+
+                    <!-- Language Quick Switcher -->
+                    <button class="btn btn-outline-secondary btn-sm px-2 py-0 d-flex align-items-center gap-1 rounded border" type="button" @onclick="ToggleLanguage" 
+                            title="@Prefs.T("التبديل إلى English", "Switch to العربية")">
+                        <i class="fas fa-globe text-primary" style="font-size: 11px;"></i>
+                        <span class="fw-bold" style="font-size: 11px;">@(Prefs.IsEnglish ? "العربية" : "EN")</span>
+                    </button>
+
+                    <!-- Theme Mode Toggle -->
+                    <button class="btn btn-outline-secondary btn-sm p-1 rounded border-0" type="button" @onclick="ToggleTheme" title="Theme Toggle">
+                        @(Prefs.Current.Theme == "dark" ? "☀️" : "🌙")
+                    </button>
+
+                    <!-- User Profile Dropdown (MedLab Style) -->
+                    <div class="dropdown ms-1 ps-2 border-start" style="border-color: var(--medlab-border) !important;">
+                        <button class="btn btn-sm btn-outline-secondary d-flex align-items-center gap-1 border-0 py-1 px-2 rounded" 
+                                type="button" data-mdb-dropdown-init data-mdb-ripple-init aria-expanded="false" 
+                                style="color: var(--medlab-text-navy);">
+                            <div style="width: 28px; height: 28px; border-radius: 50%; background: #0B72B9; display: flex; align-items: center; justify-content: center; font-size: 12px; color: #FFFFFF;">
+                                <i class="fas fa-user-shield"></i>
+                            </div>
+                            <span class="fw-bold small ms-1 d-none d-sm-inline" style="font-size: 12px;">@(AuthSession.CurrentUser?.FullName ?? AuthSession.CurrentUser?.Username ?? "مدير النظام")</span>
+                            <i class="fas fa-caret-down text-muted" style="font-size: 10px;"></i>
+                        </button>
+                        <ul class="dropdown-menu dropdown-menu-end shadow-sm border p-1" style="min-width: 210px; border-color: var(--medlab-border) !important;">
+                            <li class="px-3 py-2 border-bottom mb-1" style="border-color: var(--medlab-border) !important;">
+                                <div class="fw-bold small text-medlab-navy">@(AuthSession.CurrentUser?.FullName ?? "مدير النظام")</div>
+                                <div class="text-muted font-monospace" style="font-size: 10.5px;">@@@(AuthSession.CurrentUser?.Username ?? "admin")</div>
+                            </li>
+                            <li>
+                                <button class="dropdown-item py-2 d-flex align-items-center gap-2 rounded" type="button" @onclick="OpenPreferencesModal">
+                                    <i class="fas fa-sliders-h text-primary"></i>
+                                    <span style="font-size: 12px;">@Prefs.T("تفضيلات العرض والمظهر", "Preferences & Display")</span>
+                                </button>
+                            </li>
+                            <li><hr class="dropdown-divider my-1" style="border-color: var(--medlab-border) !important;"></li>
+                            <li>
+                                <button class="dropdown-item py-2 text-danger d-flex align-items-center gap-2 rounded" type="button" @onclick="ConfirmLogout">
+                                    <i class="fas fa-arrow-right-from-bracket"></i>
+                                    <span style="font-size: 12px;">@Prefs.T("تسجيل الخروج", "Sign Out")</span>
+                                </button>
+                            </li>
+                        </ul>
+                    </div>
+
+                    <!-- Settings Icon Button -->
+                    <button class="btn btn-outline-secondary btn-sm p-1 rounded-circle border-0 text-muted" type="button" @onclick='() => NavManager.NavigateTo("settings")' title="@Prefs.T("الإعدادات", "Settings")">
+                        <i class="fas fa-cog"></i>
+                    </button>
+                </div>
+            </header>
+
+            <!-- Page Body Container -->
+            <main class="lis-body-container">
+                @Body
+            </main>
+        </div>
+    </div>
+}
 
 <!-- ========================================== -->
 <!-- MODAL: USER PREFERENCES                    -->
 <!-- ========================================== -->
 @if (IsPreferencesModalOpen)
 {
-    <div class="modal fade show d-block" tabindex="-1" style="background: rgba(0,0,0,0.8); backdrop-filter: blur(4px); z-index: 1070;">
-        <div class="modal-dialog modal-dialog-centered">
-            <div class="modal-content card border-info" style="background: var(--bg-card); border-color: var(--border-color);">
-                <!-- Header -->
-                <div class="modal-header border-bottom border-secondary py-2 px-3 d-flex justify-content-between align-items-center">
-                    <h5 class="modal-title text-info fw-bold mb-0 d-flex align-items-center gap-2">
-                        <i class="fas fa-sliders-h"></i>
-                        <span>@Prefs.T("تفضيلات المستخدم وواجهة العرض (User Preferences)", "User Preferences & Display Settings")</span>
+    <div class="modal fade show d-block" tabindex="-1" style="background: rgba(0,0,0,0.7); backdrop-filter: blur(4px);">
+        <div class="modal-dialog modal-dialog-centered" style="max-width: 520px;">
+            <div class="modal-content lis-card border-primary">
+                <div class="modal-header border-bottom border-secondary d-flex justify-content-between align-items-center">
+                    <h5 class="modal-title fw-bold text-white mb-0">
+                        <i class="fas fa-sliders-h text-primary me-2"></i>
+                        @Prefs.T("تفضيلات المستخدم وواجهة العرض", "User Preferences & Display")
                     </h5>
                     <button type="button" class="btn-close btn-close-white" @onclick="() => IsPreferencesModalOpen = false"></button>
                 </div>
-
-                <!-- Body -->
-                <div class="modal-body p-3">
+                <div class="modal-body p-4 text-white">
                     @if (!string.IsNullOrEmpty(PreferencesAlert))
                     {
-                        <div class="alert alert-success py-2 px-3 mb-3 small">
-                            @PreferencesAlert
-                        </div>
+                        <div class="alert alert-success py-2 px-3 mb-3 small">@PreferencesAlert</div>
                     }
 
-                    <!-- Section 1: Language (Arabic vs English) -->
+                    <!-- Section 1: Language Selection -->
                     <div class="mb-3">
-                        <label class="form-label text-secondary small mb-2 fw-bold">
-                            1. @Prefs.T("لغة واجهة المستخدم (Interface Language):", "Interface Language:")
+                        <label class="form-label fw-bold text-info small mb-1">
+                            1. @Prefs.T("لغة العرض في النظام (Display Language):", "Display Language:")
                         </label>
-                        <div class="row g-2">
-                            <div class="col-6">
-                                <div class="card p-2 text-center border @(TempPrefs.Language == "ar" ? "border-primary bg-primary bg-opacity-10" : "border-secondary")" 
-                                     style="cursor: pointer;" @onclick='() => TempPrefs.Language = "ar"'>
-                                    <span class="fs-4 mb-1">🇮🇶</span>
-                                    <strong class="@(TempPrefs.Language == "ar" ? "text-primary" : "text-white") small">العربية (Arabic)</strong>
-                                    <small class="text-muted" style="font-size: 11px;">@Prefs.T("الواجهة من اليمين لليسار (RTL)", "Right-to-Left (RTL)")</small>
-                                </div>
-                            </div>
-                            <div class="col-6">
-                                <div class="card p-2 text-center border @(TempPrefs.Language == "en" ? "border-primary bg-primary bg-opacity-10" : "border-secondary")" 
-                                     style="cursor: pointer;" @onclick='() => TempPrefs.Language = "en"'>
-                                    <span class="fs-4 mb-1">🇬🇧</span>
-                                    <strong class="@(TempPrefs.Language == "en" ? "text-primary" : "text-white") small">English (الإنجليزية)</strong>
-                                    <small class="text-muted" style="font-size: 11px;">@Prefs.T("من اليسار لليمين (LTR)", "Left-to-Right (LTR)")</small>
-                                </div>
-                            </div>
+                        <div class="d-flex gap-2">
+                            <button type="button" class="btn btn-sm flex-fill @(TempPrefs.Language == "ar" ? "btn-primary" : "btn-outline-secondary")" 
+                                    @onclick='() => TempPrefs.Language = "ar"'>
+                                🇮🇶 العربية (Arabic)
+                            </button>
+                            <button type="button" class="btn btn-sm flex-fill @(TempPrefs.Language == "en" ? "btn-primary" : "btn-outline-secondary")" 
+                                    @onclick='() => TempPrefs.Language = "en"'>
+                                🇬🇧 English
+                            </button>
                         </div>
                     </div>
 
                     <!-- Section 2: Theme Mode (Dark vs Light) -->
                     <div class="mb-3">
-                        <label class="form-label text-secondary small mb-2 fw-bold">
+                        <label class="form-label fw-bold text-info small mb-1">
                             2. @Prefs.T("مظهر وسمة العرض (Theme Mode):", "Theme Mode:")
                         </label>
                         <div class="row g-2">
                             <div class="col-6">
                                 <div class="card p-2 text-center border @(TempPrefs.Theme == "dark" ? "border-info bg-dark" : "border-secondary")" 
                                      style="cursor: pointer;" @onclick='() => TempPrefs.Theme = "dark"'>
-                                    <span class="fs-4 mb-1">🌙</span>
-                                    <strong class="text-white small">@Prefs.T("الوضع الداكن (Dark)", "Dark Mode")</strong>
-                                    <small class="text-muted" style="font-size: 11px;">@Prefs.T("الافتراضي المريح للعين", "Default comfortable theme")</small>
+                                    <span class="fs-4">🌙</span>
+                                    <div class="fw-bold small text-white">@Prefs.T("الوضع الليلي الفاخر", "Luxury Dark")</div>
+                                    <small class="text-secondary" style="font-size: 10px;">@Prefs.T("مريح للعين", "Eye-friendly")</small>
                                 </div>
                             </div>
                             <div class="col-6">
                                 <div class="card p-2 text-center border @(TempPrefs.Theme == "light" ? "border-info bg-dark" : "border-secondary")" 
                                      style="cursor: pointer;" @onclick='() => TempPrefs.Theme = "light"'>
-                                    <span class="fs-4 mb-1">☀️</span>
-                                    <strong class="text-white small">@Prefs.T("الوضع الفاتح (Light)", "Light Mode")</strong>
-                                    <small class="text-muted" style="font-size: 11px;">@Prefs.T("مظهر أبيض عالي السطوع", "Clean high-contrast theme")</small>
+                                    <span class="fs-4">☀️</span>
+                                    <div class="fw-bold small text-white">@Prefs.T("الوضع النهاري الطبي", "Medical Light")</div>
+                                    <small class="text-secondary" style="font-size: 10px;">@Prefs.T("مظهر ناصع", "Crisp Clean")</small>
                                 </div>
                             </div>
                         </div>
                     </div>
 
-                    <!-- Section 3: Display Density -->
+                    <!-- Section 3: Accent Color Palette -->
                     <div class="mb-3">
-                        <label class="form-label text-secondary small mb-2 fw-bold">
-                            3. @Prefs.T("كثافة العرض للجداول والحقول (Display Density):", "Display Density:")
-                        </label>
-                        <div class="row g-2">
-                            <div class="col-6">
-                                <div class="card p-2 text-center border @(TempPrefs.Density == "standard" ? "border-info bg-dark" : "border-secondary")" 
-                                     style="cursor: pointer;" @onclick='() => TempPrefs.Density = "standard"'>
-                                    <strong class="text-white small">@Prefs.T("قياسي (Standard)", "Standard")</strong>
-                                    <small class="text-muted" style="font-size: 11px;">@Prefs.T("مسافات مريحة للشاشات الكبيرة", "Comfortable for large screens")</small>
-                                </div>
-                            </div>
-                            <div class="col-6">
-                                <div class="card p-2 text-center border @(TempPrefs.Density == "compact" ? "border-info bg-dark" : "border-secondary")" 
-                                     style="cursor: pointer;" @onclick='() => TempPrefs.Density = "compact"'>
-                                    <strong class="text-info small">@Prefs.T("مكثف (Compact)", "Compact")</strong>
-                                    <small class="text-muted" style="font-size: 11px;">@Prefs.T("مناسب لشاشات اللابتوب الصغيرة", "Optimized for laptops")</small>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-
-                    <!-- Section 4: Accent Color -->
-                    <div class="mb-3">
-                        <label class="form-label text-secondary small mb-2 fw-bold">
-                            4. @Prefs.T("لون التمييز والأزرار (Accent Color):", "Accent Color:")
+                        <label class="form-label fw-bold text-info small mb-1">
+                            3. @Prefs.T("اللون المميز الأساسي (Accent Color):", "Accent Color:")
                         </label>
                         <div class="d-flex gap-2">
-                            <button type="button" class="btn btn-sm flex-grow-1 @(TempPrefs.AccentColor == "cyan" ? "btn-info fw-bold" : "btn-outline-secondary")" 
-                                    @onclick='() => TempPrefs.AccentColor = "cyan"'>
-                                @Prefs.T("سماوي (Cyan)", "Cyan")
-                            </button>
-                            <button type="button" class="btn btn-sm flex-grow-1 @(TempPrefs.AccentColor == "blue" ? "btn-primary fw-bold" : "btn-outline-secondary")" 
-                                    @onclick='() => TempPrefs.AccentColor = "blue"'>
-                                @Prefs.T("أزرق (Blue)", "Blue")
-                            </button>
-                            <button type="button" class="btn btn-sm flex-grow-1 @(TempPrefs.AccentColor == "emerald" ? "btn-success fw-bold" : "btn-outline-secondary")" 
-                                    @onclick='() => TempPrefs.AccentColor = "emerald"'>
-                                @Prefs.T("زمردي (Green)", "Emerald")
-                            </button>
-                            <button type="button" class="btn btn-sm flex-grow-1 @(TempPrefs.AccentColor == "purple" ? "btn-secondary fw-bold" : "btn-outline-secondary")" 
-                                    @onclick='() => TempPrefs.AccentColor = "purple"'>
-                                @Prefs.T("بنفسجي (Purple)", "Purple")
-                            </button>
+                            @foreach (var color in new[] { "blue", "emerald", "purple", "cyan", "amber" })
+                            {
+                                bool isSelected = TempPrefs.AccentColor == color;
+                                string hex = color switch {
+                                    "emerald" => "#10B981",
+                                    "purple" => "#8B5CF6",
+                                    "cyan" => "#06B6D4",
+                                    "amber" => "#F59E0B",
+                                    _ => "#2563EB"
+                                };
+                                <div @onclick="() => TempPrefs.AccentColor = color" 
+                                     style="width: 32px; height: 32px; border-radius: 50%; background: @hex; cursor: pointer; border: @(isSelected ? "3px solid #FFFFFF" : "1px solid rgba(255,255,255,0.2)"); box-shadow: @(isSelected ? "0 0 10px " + hex : "none");" 
+                                     title="@color"></div>
+                            }
                         </div>
                     </div>
 
-                    <!-- Section 5: Workflow Options -->
-                    <div class="p-3 mb-3 rounded bg-dark border border-secondary">
-                        <div class="form-check form-switch mb-2">
-                            <input class="form-check-input" type="checkbox" id="switchSound" @bind="TempPrefs.SoundEnabled" />
-                            <label class="form-check-label text-white small" for="switchSound">
-                                🔊 @Prefs.T("تفعيل التنبيه الصوتي (Audio Beep) عند مسح الباركود بنجاح", "Enable audio beep on successful barcode scan")
-                            </label>
+                    <!-- Section 4: Table Density & Landing Page -->
+                    <div class="mb-4">
+                        <label class="form-label fw-bold text-info small mb-1">
+                            4. @Prefs.T("كثافة الجداول والصفحة الافتراضية:", "Table Density & Landing:")
+                        </label>
+                        <div class="d-flex gap-2 mb-2">
+                            <button type="button" class="btn btn-sm flex-fill @(TempPrefs.Density == "compact" ? "btn-info" : "btn-outline-secondary")" 
+                                    @onclick='() => TempPrefs.Density = "compact"'>
+                                @Prefs.T("مضغوط (Compact)", "Compact")
+                            </button>
+                            <button type="button" class="btn btn-sm flex-fill @(TempPrefs.Density == "comfortable" ? "btn-info" : "btn-outline-secondary")" 
+                                    @onclick='() => TempPrefs.Density = "comfortable"'>
+                                @Prefs.T("مريح (Comfortable)", "Comfortable")
+                            </button>
                         </div>
-
                         <div class="mt-2">
                             <label class="form-label text-secondary small mb-1">
                                 @Prefs.T("الصفحة الافتراضية عند بدء التشغيل:", "Default Landing Page:")
@@ -257,6 +248,7 @@
 
 @code {
     private string QuickScanBarcode { get; set; } = "";
+    private string? ActivePatientTabTitle { get; set; } = null;
     private bool IsPreferencesModalOpen = false;
     private UserPreferences TempPrefs = new();
     private string? PreferencesAlert;
@@ -266,11 +258,42 @@
         if (firstRender)
         {
             Prefs.OnChange += StateHasChanged;
+            AuthSession.OnAuthStateChanged += StateHasChanged;
+
             if (!Prefs.IsLoaded)
             {
                 await Prefs.LoadAsync();
             }
+
+            await AuthSession.InitializeAsync();
+
+            if (!AuthSession.IsAuthenticated)
+            {
+                var relativePath = NavManager.ToBaseRelativePath(NavManager.Uri);
+                if (!relativePath.StartsWith("login", StringComparison.OrdinalIgnoreCase))
+                {
+                    var returnUrlParam = string.IsNullOrWhiteSpace(relativePath) ? "" : $"?returnUrl={Uri.EscapeDataString(relativePath)}";
+                    NavManager.NavigateTo($"login{returnUrlParam}", forceLoad: false);
+                    return;
+                }
+            }
+
+            StateHasChanged();
         }
+    }
+
+    private async Task ConfirmLogout()
+    {
+        bool confirmed = await JS.InvokeAsync<bool>("lisConfirm", Prefs.T("هل أنت متأكد من رغبتك في تسجيل الخروج من النظام السريري؟", "Are you sure you want to sign out from the clinical system?"));
+        if (confirmed)
+        {
+            await AuthSession.LogoutAsync();
+        }
+    }
+
+    private void ClearActivePatientTab()
+    {
+        ActivePatientTabTitle = null;
     }
 
     private async Task ToggleSidebar()
@@ -341,5 +364,6 @@
     public void Dispose()
     {
         Prefs.OnChange -= StateHasChanged;
+        AuthSession.OnAuthStateChanged -= StateHasChanged;
     }
 }

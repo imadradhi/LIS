@@ -12,15 +12,17 @@ namespace Lis.Core.ASTM
     {
         public override char RecordType => 'H';
         public string Delimiters { get; set; } = @"\^&";
+        public string MessageControlId { get; set; } = string.Empty;
+        public string AccessPassword { get; set; } = "DPC";
         public string SenderId { get; set; } = "LIS";
-        public string ReceiverId { get; set; } = string.Empty;
+        public string ReceiverId { get; set; } = "LIS";
         public string ProcessingId { get; set; } = "P";
         public string VersionNo { get; set; } = "1";
         public DateTime Timestamp { get; set; } = DateTime.Now;
 
         public string ToAstmString()
         {
-            return $"H|{Delimiters}|||{SenderId}||||||{ProcessingId}|{VersionNo}|{Timestamp:yyyyMMddHHmmss}";
+            return $"H|{Delimiters}|{MessageControlId}|{AccessPassword}|{SenderId}|||||{ReceiverId}||{ProcessingId}|{VersionNo}|{Timestamp:yyyyMMddHHmmss}";
         }
     }
 
@@ -50,7 +52,7 @@ namespace Lis.Core.ASTM
         public List<string> UniversalTestCodes { get; set; } = new List<string>();
         public string Priority { get; set; } = "R"; // R = Routine, S = Stat
         public string SpecimenType { get; set; } = "Serum";
-        public string ActionCode { get; set; } = "Q"; // Q = In response to Query, N = New, C = Cancel
+        public string ActionCode { get; set; } = "N"; // N = New, Q = In response to Query, C = Cancel
         public string ReportType { get; set; } = "O";
 
         /// <summary>
@@ -99,7 +101,7 @@ namespace Lis.Core.ASTM
         {
             // Test codes format: ^^^CODE1\^^^CODE2
             var formattedTests = string.Join("\\", UniversalTestCodes);
-            return $"O|{SequenceNumber}|{SpecimenId}|{InstrumentSpecimenId}|{formattedTests}|{Priority}||||||A||||{SpecimenType}||||||||||{ReportType}";
+            return $"O|{SequenceNumber}|{SpecimenId}|{InstrumentSpecimenId}|{formattedTests}|{Priority}||||||{ActionCode}||||{SpecimenType}||||||||||{ReportType}";
         }
     }
 

@@ -3,6 +3,7 @@
 @inject IAuthService AuthService
 @inject NavigationManager NavManager
 @inject UserPreferencesService Prefs
+@inject IJSRuntime JS
 @implements IDisposable
 
 <PageTitle>@Prefs.T("أجهزة التحليل الطبي - LIS Web", "Instruments & Analyzers - LIS Web")</PageTitle>
@@ -365,6 +366,39 @@
 
     private string AlertMessage = "";
     private string AlertClass = "alert-success";
+    private CancellationTokenSource? _alertCts;
+
+    private void SetAlert(string message, string alertClass = "alert-success", int autoDismissMs = 4500)
+    {
+        _alertCts?.Cancel();
+        _alertCts?.Dispose();
+        _alertCts = new CancellationTokenSource();
+        var token = _alertCts.Token;
+
+        AlertMessage = message;
+        AlertClass = alertClass;
+        StateHasChanged();
+
+        if (autoDismissMs > 0)
+        {
+            _ = Task.Run(async () =>
+            {
+                try
+                {
+                    await Task.Delay(autoDismissMs, token);
+                    if (!token.IsCancellationRequested)
+                    {
+                        await InvokeAsync(() =>
+                        {
+                            AlertMessage = "";
+                            StateHasChanged();
+                        });
+                    }
+                }
+                catch (TaskCanceledException) { }
+            }, token);
+        }
+    }
 
     private bool IsTestingConnection = false;
     private string TestResultText = "";
@@ -385,6 +419,8 @@
 
     public void Dispose()
     {
+        _alertCts?.Cancel();
+        _alertCts?.Dispose();
         Prefs.OnChange -= OnPrefsChanged;
     }
 
@@ -409,8 +445,7 @@
         }
         catch (Exception ex)
         {
-            AlertClass = "alert-danger";
-            AlertMessage = $"خطأ في استرجاع أجهزة التحليل: {ex.Message}";
+            SetAlert(Prefs.T($"خطأ في استرجاع أجهزة التحليل: {ex.Message}", $"Error loading analyzers: {ex.Message}"), "alert-danger");
         }
     }
 
@@ -587,15 +622,13 @@
     {
         if (string.IsNullOrWhiteSpace(CurrentEditingModel.Code))
         {
-            AlertClass = "alert-warning";
-            AlertMessage = "يرجى كتابة كود الجهاز (Code) أولاً.";
+            SetAlert(Prefs.T("يرجى كتابة كود الجهاز (Code) أولاً.", "Please enter the instrument code first."), "alert-warning");
             return;
         }
 
         if (string.IsNullOrWhiteSpace(CurrentEditingModel.Name))
         {
-            AlertClass = "alert-warning";
-            AlertMessage = "يرجى كتابة اسم الجهاز (Name).";
+            SetAlert(Prefs.T("يرجى كتابة اسم الجهاز (Name).", "Please enter the instrument name."), "alert-warning");
             return;
         }
 
@@ -617,8 +650,7 @@
 
                 if (duplicateCount > 0)
                 {
-                    AlertClass = "alert-warning";
-                    AlertMessage = $"كود الجهاز [{targetCode}] مستخدم بالفعل مع جهاز آخر. يرجى اختيار كود فريد.";
+                    SetAlert(Prefs.T($"كود الجهاز [{targetCode}] مستخدم بالفعل مع جهاز آخر. يرجى اختيار كود فريد.", $"Instrument code [{targetCode}] is already in use by another instrument. Please choose a unique code."), "alert-warning");
                     IsSaving = false;
                     return;
                 }
@@ -664,8 +696,7 @@
                     Active = CurrentEditingModel.Active
                 });
 
-                AlertClass = "alert-success";
-                AlertMessage = $"✅ تم تحديث بيانات الجهاز [{CurrentEditingModel.Name}] بنجاح!";
+                SetAlert(Prefs.T($"✅ تم تحديث بيانات الجهاز [{CurrentEditingModel.Name}] بنجاح!", $"✅ Instrument [{CurrentEditingModel.Name}] updated successfully!"), "alert-success");
             }
             else
             {
@@ -676,8 +707,7 @@
 
                 if (duplicateCount > 0)
                 {
-                    AlertClass = "alert-warning";
-                    AlertMessage = $"كود الجهاز [{targetCode}] مسجل مسبقاً في النظام. يرجى اختيار كود آخر.";
+                    SetAlert(Prefs.T($"كود الجهاز [{targetCode}] مسجل مسبقاً في النظام. يرجى اختيار كود آخر.", $"Instrument code [{targetCode}] is already registered. Please choose another code."), "alert-warning");
                     IsSaving = false;
                     return;
                 }
@@ -712,8 +742,7 @@
                 });
 
                 CurrentEditingModel.Id = newId;
-                AlertClass = "alert-success";
-                AlertMessage = $"✅ تم إضافة الجهاز الجديد [{CurrentEditingModel.Name}] بنجاح!";
+                SetAlert(Prefs.T($"✅ تم إضافة الجهاز الجديد [{CurrentEditingModel.Name}] بنجاح!", $"✅ New instrument [{CurrentEditingModel.Name}] added successfully!"), "alert-success");
             }
 
             // Notify real-time channel
@@ -729,8 +758,7 @@
         }
         catch (Exception ex)
         {
-            AlertClass = "alert-danger";
-            AlertMessage = $"خطأ أثناء حفظ الجهاز: {ex.Message}";
+            SetAlert(Prefs.T($"خطأ أثناء حفظ الجهاز: {ex.Message}", $"Error saving instrument: {ex.Message}"), "alert-danger");
         }
         finally
         {
@@ -740,6 +768,15 @@
 
     private async Task DeleteInstrument(long id, string name)
     {
+        bool confirmed = await JS.InvokeAsync<bool>("lisConfirm",
+            Prefs.T("تأكيد حذف جهاز التحليل", "Confirm Instrument Deletion"),
+            Prefs.T($"هل أنت متأكد من رغبتك في حذف جهاز [{name}] من النظام نهائياً؟ ستتوقف المزامنة مع هذا الجهاز.",
+                    $"Are you sure you want to permanently delete analyzer [{name}] from the system? Interface syncing will stop."),
+            Prefs.T("نعم، احذف الجهاز", "Yes, Delete Instrument"),
+            Prefs.T("تراجع", "Cancel"),
+            "danger");
+        if (!confirmed) return;
+
         try
         {
             using var conn = ConnectionFactory.CreateConnection();
@@ -751,16 +788,14 @@
             }
             catch { }
 
-            AlertClass = "alert-success";
-            AlertMessage = $"🗑️ تم حذف الجهاز [{name}] بنجاح من النظام.";
+            SetAlert(Prefs.T($"🗑️ تم حذف الجهاز [{name}] بنجاح من النظام.", $"🗑️ Instrument [{name}] deleted successfully from the system."), "alert-success");
 
             NewInstrumentForm();
             await LoadInstrumentsAsync();
         }
         catch (Exception ex)
         {
-            AlertClass = "alert-danger";
-            AlertMessage = $"خطأ أثناء حذف الجهاز: {ex.Message}";
+            SetAlert(Prefs.T($"خطأ أثناء حذف الجهاز: {ex.Message}", $"Error deleting instrument: {ex.Message}"), "alert-danger");
         }
     }
 }

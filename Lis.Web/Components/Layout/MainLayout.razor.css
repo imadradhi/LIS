@@ -3,52 +3,64 @@
     min-height: 100vh;
     background-color: var(--bg-main);
     direction: ltr;
+    width: 100%;
 }
 
 .lis-sidebar {
-    width: 250px;
-    min-width: 250px;
-    background-color: var(--bg-sidebar);
-    border-right: 1px solid var(--border-color);
+    width: 76px;
+    min-width: 76px;
+    max-width: 76px;
+    background-color: var(--medlab-navy, #003E6B);
+    border-right: 1px solid var(--medlab-navy-dark, #002D4F);
     display: flex;
     flex-direction: column;
-    transition: width 0.2s ease, min-width 0.2s ease;
+    position: fixed;
+    top: 0;
+    bottom: 0;
+    left: 0;
+    z-index: 1020;
     overflow-y: auto;
     overflow-x: hidden;
-    z-index: 100;
+    flex-shrink: 0;
 }
 
 /* Collapsed Sidebar Mode (Icons Only) */
 .sidebar-collapsed .lis-sidebar {
-    width: 66px;
-    min-width: 66px;
+    width: 76px;
+    min-width: 76px;
+    max-width: 76px;
 }
 
 .lis-main-content {
     flex: 1;
+    margin-left: 76px !important;
+    width: calc(100% - 76px) !important;
     display: flex;
     flex-direction: column;
     min-width: 0;
-    overflow-x: auto; /* Prevent any content clipping on small screens */
-    width: 100%;
+    min-height: 100vh;
+    background-color: var(--medlab-bg-app, #EEF3F8);
 }
 
 .lis-topbar {
-    min-height: 54px;
-    height: 54px;
-    background-color: var(--bg-sidebar);
+    min-height: 52px;
+    height: 52px;
+    background-color: #FFFFFF;
     border-bottom: 1px solid var(--border-color);
     padding: 0 16px;
     display: flex;
     align-items: center;
     justify-content: space-between;
     gap: 12px;
+    position: sticky;
+    top: 0;
+    z-index: 1010;
 }
 
 .lis-body-container {
     flex: 1;
     padding: 16px 20px;
-    background-color: var(--bg-main);
+    background-color: var(--medlab-bg-app, #EEF3F8);
     overflow-y: auto;
     overflow-x: auto;
     min-width: 0;
@@ -56,10 +68,6 @@
 
 /* Laptop and standard screen optimizations (1400px and below) */
 @media (max-width: 1400px) {
-    .lis-sidebar {
-        width: 220px;
-        min-width: 220px;
-    }
     .lis-body-container {
         padding: 12px 14px;
     }
@@ -96,19 +104,4 @@
     position: absolute;
     left: 1rem;
     top: 0.75rem;
-}
-
-@media (max-width: 768px) {
-    .lis-app-wrapper {
-        flex-direction: column;
-    }
-    .lis-sidebar {
-        width: 100%;
-        min-width: 100%;
-        border-right: none;
-        border-bottom: 1px solid var(--border-color);
-    }
-    .sidebar-collapsed .lis-sidebar {
-        display: none;
-    }
 }

@@ -25,7 +25,10 @@
 
 @if (!string.IsNullOrEmpty(AlertMessage))
 {
-    <div class="alert @AlertClass py-2 px-3 mb-3">@AlertMessage</div>
+    <div class="alert @AlertClass py-2 px-3 mb-3 d-flex justify-content-between align-items-center shadow-sm">
+        <span>@AlertMessage</span>
+        <button type="button" class="btn-close ms-2" style="position: static; padding: 0.5rem;" @onclick='() => AlertMessage = ""'></button>
+    </div>
 }
 
 @if (CashReport != null)
@@ -292,6 +295,39 @@
     private List<dynamic>? UnpaidInvoices;
     private string AlertMessage = "";
     private string AlertClass = "alert-success";
+    private CancellationTokenSource? _alertCts;
+
+    private void SetAlert(string message, string alertClass = "alert-success", int autoDismissMs = 4500)
+    {
+        _alertCts?.Cancel();
+        _alertCts?.Dispose();
+        _alertCts = new CancellationTokenSource();
+        var token = _alertCts.Token;
+
+        AlertMessage = message;
+        AlertClass = alertClass;
+        StateHasChanged();
+
+        if (autoDismissMs > 0)
+        {
+            _ = Task.Run(async () =>
+            {
+                try
+                {
+                    await Task.Delay(autoDismissMs, token);
+                    if (!token.IsCancellationRequested)
+                    {
+                        await InvokeAsync(() =>
+                        {
+                            AlertMessage = "";
+                            StateHasChanged();
+                        });
+                    }
+                }
+                catch (TaskCanceledException) { }
+            }, token);
+        }
+    }
 
     // Receive Payment Modal
     private dynamic? SelectedInvoiceForPayment;
@@ -308,6 +344,8 @@
 
     public void Dispose()
     {
+        _alertCts?.Cancel();
+        _alertCts?.Dispose();
         Prefs.OnChange -= OnPrefsChanged;
     }
 
@@ -348,14 +386,12 @@
             long invId = (long)SelectedInvoiceForPayment.id;
             await BillingService.RecordPaymentAsync(invId, PaymentAmount, PaymentMethod, currentUserId: 1);
             SelectedInvoiceForPayment = null;
-            AlertClass = "alert-success";
-            AlertMessage = Prefs.T("✅ تم تسجيل الدفعة النقدية وتحديث رصيد الفاتورة بنجاح!", "✅ Payment recorded and invoice balance updated successfully!");
+            SetAlert(Prefs.T("✅ تم تسجيل الدفعة النقدية وتحديث رصيد الفاتورة بنجاح!", "✅ Payment recorded and invoice balance updated successfully!"), "alert-success");
             await LoadReport();
         }
         catch (Exception ex)
         {
-            AlertClass = "alert-danger";
-            AlertMessage = Prefs.T($"حدث خطأ أثناء تسجيل الدفعة: {ex.Message}", $"Error recording payment: {ex.Message}");
+            SetAlert(Prefs.T($"حدث خطأ أثناء تسجيل الدفعة: {ex.Message}", $"Error recording payment: {ex.Message}"), "alert-danger");
         }
     }
 }

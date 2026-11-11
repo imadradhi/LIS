@@ -24,6 +24,7 @@ builder.Services.AddScoped<ILabSettingsService, LabSettingsService>();
 builder.Services.AddScoped<IQcService, QcService>();
 builder.Services.AddScoped<DirectPrintService>();
 builder.Services.AddScoped<UserPreferencesService>();
+builder.Services.AddScoped<AuthSessionService>();
 
 var app = builder.Build();
 

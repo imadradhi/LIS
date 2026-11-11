@@ -1,6 +1,7 @@
 using System;
 using System.Reflection;
 using System.Threading.Tasks;
+using Dapper;
 
 namespace Lis.Tests
 {
@@ -13,6 +14,33 @@ namespace Lis.Tests
             Console.WriteLine("       LIS - Laboratory Information System Test Suite        ");
             Console.WriteLine("=============================================================");
             Console.ResetColor();
+
+            if (args.Length > 0 && args[0] == "--check-samples")
+            {
+                var fix = new TestDatabaseFixture();
+                using var conn = fix.ConnectionFactory.CreateConnection();
+                var rows = await conn.QueryAsync(@"
+                    SELECT s.id AS specimen_id, s.order_id, s.accession_no, s.status, s.archived,
+                           st.name_en AS tube, p.id AS patient_id, p.mrn, p.full_name_ar,
+                           ot.id AS order_test_id, ot.test_id, tc.test_code, tc.name_en AS test_name,
+                           it.instrument_id, it.instrument_test_code, inst.name AS inst_name, inst.code AS inst_code
+                    FROM specimens s
+                    JOIN specimen_types st ON st.id = s.specimen_type_id
+                    JOIN orders o ON o.id = s.order_id
+                    JOIN patients p ON p.id = o.patient_id
+                    LEFT JOIN order_tests ot ON ot.specimen_id = s.id
+                    LEFT JOIN test_catalog tc ON tc.id = ot.test_id
+                    LEFT JOIN instrument_tests it ON it.test_id = tc.id
+                    LEFT JOIN instruments inst ON inst.id = it.instrument_id
+                    ORDER BY s.id ASC;
+                ");
+                Console.WriteLine("\n=== ALL SPECIMENS & MAPPINGS ===");
+                foreach (var r in rows)
+                {
+                    Console.WriteLine($"Specimen #{r.specimen_id} | Order #{r.order_id} | Acc: '{r.accession_no}' | Status: {r.status} | Arch: {r.archived} | Patient: {r.full_name_ar} (MRN: {r.mrn}) | Test: {r.test_code} ({r.test_name}) | Inst: {r.inst_name} ({r.inst_code}) -> MappedCode: '{r.instrument_test_code}'");
+                }
+                return 0;
+            }
 
             if (args.Length > 0 && args[0] == "--test-dimension")
             {
@@ -177,6 +205,23 @@ namespace Lis.Tests
                     }
                 }
 
+                return 0;
+            }
+
+            if (args.Length > 0 && args[0] == "--logs")
+            {
+                var fixtureForLogs = new TestDatabaseFixture();
+                using var conn = fixtureForLogs.ConnectionFactory.CreateConnection();
+                if (conn.State != System.Data.ConnectionState.Open)
+                    await ((System.Data.Common.DbConnection)conn).OpenAsync();
+
+                using var cmd = (System.Data.Common.DbCommand)conn.CreateCommand();
+                cmd.CommandText = "SELECT id, raw_message, direction, parse_status, timestamp FROM middleware_log ORDER BY id DESC LIMIT 15;";
+                using var reader = await cmd.ExecuteReaderAsync();
+                while (await reader.ReadAsync())
+                {
+                    Console.WriteLine($"[{reader["timestamp"]:HH:mm:ss}] [{reader["direction"]}] [{reader["parse_status"]}]\n{reader["raw_message"]}\n--------------------------------");
+                }
                 return 0;
             }
 

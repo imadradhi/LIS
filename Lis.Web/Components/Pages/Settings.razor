@@ -3,6 +3,7 @@
 @inject NavigationManager NavManager
 @inject DirectPrintService PrintService
 @inject UserPreferencesService Prefs
+@inject IJSRuntime JS
 @implements IDisposable
 
 <PageTitle>@Prefs.T("إعدادات النظام والمختبر والترويسة - LIS Web", "Settings & Reports - LIS Web")</PageTitle>
@@ -883,6 +884,16 @@
     private async Task RemoveLogo()
     {
         if (SettingsModel == null) return;
+
+        bool confirmed = await JS.InvokeAsync<bool>("lisConfirm",
+            Prefs.T("تأكيد حذف الشعار", "Confirm Logo Removal"),
+            Prefs.T("هل أنت متأكد من رغبتك في حذف الشعار الرسمي للمختبر؟ لن يظهر في التقارير الطبية وإيصالات القبض.",
+                    "Are you sure you want to remove the laboratory logo? It will no longer appear on medical reports and receipts."),
+            Prefs.T("نعم، احذف الشعار", "Yes, Remove Logo"),
+            Prefs.T("تراجع", "Cancel"),
+            "danger");
+        if (!confirmed) return;
+
         try
         {
             SettingsModel.LogoData = null;

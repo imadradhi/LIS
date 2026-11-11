@@ -166,12 +166,26 @@
                                 @mrn
                             </td>
 
-                            <!-- Status (Text-only with distinct color per status, NO colored background) -->
+                            <!-- Status (Text-only with distinct color per status, clickable on Rejected) -->
                             <td>
-                                <span class="fw-bold font-monospace d-inline-flex align-items-center gap-1" style="color: @GetStatusTextColor(status); font-size: 13px;">
-                                    <i class="@GetStatusIcon(status)" style="font-size: 11px;"></i>
-                                    <span>@status</span>
-                                </span>
+                                @if (status == "Rejected")
+                                {
+                                    <button type="button" class="btn btn-sm btn-link p-0 text-danger text-decoration-none fw-bold d-inline-flex align-items-center gap-1"
+                                            style="font-size: 13px;"
+                                            @onclick="() => ShowRejectionModal(item)"
+                                            title="@Prefs.T("انقر لعرض تقرير وتفاصيل سبب الرفض السريري", "Click to view clinical rejection report & notes")">
+                                        <i class="fas fa-ban text-danger" style="font-size: 11px;"></i>
+                                        <span>@status</span>
+                                        <i class="fas fa-circle-info ms-1 text-danger" style="font-size: 11px;"></i>
+                                    </button>
+                                }
+                                else
+                                {
+                                    <span class="fw-bold font-monospace d-inline-flex align-items-center gap-1" style="color: @GetStatusTextColor(status); font-size: 13px;">
+                                        <i class="@GetStatusIcon(status)" style="font-size: 11px;"></i>
+                                        <span>@status</span>
+                                    </span>
+                                }
                             </td>
 
                             <!-- Collected Time -->
@@ -201,11 +215,17 @@
                                         <i class="fas fa-print fs-6"></i>
                                     </button>
 
-                                    <!-- Reject Button: Active if Ordered, Disabled if already collected/processed (Never removed) -->
+                                    <!-- Reject Button: Active if Ordered, View Rejection if Rejected, Disabled if collected -->
                                     @if (status == "Ordered")
                                     {
                                         <button class="btn btn-sm btn-outline-danger p-0" style="width: 34px; height: 34px; min-height: 34px; border-radius: 8px;" data-mdb-ripple-init title="رفض العينة وتحديد السبب" @onclick="() => OpenRejectModal(item)">
                                             <i class="fas fa-times fs-6"></i>
+                                        </button>
+                                    }
+                                    else if (status == "Rejected")
+                                    {
+                                        <button class="btn btn-sm btn-danger p-0 shadow-sm" style="width: 34px; height: 34px; min-height: 34px; border-radius: 8px;" data-mdb-ripple-init title="@Prefs.T("عرض تقرير سبب الرفض", "View Rejection Details")" @onclick="() => ShowRejectionModal(item)">
+                                            <i class="fas fa-file-circle-xmark fs-6"></i>
                                         </button>
                                     }
                                     else
@@ -285,8 +305,132 @@
 }
 
 <!-- ========================================================================= -->
-<!-- MODAL: Barcode Thermal Label Preview (50×25mm)                            -->
+<!-- MODAL: View Clinical Specimen Rejection Record                            -->
 <!-- ========================================================================= -->
+@if (SelectedRejectedSpecimenToView != null)
+{
+    <div class="modal fade show d-block" tabindex="-1" style="background: rgba(0,0,0,0.75); backdrop-filter: blur(4px); z-index: 1065;" aria-modal="true" role="dialog">
+        <div class="modal-dialog modal-dialog-centered" style="max-width: 540px;">
+            <div class="modal-content shadow-3-strong border-0" style="background: var(--bg-card); color: var(--text-main); border-radius: 12px; overflow: hidden;">
+                <!-- Modal Header -->
+                <div class="modal-header bg-danger text-white py-3 px-4 d-flex justify-content-between align-items-center">
+                    <h5 class="modal-title fs-6 fw-bold mb-0 d-flex align-items-center gap-2">
+                        <i class="fas fa-file-circle-xmark fs-5"></i>
+                        <span>@Prefs.T("تقرير سبب رفض العينة السريري", "Clinical Specimen Rejection Record")</span>
+                    </h5>
+                    <button type="button" class="btn-close btn-close-white" @onclick="CloseRejectionModal"></button>
+                </div>
+
+                <!-- Modal Body -->
+                <div class="modal-body p-4">
+                    <!-- Specimen & Patient Summary Card -->
+                    <div class="p-3 mb-3 rounded-3" style="background: rgba(239, 68, 68, 0.06); border: 1px solid rgba(239, 68, 68, 0.2);">
+                        <div class="d-flex justify-content-between align-items-center mb-2">
+                            <div>
+                                <span class="badge bg-danger font-monospace px-2 py-1" style="font-size: 11px;">
+                                    @Prefs.T("عينة مرفوضة طبياً", "REJECTED SPECIMEN")
+                                </span>
+                            </div>
+                            <div class="font-monospace fw-bold text-danger fs-6">
+                                #@SelectedRejectedSpecimenToView.accession_no
+                            </div>
+                        </div>
+
+                        <div class="d-flex align-items-center justify-content-between border-top border-secondary border-opacity-25 pt-2 mt-2" style="font-size: 12px;">
+                            <div>
+                                <span class="text-secondary">@Prefs.T("المراجع:", "Patient:")</span>
+                                <strong class="ms-1">@SelectedRejectedSpecimenToView.full_name_ar</strong>
+                            </div>
+                            <div>
+                                <span class="text-secondary">MRN:</span>
+                                <strong class="ms-1 font-monospace">@SelectedRejectedSpecimenToView.mrn</strong>
+                            </div>
+                        </div>
+
+                        <div class="d-flex align-items-center justify-content-between pt-1" style="font-size: 12px;">
+                            <div>
+                                <span class="text-secondary">@Prefs.T("نوع الأنبوب:", "Tube:")</span>
+                                <strong class="ms-1">@SelectedRejectedSpecimenToView.specimen_type_name</strong>
+                            </div>
+                            <div>
+                                <span class="text-secondary">@Prefs.T("الفحوصات:", "Tests:")</span>
+                                <strong class="ms-1 font-monospace">@SelectedRejectedSpecimenToView.test_names</strong>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Clinical Reason Card -->
+                    <div class="mb-3">
+                        <label class="form-label text-secondary small fw-bold mb-1">
+                            <i class="fas fa-stethoscope text-danger me-1"></i>
+                            @Prefs.T("سبب الرفض المعتمد (Rejection Reason):", "Rejection Reason:")
+                        </label>
+                        <div class="p-3 rounded-2 d-flex align-items-center gap-3 border" style="background: var(--bg-input, rgba(255,255,255,0.03)); border-color: var(--medlab-border);">
+                            <div class="rounded-circle bg-danger bg-opacity-10 text-danger d-flex align-items-center justify-content-center" style="width: 40px; height: 40px; min-width: 40px;">
+                                <i class="fas fa-triangle-exclamation fs-5"></i>
+                            </div>
+                            <div>
+                                <div class="fw-bold fs-6 text-danger">
+                                    @(SelectedRejectedSpecimenToView.display_rejection_reason)
+                                </div>
+                                @if (!string.IsNullOrWhiteSpace(SelectedRejectedSpecimenToView.rejection_reason_name_en) && SelectedRejectedSpecimenToView.rejection_reason_name_en != SelectedRejectedSpecimenToView.display_rejection_reason)
+                                {
+                                    <div class="text-secondary small font-monospace">
+                                        @SelectedRejectedSpecimenToView.rejection_reason_name_en
+                                    </div>
+                                }
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Technician Notes -->
+                    <div class="mb-3">
+                        <label class="form-label text-secondary small fw-bold mb-1">
+                            <i class="fas fa-comment-medical text-primary me-1"></i>
+                            @Prefs.T("ملاحظات فني المختبر السريرية:", "Technician Clinical Notes:")
+                        </label>
+                        <div class="p-3 rounded-2 border text-break font-monospace" style="background: var(--bg-input, rgba(255,255,255,0.02)); border-color: var(--medlab-border); font-size: 12.5px; min-height: 55px;">
+                            @if (!string.IsNullOrWhiteSpace(SelectedRejectedSpecimenToView.rejection_notes))
+                            {
+                                <span>@SelectedRejectedSpecimenToView.rejection_notes</span>
+                            }
+                            else
+                            {
+                                <span class="text-secondary italic">@Prefs.T("لا توجد ملاحظات إضافية مسجلة.", "No additional notes provided.")</span>
+                            }
+                        </div>
+                    </div>
+
+                    <!-- Audit Trail / Who & When -->
+                    <div class="d-flex align-items-center justify-content-between p-2 rounded-2" style="background: rgba(255,255,255,0.03); font-size: 11.5px;">
+                        <div>
+                            <i class="fas fa-user-shield text-info me-1"></i>
+                            <span class="text-secondary">@Prefs.T("سُجل الرفض بواسطة:", "Rejected by:")</span>
+                            <strong class="ms-1">@(SelectedRejectedSpecimenToView.rejected_by_user ?? "Admin / فني المختبر")</strong>
+                        </div>
+                        <div>
+                            <i class="fas fa-clock text-warning me-1"></i>
+                            <span class="text-secondary font-monospace">
+                                @(SelectedRejectedSpecimenToView.rejected_at.HasValue ? SelectedRejectedSpecimenToView.rejected_at.Value.ToString("yyyy-MM-dd HH:mm") : DateTime.Now.ToString("yyyy-MM-dd HH:mm"))
+                            </span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Modal Footer -->
+                <div class="modal-footer border-top border-secondary border-opacity-25 d-flex justify-content-between p-3">
+                    <button type="button" class="btn btn-outline-secondary btn-sm px-4" data-mdb-ripple-init @onclick="CloseRejectionModal">
+                        @Prefs.T("إغلاق", "Close")
+                    </button>
+                    <a href="results?orderId=@SelectedRejectedSpecimenToView.order_id" class="btn btn-primary btn-sm px-3 d-flex align-items-center gap-1 text-decoration-none">
+                        <i class="fas fa-microscope"></i>
+                        <span>@Prefs.T("عرض في صفحة النتائج", "View in Results")</span>
+                    </a>
+                </div>
+            </div>
+        </div>
+    </div>
+}
 @if (SelectedSpecimenForLabel != null)
 {
     <div class="modal fade show d-block" tabindex="-1" style="background: rgba(0,0,0,0.8); backdrop-filter: blur(4px); z-index: 1060;">
@@ -359,6 +503,12 @@
         public string test_names { get; set; } = string.Empty;
         public decimal paid_amount { get; set; }
         public string invoice_status { get; set; } = string.Empty;
+        public string? rejection_notes { get; set; }
+        public DateTime? rejected_at { get; set; }
+        public string? rejection_reason_name_ar { get; set; }
+        public string? rejection_reason_name_en { get; set; }
+        public string? rejected_by_user { get; set; }
+        public string display_rejection_reason => !string.IsNullOrWhiteSpace(rejection_reason_name_ar) ? rejection_reason_name_ar : (rejection_reason_name_en ?? "مرفوضة");
     }
 
     [SupplyParameterFromQuery(Name = "scan")]
@@ -370,6 +520,11 @@
     private string SelectedDepartment = "";
     private string SelectedStatus = "";
     private string FilterBarcodeQuery = "";
+
+    // View Rejection Modal State
+    private WorklistItemDto? SelectedRejectedSpecimenToView;
+    private void ShowRejectionModal(WorklistItemDto item) => SelectedRejectedSpecimenToView = item;
+    private void CloseRejectionModal() => SelectedRejectedSpecimenToView = null;
 
     // Rejection Modal State
     private WorklistItemDto? SelectedSpecimenToReject;
@@ -453,7 +608,12 @@
                 date_of_birth = r.date_of_birth is DateTime dob ? dob : (DateTime.TryParse(r.date_of_birth?.ToString(), out DateTime p3) ? p3 : (DateTime?)null),
                 test_names = (r.test_names ?? "").ToString(),
                 paid_amount = Convert.ToDecimal(r.paid_amount ?? 0),
-                invoice_status = (r.invoice_status ?? "").ToString()
+                invoice_status = (r.invoice_status ?? "").ToString(),
+                rejection_notes = r.rejection_notes?.ToString(),
+                rejected_at = r.rejected_at is DateTime rdt ? rdt : (DateTime.TryParse(r.rejected_at?.ToString(), out DateTime prdt) ? prdt : (DateTime?)null),
+                rejection_reason_name_ar = r.rejection_reason_name_ar?.ToString(),
+                rejection_reason_name_en = r.rejection_reason_name_en?.ToString(),
+                rejected_by_user = r.rejected_by_user?.ToString()
             }).ToList();
 
             FilterWorklist();

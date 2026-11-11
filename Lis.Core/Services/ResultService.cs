@@ -203,6 +203,8 @@ namespace Lis.Core.Services
         }
 
         public List<ResultItemDto> Results { get; set; } = new List<ResultItemDto>();
+        public List<SpecimenRejectionDto> Rejections { get; set; } = new List<SpecimenRejectionDto>();
+        public bool HasRejections => Rejections.Count > 0;
         public bool IsAllValidated => Results.Count > 0 && Results.All(r => r.IsValidated);
         public bool HasAnyResults => Results.Any(r => !string.IsNullOrWhiteSpace(r.ValueText));
         public bool HasCriticalResults => Results.Any(r => r.IsCritical);
@@ -582,6 +584,25 @@ namespace Lis.Core.Services
             }
 
             order.Results = list;
+
+            var rejections = (await conn.QueryAsync<SpecimenRejectionDto>(@"
+                SELECT sr.id, sr.specimen_id AS SpecimenId, sr.reason_id AS ReasonId,
+                       rr.name_en AS ReasonNameEn, rr.name_ar AS ReasonNameAr,
+                       sr.notes AS Notes, sr.user_id AS UserId,
+                       u.username AS Username, u.full_name AS UserFullName,
+                       sr.created_at AS CreatedAt,
+                       s.accession_no AS AccessionNo,
+                       st.name_en AS SpecimenTypeName
+                FROM specimen_rejections sr
+                JOIN specimens s ON s.id = sr.specimen_id
+                JOIN specimen_types st ON st.id = s.specimen_type_id
+                JOIN rejection_reasons rr ON rr.id = sr.reason_id
+                LEFT JOIN users u ON u.id = sr.user_id
+                WHERE s.order_id = @OrderId
+                ORDER BY sr.id DESC;
+            ", new { OrderId = orderId })).ToList();
+
+            order.Rejections = rejections;
             return order;
         }
 
@@ -656,6 +677,20 @@ namespace Lis.Core.Services
                 {
                     validUserId = await ResolveValidUserIdAsync(conn, currentUserId, trans);
 
+                    // STRICT QUALITY CHECK: Ensure all specimens for this order have been accepted/collected in the lab
+                    var uncollectedSpecimens = await conn.QueryAsync<dynamic>(@"
+                        SELECT s.accession_no, st.name_en AS specimen_type
+                        FROM specimens s
+                        JOIN specimen_types st ON st.id = s.specimen_type_id
+                        WHERE s.order_id = @OrderId AND s.status = 'Ordered';
+                    ", new { OrderId = orderId }, trans);
+
+                    if (uncollectedSpecimens != null && uncollectedSpecimens.Any())
+                    {
+                        var firstUncollected = uncollectedSpecimens.First();
+                        throw new InvalidOperationException($"النظام في الوضع الصارم: لا يمكن حفظ نتائج للطلب #{orderId} لأن العينة [{firstUncollected.specimen_type} - باركود #{firstUncollected.accession_no}] بانتظار الاستلام ولم تُقبل في المختبر بعد. يرجى قبول العينة أولاً.");
+                    }
+
                     foreach (var item in results)
                     {
                         await SaveComponentResultInternalAsync(conn, trans, item.OrderTestId, item.ComponentId, item.ValueText, validUserId);
@@ -664,7 +699,7 @@ namespace Lis.Core.Services
                     await conn.ExecuteAsync(@"
                         UPDATE orders 
                         SET status = 'ResultReceived', updated_at = clock_timestamp() 
-                        WHERE id = @OrderId AND status IN ('Ordered', 'Collected', 'InProgress');
+                        WHERE id = @OrderId AND status IN ('Collected', 'InProgress');
                     ", new { OrderId = orderId }, trans);
 
                     trans.Commit();
@@ -690,15 +725,35 @@ namespace Lis.Core.Services
             long? currentUserId)
         {
             var details = await conn.QueryFirstOrDefaultAsync<dynamic>(@"
-                SELECT ot.order_id, ot.test_id, o.order_datetime, p.sex, p.date_of_birth, c.result_type, c.unit
+                SELECT ot.order_id, ot.test_id, ot.status AS test_status, s.status AS specimen_status, s.accession_no, st.name_en AS specimen_type,
+                       o.order_datetime, p.sex, p.date_of_birth, c.result_type, c.unit
                 FROM order_tests ot
                 JOIN orders o ON o.id = ot.order_id
+                JOIN specimens s ON s.id = ot.specimen_id
+                JOIN specimen_types st ON st.id = s.specimen_type_id
                 JOIN patients p ON p.id = o.patient_id
                 JOIN components c ON c.id = @ComponentId
                 WHERE ot.id = @OrderTestId;
             ", new { OrderTestId = orderTestId, ComponentId = componentId }, trans);
 
             if (details == null) return;
+
+            string specStatus = details.specimen_status?.ToString() ?? "";
+            string accessionNo = details.accession_no?.ToString() ?? "";
+            string specType = details.specimen_type?.ToString() ?? "";
+
+            if (specStatus.Equals("Ordered", StringComparison.OrdinalIgnoreCase))
+            {
+                throw new InvalidOperationException($"النظام في الوضع الصارم: العينة [{specType} - باركود #{accessionNo}] بانتظار الاستلام. يجب قبول واستلام العينة في المختبر أولاً قبل إدخال النتائج وحفظها.");
+            }
+            if (specStatus.Equals("Rejected", StringComparison.OrdinalIgnoreCase))
+            {
+                throw new InvalidOperationException($"العينة [{specType} - باركود #{accessionNo}] مرفوضة طبياً. لا يمكن حفظ نتائج لعينة مرفوضة.");
+            }
+            if (specStatus.Equals("Cancelled", StringComparison.OrdinalIgnoreCase))
+            {
+                throw new InvalidOperationException($"العينة [{specType} - باركود #{accessionNo}] ملغاة.");
+            }
 
             DateTime dob = ParseDateTimeSafe(details.date_of_birth, DateTime.MinValue);
             DateTime orderDt = ParseDateTimeSafe(details.order_datetime, DateTime.Now);
@@ -790,14 +845,14 @@ namespace Lis.Core.Services
             await conn.ExecuteAsync(@"
                 UPDATE order_tests 
                 SET status = 'ResultReceived', updated_at = clock_timestamp() 
-                WHERE id = @OrderTestId AND status IN ('Ordered', 'Collected', 'InProgress');
+                WHERE id = @OrderTestId AND status IN ('Collected', 'InProgress');
             ", new { OrderTestId = orderTestId }, trans);
 
             long orderId = (long)details.order_id;
             await conn.ExecuteAsync(@"
                 UPDATE specimens 
                 SET status = 'ResultReceived', updated_at = clock_timestamp()
-                WHERE order_id = @OrderId AND status IN ('Ordered', 'Collected', 'InProgress');
+                WHERE order_id = @OrderId AND status IN ('Collected', 'InProgress');
             ", new { OrderId = orderId }, trans);
         }
 
